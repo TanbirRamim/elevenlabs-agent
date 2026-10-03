@@ -3,7 +3,7 @@
   // Public entry point for the Shadow API on Cloudflare.
   // The Worker forwards every request (HTTP and WebSocket) to one API container;
   // the three Presidio containers are private and only reachable from the API container.
-  "name": "shadow-api",
+  "name": "elevenlabs-agent",
   "account_id": "d7adc56ae0b48c02f351bb3e7ca6b9bc",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
@@ -55,9 +55,10 @@
       ]
     }
   ],
-  // Secrets the API needs at runtime. Set them in the dashboard (Settings → Variables and Secrets)
-  // or with `wrangler secret put <NAME>`. Listing them here drives type generation and local-dev warnings.
-  "secrets": { "required": ["ANTHROPIC_API_KEY", "S3_ACCESS_KEY", "S3_SECRET_KEY"] },
+  // Secrets (ANTHROPIC_API_KEY, S3_ACCESS_KEY, S3_SECRET_KEY) are set in the dashboard or with
+  // `wrangler secret put`. They are typed in src/secrets.d.ts and deliberately NOT listed under
+  // "secrets.required": that list makes `wrangler deploy` fail until they exist, and on a brand-new
+  // Worker they can only be added after the first deploy.
   // Non-secret config. Secrets are set with `wrangler secret put` (see docs/DEPLOY_CLOUDFLARE.md).
   "vars": {
     "SHADOW_MODEL": "claude-opus-5-5",

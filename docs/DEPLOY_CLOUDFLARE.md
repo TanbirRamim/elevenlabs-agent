@@ -5,7 +5,7 @@ Everything runs on Cloudflare: the web app as a Worker, the API and Presidio as 
 ```mermaid
 flowchart LR
   B[Browser] -->|HTTPS| W[shadow-web<br/>Worker · Next.js via OpenNext]
-  B -->|HTTPS + WebSocket| E[shadow-api<br/>Worker]
+  B -->|HTTPS + WebSocket| E[elevenlabs-agent<br/>API Worker]
   E -->|switchPort + fetch| A[ApiContainer<br/>Fastify · one instance 'main']
   A -->|http://presidio-*.internal<br/>intercepted, never public| P1[PresidioAnalyzer]
   A --> P2[PresidioAnonymizer]
@@ -18,7 +18,7 @@ flowchart LR
 | Piece | Where it lives | Config |
 | --- | --- | --- |
 | Web | `shadow-web` Worker (OpenNext adapter) | `apps/web/wrangler.jsonc`, `apps/web/open-next.config.ts` |
-| API | `shadow-api` Worker + `ApiContainer` (built from `apps/api/Dockerfile`) | `apps/edge/wrangler.jsonc`, `apps/edge/src/index.ts` |
+| API | `elevenlabs-agent` Worker + `ApiContainer` (built from `apps/api/Dockerfile`) | `apps/edge/wrangler.jsonc`, `apps/edge/src/index.ts` |
 | Presidio | Three private containers from Microsoft's official images | `apps/edge/containers/*/Dockerfile` |
 | Storage | R2 bucket `shadow-frames` via the S3 API | `S3_*` vars and secrets |
 
@@ -40,15 +40,15 @@ Workers & Pages → Create → Import a repository → `TanbirRamim/elevenlabs-a
 
 | Setting | Value |
 | --- | --- |
-| Worker name | `shadow-api` (must match `apps/edge/wrangler.jsonc`) |
+| Worker name | `elevenlabs-agent` (must match `apps/edge/wrangler.jsonc`) |
 | Production branch | `main` |
 | Root directory | *(leave empty: repo root)* |
-| Build command | *(leave empty)* |
+| Build command | *(leave empty; the deploy command builds what it needs)* |
 | Deploy command | `pnpm --filter @shadow/edge exec wrangler deploy` |
 | Non-production branch deploy command | `pnpm --filter @shadow/edge exec wrangler versions upload` |
 | Build variables | `NODE_VERSION` = `22` · `PNPM_VERSION` = `12.4.1` |
 
-After the Worker exists: Settings → Variables and Secrets → add as **Secret**: `ANTHROPIC_API_KEY`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Then Deployments → retry the build. The API URL is `https://shadow-api.<your-subdomain>.workers.dev`.
+The first deploy succeeds without secrets and creates the Worker. Then: Settings → Variables and Secrets → add as **Secret**: `ANTHROPIC_API_KEY`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` (saving a secret redeploys the Worker; the API container picks them up on its next start). The API URL is `https://elevenlabs-agent.<your-subdomain>.workers.dev`.
 
 ### Web Worker
 
@@ -62,9 +62,9 @@ Workers & Pages → Create → Import a repository → same repo
 | Build command | `pnpm cf:build:web` |
 | Deploy command | `pnpm --filter @shadow/web exec opennextjs-cloudflare deploy` |
 | Non-production branch deploy command | `pnpm --filter @shadow/web exec opennextjs-cloudflare upload` |
-| Build variables | `NODE_VERSION` = `22` · `PNPM_VERSION` = `12.4.1` · `NEXT_PUBLIC_API_URL` = `https://shadow-api.<your-subdomain>.workers.dev` · `NEXT_PUBLIC_API_WS_URL` = `wss://shadow-api.<your-subdomain>.workers.dev` |
+| Build variables | `NODE_VERSION` = `22` · `PNPM_VERSION` = `12.4.1` · `NEXT_PUBLIC_API_URL` = `https://elevenlabs-agent.<your-subdomain>.workers.dev` · `NEXT_PUBLIC_API_WS_URL` = `wss://elevenlabs-agent.<your-subdomain>.workers.dev` |
 
-After the Worker exists: Settings → Variables and Secrets → add as **Secret**: `ELEVENLABS_API_KEY`, `ELEVENLABS_INTERVIEWER_AGENT_ID`, `ELEVENLABS_TUTOR_AGENT_ID`. Retry the build.
+The first deploy succeeds without secrets. Then: Settings → Variables and Secrets → add as **Secret**: `ELEVENLABS_API_KEY`, `ELEVENLABS_INTERVIEWER_AGENT_ID`, `ELEVENLABS_TUTOR_AGENT_ID`.
 
 ### Last step: CORS
 
@@ -87,7 +87,7 @@ pnpm exec wrangler secret put S3_SECRET_KEY
 
 # 3. Deploy the API (builds 4 images on the first run; Presidio images are large)
 pnpm cf:deploy
-#    Note the URL: https://shadow-api.<your-subdomain>.workers.dev
+#    Note the URL: https://elevenlabs-agent.<your-subdomain>.workers.dev
 
 # 4. Web secrets
 cd ../web
@@ -98,8 +98,8 @@ pnpm exec wrangler secret put ELEVENLABS_TUTOR_AGENT_ID
 # 5. Deploy the web app from the repo root (builds the shared packages first).
 #    NEXT_PUBLIC_* values are baked in at build time.
 cd ../..
-NEXT_PUBLIC_API_URL=https://shadow-api.<your-subdomain>.workers.dev \
-NEXT_PUBLIC_API_WS_URL=wss://shadow-api.<your-subdomain>.workers.dev \
+NEXT_PUBLIC_API_URL=https://elevenlabs-agent.<your-subdomain>.workers.dev \
+NEXT_PUBLIC_API_WS_URL=wss://elevenlabs-agent.<your-subdomain>.workers.dev \
 pnpm cf:deploy:web
 #    Note the URL: https://shadow-web.<your-subdomain>.workers.dev
 
@@ -111,7 +111,7 @@ pnpm cf:deploy:api
 ## Checks after every deploy
 
 ```bash
-curl https://shadow-api.<subdomain>.workers.dev/health    # {"ok":true,...}; first call may take a few seconds (cold start)
+curl https://elevenlabs-agent.<subdomain>.workers.dev/health    # {"ok":true,...}; first call may take a few seconds (cold start)
 ```
 
 Then from the demo laptop: open the web URL, allow the microphone and screen sharing, and run Capture → Map → Teach once.
