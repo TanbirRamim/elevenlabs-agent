@@ -8,12 +8,12 @@ services:
     volumes: ["./data/pg:/var/lib/postgresql/data"]
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U shadow"], interval: 5s, retries: 10 }
 
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment: { MINIO_ROOT_USER: shadow, MINIO_ROOT_PASSWORD: shadowsecret }
+  # S3-compatible object storage for frames and recordings (MinIO's public images were withdrawn in 2025).
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment: { RUSTFS_ACCESS_KEY: shadow, RUSTFS_SECRET_KEY: shadowsecret }
     ports: ["9000:9000", "9001:9001"]
-    volumes: ["./data/minio:/data"]
+    volumes: ["./data/rustfs:/data"]
 
   presidio-analyzer:
     image: mcr.microsoft.com/presidio-analyzer:latest
