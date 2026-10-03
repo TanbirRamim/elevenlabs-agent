@@ -7,15 +7,15 @@ flowchart LR
   B[Browser] -->|HTTPS| V[shadow-web on Vercel<br/>Next.js]
   B -->|HTTPS + WebSocket| T[Cloudflare quick tunnel<br/>https://*.trycloudflare.com]
   T --> A[API on a laptop<br/>Fastify :4000]
-  A --> P[Presidio ×3, MinIO, Postgres<br/>Docker on the same laptop]
+  A --> P[Presidio ×3, RustFS (S3), Postgres<br/>Docker on the same laptop]
   A --> C[(Claude API)]
   V -->|signed URL| EL[(ElevenLabs)]
 ```
 
 | Piece | Where | Cost |
 | --- | --- | --- |
-| Web | Vercel Hobby, project root `apps/web`, auto-deploys from `main` | free |
-| API + Presidio + storage | `pnpm api:public` on the demo laptop | free |
+| Web | Vercel Hobby, project `shadow-web` (team Meow), root `apps/web`, auto-deploys from `main`: **https://shadow-web-meow-4acb.vercel.app** | free |
+| API + Presidio + storage (RustFS) | `pnpm api:public` on the demo laptop | free |
 | Public URL for the API | Cloudflare quick tunnel (no account needed) | free |
 
 **Trade-off:** the API only works while that laptop is on, online and running `pnpm api:public`. The tunnel URL changes every time the command restarts, so the web app's `NEXT_PUBLIC_API_*` variables must be updated and redeployed after each restart (about 2 minutes). Start the tunnel well before a demo and leave it running.
@@ -28,7 +28,7 @@ One-time: Docker Desktop, `.env` filled in (at least `ANTHROPIC_API_KEY`), and `
 pnpm api:public --web https://<your-vercel-url>.vercel.app
 ```
 
-The script starts Presidio, MinIO and Postgres in Docker, runs the API on `:4000`, opens the tunnel and prints:
+The script starts Presidio, RustFS (S3-compatible storage) and Postgres in Docker, runs the API on `:4000`, opens the tunnel and prints:
 
 ```
 Public API URL: https://<random-words>.trycloudflare.com
@@ -40,7 +40,7 @@ Public API URL: https://<random-words>.trycloudflare.com
 
 ## 2. Web on Vercel
 
-Vercel → Add New → Project → import `TanbirRamim/elevenlabs-agent`.
+Already set up: project `shadow-web` on the Meow (Hobby) team, deployed from `main`, Deployment Protection off so anyone can open it. To recreate it: Vercel → Add New → Project → import `TanbirRamim/elevenlabs-agent` and use the settings below.
 
 | Setting | Value |
 | --- | --- |

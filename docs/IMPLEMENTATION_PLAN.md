@@ -96,7 +96,7 @@ flowchart LR
   CL[(Claude API)]
   PR[(Presidio)]
   DB[(Postgres / JSONL)]
-  S3[(S3 / MinIO<br/>redacted frames, clips)]
+  S3[(S3: RustFS locally, R2 hosted<br/>redacted frames, clips)]
 
   CAP -- frames --> WS
   DS -- DOM events --> WS
@@ -157,7 +157,7 @@ packages/
   prompts/                versioned LLM prompts + per-route effort
 agents/                   ElevenAgents prompts + dashboard settings (config as code)
 seed/                     demo tickets + reference guardrails (answer key, tests only)
-infra/                    docker-compose: Postgres, MinIO, Presidio
+infra/                    docker-compose: Postgres, RustFS (S3), Presidio
 docs/                     this plan, task files, product plan, ADRs, demo script
 ownership.json            who owns which path (enforced in CI)
 ```
