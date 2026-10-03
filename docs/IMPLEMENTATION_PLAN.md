@@ -376,7 +376,7 @@ flowchart LR
 | Piece | Where | How |
 | --- | --- | --- |
 | Web | `shadow-web` Worker via the OpenNext adapter | `pnpm cf:deploy:web` |
-| API | `shadow-api` Worker fronting one `ApiContainer` (Fastify, WebSockets) | `pnpm cf:deploy:api` |
+| API | `elevenlabs-agent` Worker fronting one `ApiContainer` (Fastify, WebSockets) | `pnpm cf:deploy:api` |
 | Presidio | three private Containers (analyzer, anonymizer, image redactor) | deployed with the API; reachable only from the API container |
 | Storage | R2 bucket via the S3 API | `S3_*` vars and secrets |
 

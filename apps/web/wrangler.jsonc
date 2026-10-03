@@ -8,13 +8,8 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": { "enabled": true },
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
-  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "shadow-web" }],
-  // ElevenLabs credentials stay server-side; set with `wrangler secret put <NAME>`.
-  "secrets": {
-    "required": [
-      "ELEVENLABS_API_KEY",
-      "ELEVENLABS_INTERVIEWER_AGENT_ID",
-      "ELEVENLABS_TUTOR_AGENT_ID"
-    ]
-  }
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "shadow-web" }]
+  // ElevenLabs credentials stay server-side: ELEVENLABS_API_KEY, ELEVENLABS_INTERVIEWER_AGENT_ID,
+  // ELEVENLABS_TUTOR_AGENT_ID, set in the dashboard or with `wrangler secret put`. Not listed under
+  // "secrets.required", which would block the first deploy of a new Worker.
 }
