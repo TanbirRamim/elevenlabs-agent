@@ -11,17 +11,34 @@
       "!PROJECT_PLAN.md"
     ]
   },
-  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsole": { "level": "error", "options": { "allow": ["warn", "error"] } }
+        "noConsole": {
+          "level": "error",
+          "options": {
+            "allow": ["warn", "error"]
+          }
+        }
       },
-      "style": { "noNonNullAssertion": "warn" }
+      "style": {
+        "noNonNullAssertion": "warn"
+      }
     }
   },
-  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always" } }
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  }
 }
