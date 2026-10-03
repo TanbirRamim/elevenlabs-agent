@@ -1,0 +1,12 @@
+# Replace @dev-a / @dev-b with your GitHub handles (CONTRIBUTING.md, setup step 3).
+*                         @dev-a @dev-b
+/apps/web/                @dev-a
+/apps/web/src/app/desk/   @dev-b
+/agents/                  @dev-a
+/docs/                    @dev-a
+/apps/api/                @dev-b
+/packages/guard/          @dev-b
+/packages/prompts/        @dev-b
+/seed/                    @dev-b
+# Contracts: both must approve.
+/packages/schema/         @dev-a @dev-b

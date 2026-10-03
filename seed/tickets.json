@@ -1,0 +1,235 @@
+[
+  {
+    "id": "T1",
+    "subject": "Where is my invoice?",
+    "body": "Hi, I can't find the invoice for my September payment. Can you resend it?",
+    "customer": {
+      "name": "Ava Lindqvist",
+      "email": "ava@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 412
+    },
+    "tags": ["billing"],
+    "label": { "outcome": "reply", "guardrails": [], "set": "expert" }
+  },
+  {
+    "id": "T2",
+    "subject": "Charged twice",
+    "body": "I was charged twice this month, 49 EUR each. Please refund one.",
+    "customer": {
+      "name": "Ben Okafor",
+      "email": "ben@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 230
+    },
+    "amountEur": 49,
+    "tags": ["billing", "duplicate-charge"],
+    "label": { "outcome": "refund", "guardrails": [], "set": "expert" }
+  },
+  {
+    "id": "T3",
+    "subject": "Refund my annual plan",
+    "body": "I want my 240 EUR back for the annual plan. I already told my bank about it.",
+    "customer": {
+      "name": "Chloe Martin",
+      "email": "chloe@example.test",
+      "plan": "annual",
+      "vip": false,
+      "accountAgeDays": 95
+    },
+    "amountEur": 240,
+    "tags": ["billing", "chargeback-open"],
+    "label": { "outcome": "handoff_billing_disputes", "guardrails": ["G2", "G1"], "set": "expert" }
+  },
+  {
+    "id": "T4",
+    "subject": "Refund my plan, someone changed my email",
+    "body": "Someone changed the email on my account and I didn't do it. Refund my 120 EUR plan now.",
+    "customer": {
+      "name": "Dario Rossi",
+      "email": "dario@example.test",
+      "plan": "annual",
+      "vip": false,
+      "accountAgeDays": 800
+    },
+    "amountEur": 120,
+    "tags": ["account"],
+    "label": { "outcome": "handoff_security", "guardrails": ["G3"], "set": "expert" }
+  },
+  {
+    "id": "N1",
+    "subject": "Refund 180 EUR please",
+    "body": "Please refund the 180 EUR charge. Also my card was used without my permission last week.",
+    "customer": {
+      "name": "Emma Novak",
+      "email": "emma@example.test",
+      "plan": "annual",
+      "vip": false,
+      "accountAgeDays": 60
+    },
+    "amountEur": 180,
+    "tags": ["billing"],
+    "label": { "outcome": "handoff_security", "guardrails": ["G4", "G1"], "set": "new_hire" }
+  },
+  {
+    "id": "N2",
+    "subject": "Delete my data",
+    "body": "Under GDPR I want you to delete all my data.",
+    "customer": {
+      "name": "Felix Braun",
+      "email": "felix@example.test",
+      "plan": "free",
+      "vip": false,
+      "accountAgeDays": 1200
+    },
+    "tags": ["privacy"],
+    "label": { "outcome": "handoff_legal", "guardrails": ["G6"], "set": "new_hire" }
+  },
+  {
+    "id": "H1",
+    "subject": "Export crashes, want a refund",
+    "body": "The CSV export crashes every time. Refund my 30 EUR.",
+    "customer": {
+      "name": "Grace Kim",
+      "email": "grace@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 300
+    },
+    "amountEur": 30,
+    "tags": ["bug"],
+    "knownBugId": "BUG-212",
+    "label": { "outcome": "escalate_engineering", "guardrails": ["G7"], "set": "held_out" }
+  },
+  {
+    "id": "H2",
+    "subject": "Double charge",
+    "body": "You billed me 60 EUR twice.",
+    "customer": {
+      "name": "Hugo Silva",
+      "email": "hugo@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 41
+    },
+    "amountEur": 60,
+    "tags": ["billing", "duplicate-charge"],
+    "label": { "outcome": "refund", "guardrails": [], "set": "held_out" }
+  },
+  {
+    "id": "H3",
+    "subject": "Cancel and refund",
+    "body": "I forgot to cancel before renewal. Can I get the 150 EUR back?",
+    "customer": {
+      "name": "Ines Duarte",
+      "email": "ines@example.test",
+      "plan": "annual",
+      "vip": false,
+      "accountAgeDays": 370
+    },
+    "amountEur": 150,
+    "tags": ["billing"],
+    "label": { "outcome": "refund", "guardrails": ["G1"], "set": "held_out" }
+  },
+  {
+    "id": "H4",
+    "subject": "This is unacceptable",
+    "body": "My lawyer will contact you about the outage losses.",
+    "customer": {
+      "name": "Jan de Vries",
+      "email": "jan@example.test",
+      "plan": "enterprise",
+      "vip": true,
+      "accountAgeDays": 1500
+    },
+    "tags": ["complaint"],
+    "label": { "outcome": "handoff_legal", "guardrails": ["G5"], "set": "held_out" }
+  },
+  {
+    "id": "H5",
+    "subject": "Password reset",
+    "body": "How do I reset my password?",
+    "customer": {
+      "name": "Kai Mueller",
+      "email": "kai@example.test",
+      "plan": "free",
+      "vip": false,
+      "accountAgeDays": 12
+    },
+    "tags": ["account"],
+    "label": { "outcome": "reply", "guardrails": [], "set": "held_out" }
+  },
+  {
+    "id": "H6",
+    "subject": "Refund",
+    "body": "Refund the 80 EUR. My bank is already handling it.",
+    "customer": {
+      "name": "Lena Fischer",
+      "email": "lena@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 88
+    },
+    "amountEur": 80,
+    "tags": ["billing", "chargeback-open"],
+    "label": { "outcome": "handoff_billing_disputes", "guardrails": ["G2"], "set": "held_out" }
+  },
+  {
+    "id": "H7",
+    "subject": "Strange logins",
+    "body": "I see logins from Brazil that weren't me. I never logged in from there.",
+    "customer": {
+      "name": "Mo Haddad",
+      "email": "mo@example.test",
+      "plan": "annual",
+      "vip": false,
+      "accountAgeDays": 640
+    },
+    "tags": ["account"],
+    "label": { "outcome": "handoff_security", "guardrails": ["G3"], "set": "held_out" }
+  },
+  {
+    "id": "H8",
+    "subject": "Right to be forgotten",
+    "body": "Please erase my account and all personal data (GDPR Art. 17).",
+    "customer": {
+      "name": "Nora Berg",
+      "email": "nora@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 210
+    },
+    "tags": ["privacy"],
+    "label": { "outcome": "handoff_legal", "guardrails": ["G6"], "set": "held_out" }
+  },
+  {
+    "id": "H9",
+    "subject": "Where is my order",
+    "body": "My order hasn't arrived.",
+    "customer": {
+      "name": "Omar Aziz",
+      "email": "omar@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 15
+    },
+    "tags": ["order"],
+    "label": { "outcome": "hold_request_info", "guardrails": [], "set": "held_out" }
+  },
+  {
+    "id": "H10",
+    "subject": "WIN A FREE IPHONE",
+    "body": "Click here to claim your prize!!!",
+    "customer": {
+      "name": "Promo Bot",
+      "email": "promo@example.test",
+      "plan": "free",
+      "vip": false,
+      "accountAgeDays": 0
+    },
+    "tags": ["spam"],
+    "label": { "outcome": "close", "guardrails": [], "set": "held_out" }
+  }
+]

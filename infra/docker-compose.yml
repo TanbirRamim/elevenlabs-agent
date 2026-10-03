@@ -1,0 +1,28 @@
+# Local dependencies. `pnpm infra:up` starts everything; apps run on the host with `pnpm dev`.
+name: shadow
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment: { POSTGRES_USER: shadow, POSTGRES_PASSWORD: shadow, POSTGRES_DB: shadow }
+    ports: ["5432:5432"]
+    volumes: ["./data/pg:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U shadow"], interval: 5s, retries: 10 }
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: shadow, MINIO_ROOT_PASSWORD: shadowsecret }
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["./data/minio:/data"]
+
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    ports: ["5002:3000"]
+
+  presidio-anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:latest
+    ports: ["5001:3000"]
+
+  presidio-image-redactor:
+    image: mcr.microsoft.com/presidio-image-redactor:latest
+    ports: ["5003:3000"]

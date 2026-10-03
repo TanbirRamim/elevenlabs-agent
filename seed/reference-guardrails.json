@@ -1,0 +1,98 @@
+{
+  "_comment": "ANSWER KEY for tests, evals and the offline fallback ONLY. The live demo must derive guardrails from the expert's capture session. Never load this into the tutor during a judged run.",
+  "rules": [
+    {
+      "id": "G1",
+      "type": "limit",
+      "condition": "refund above 100 EUR",
+      "action": "needs a second approval",
+      "machineRule": {
+        "when": { "action": "refund", "amountEurAbove": 100 },
+        "effect": "REQUIRE_APPROVAL"
+      }
+    },
+    {
+      "id": "G2",
+      "type": "never",
+      "condition": "customer has an open chargeback",
+      "action": "never refund; route to Billing disputes",
+      "machineRule": {
+        "when": { "anyTag": ["chargeback-open"] },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_billing_disputes"
+      }
+    },
+    {
+      "id": "G3",
+      "type": "stop_and_ask",
+      "condition": "signs of account takeover",
+      "action": "stop; no refund, no account details; route to Security",
+      "machineRule": {
+        "when": {
+          "bodyMatchesAny": [
+            "changed the email",
+            "didn't do it",
+            "weren't me",
+            "never logged in",
+            "hacked"
+          ]
+        },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_security"
+      }
+    },
+    {
+      "id": "G4",
+      "type": "stop_and_ask",
+      "condition": "card used without permission / fraud",
+      "action": "no refund; route to Security",
+      "machineRule": {
+        "when": {
+          "bodyMatchesAny": ["without my permission", "unauthorized", "fraud", "didn't authorize"]
+        },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_security"
+      }
+    },
+    {
+      "id": "G5",
+      "type": "stop_and_ask",
+      "condition": "customer mentions a lawyer or legal action",
+      "action": "stop replying; route to Legal",
+      "machineRule": {
+        "when": { "bodyMatchesAny": ["lawyer", "attorney", "legal action", "sue you"] },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_legal"
+      }
+    },
+    {
+      "id": "G6",
+      "type": "never",
+      "condition": "GDPR / data deletion request",
+      "action": "route to Legal (privacy)",
+      "machineRule": {
+        "when": {
+          "bodyMatchesAny": [
+            "gdpr",
+            "delete all my data",
+            "erase my account",
+            "right to be forgotten"
+          ]
+        },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_legal"
+      }
+    },
+    {
+      "id": "G7",
+      "type": "exception",
+      "condition": "known bug with a fix in progress",
+      "action": "link the bug, escalate to Engineering instead of refunding",
+      "machineRule": {
+        "when": { "action": "refund", "anyTag": ["bug"] },
+        "effect": "WARN",
+        "expectedOutcome": "escalate_engineering"
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "shadow",
+  "private": true,
+  "description": "Shadow: the AI Apprentice for support escalations (Hack-Nation x ElevenLabs, Challenge 01)",
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "eval:guard": "pnpm --filter @shadow/guard eval",
+    "prepare": "lefthook install || true"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^26.6.4",
+    "lefthook": "^2.1.16",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.7",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

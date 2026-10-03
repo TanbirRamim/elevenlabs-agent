@@ -1,0 +1,17 @@
+# Installed automatically by `pnpm install` (prepare script).
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,json}"
+      run: pnpm biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    secrets:
+      run: node scripts/check-secrets.mjs {staged_files}
+commit-msg:
+  commands:
+    conventional:
+      run: node scripts/check-commit-msg.mjs {1}
+pre-push:
+  commands:
+    verify:
+      run: pnpm typecheck && pnpm test
