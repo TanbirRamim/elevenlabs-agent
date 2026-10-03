@@ -28,13 +28,56 @@ flowchart LR
 - Docker running locally (wrangler builds and pushes the container images).
 - `pnpm install` done; `pnpm exec wrangler login` once.
 
-## First deploy
+## Deploy from the Cloudflare dashboard (Git integration)
+
+Both Workers can build and deploy from GitHub on every push to `main` (Workers Builds also builds the container images). Account: **Tanbirramim420@gmail.com's Account** (`d7adc56ae0b48c02f351bb3e7ca6b9bc`, pinned in both `wrangler.jsonc` files).
+
+**One-time:** R2 → enable R2 → create bucket `shadow-frames` → Manage API tokens → create an *Object Read & Write* token scoped to `shadow-frames` (gives the access key id and secret).
+
+### API Worker (deploy first)
+
+Workers & Pages → Create → Import a repository → `TanbirRamim/elevenlabs-agent`
+
+| Setting | Value |
+| --- | --- |
+| Worker name | `shadow-api` (must match `apps/edge/wrangler.jsonc`) |
+| Production branch | `main` |
+| Root directory | *(leave empty: repo root)* |
+| Build command | *(leave empty)* |
+| Deploy command | `pnpm --filter @shadow/edge exec wrangler deploy` |
+| Non-production branch deploy command | `pnpm --filter @shadow/edge exec wrangler versions upload` |
+| Build variables | `NODE_VERSION` = `22` · `PNPM_VERSION` = `12.4.1` |
+
+After the Worker exists: Settings → Variables and Secrets → add as **Secret**: `ANTHROPIC_API_KEY`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Then Deployments → retry the build. The API URL is `https://shadow-api.<your-subdomain>.workers.dev`.
+
+### Web Worker
+
+Workers & Pages → Create → Import a repository → same repo
+
+| Setting | Value |
+| --- | --- |
+| Worker name | `shadow-web` (must match `apps/web/wrangler.jsonc`) |
+| Production branch | `main` |
+| Root directory | *(leave empty: repo root)* |
+| Build command | `pnpm cf:build:web` |
+| Deploy command | `pnpm --filter @shadow/web exec opennextjs-cloudflare deploy` |
+| Non-production branch deploy command | `pnpm --filter @shadow/web exec opennextjs-cloudflare upload` |
+| Build variables | `NODE_VERSION` = `22` · `PNPM_VERSION` = `12.4.1` · `NEXT_PUBLIC_API_URL` = `https://shadow-api.<your-subdomain>.workers.dev` · `NEXT_PUBLIC_API_WS_URL` = `wss://shadow-api.<your-subdomain>.workers.dev` |
+
+After the Worker exists: Settings → Variables and Secrets → add as **Secret**: `ELEVENLABS_API_KEY`, `ELEVENLABS_INTERVIEWER_AGENT_ID`, `ELEVENLABS_TUTOR_AGENT_ID`. Retry the build.
+
+### Last step: CORS
+
+Set `WEB_ORIGIN` in `apps/edge/wrangler.jsonc` to `https://shadow-web.<your-subdomain>.workers.dev` and push to `main`. Variables in `wrangler.jsonc` override dashboard variables on every deploy, so change them in the file, not in the dashboard. Secrets are not in the file and are kept.
+
+## Deploy from the command line
+
+### First deploy
 
 ```bash
 # 1. Storage
 pnpm --filter @shadow/edge exec wrangler r2 bucket create shadow-frames
 #    Dashboard → R2 → Manage API tokens → create an Object Read & Write token for shadow-frames.
-#    Put your account id into S3_ENDPOINT in apps/edge/wrangler.jsonc.
 
 # 2. API secrets
 cd apps/edge
