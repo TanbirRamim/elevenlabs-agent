@@ -18,8 +18,8 @@
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "eval:guard": "pnpm --filter @shadow/guard eval",
     "prepare": "lefthook install || true",
-    "cf:build:web": "pnpm --filter @shadow/web cf:build",
-    "cf:deploy:web": "pnpm --filter @shadow/web cf:deploy",
+    "cf:build:web": "turbo run build --filter=@shadow/web^... && pnpm --filter @shadow/web cf:build",
+    "cf:deploy:web": "turbo run build --filter=@shadow/web^... && pnpm --filter @shadow/web cf:deploy",
     "cf:deploy:api": "pnpm --filter @shadow/edge cf:deploy"
   },
   "devDependencies": {

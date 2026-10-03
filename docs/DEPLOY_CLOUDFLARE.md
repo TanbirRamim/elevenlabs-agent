@@ -52,15 +52,17 @@ pnpm exec wrangler secret put ELEVENLABS_API_KEY
 pnpm exec wrangler secret put ELEVENLABS_INTERVIEWER_AGENT_ID
 pnpm exec wrangler secret put ELEVENLABS_TUTOR_AGENT_ID
 
-# 5. Deploy the web app. NEXT_PUBLIC_* values are baked in at build time.
+# 5. Deploy the web app from the repo root (builds the shared packages first).
+#    NEXT_PUBLIC_* values are baked in at build time.
+cd ../..
 NEXT_PUBLIC_API_URL=https://shadow-api.<your-subdomain>.workers.dev \
 NEXT_PUBLIC_API_WS_URL=wss://shadow-api.<your-subdomain>.workers.dev \
-pnpm cf:deploy
+pnpm cf:deploy:web
 #    Note the URL: https://shadow-web.<your-subdomain>.workers.dev
 
 # 6. Allow the web origin in the API's CORS and redeploy
 #    Set WEB_ORIGIN in apps/edge/wrangler.jsonc to the web URL, then:
-cd ../edge && pnpm cf:deploy
+pnpm cf:deploy:api
 ```
 
 ## Checks after every deploy
