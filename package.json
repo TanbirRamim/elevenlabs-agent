@@ -20,7 +20,8 @@
     "prepare": "lefthook install || true",
     "cf:build:web": "turbo run build --filter=@shadow/web^... && pnpm --filter @shadow/web cf:build",
     "cf:deploy:web": "turbo run build --filter=@shadow/web^... && pnpm --filter @shadow/web cf:deploy",
-    "cf:deploy:api": "pnpm --filter @shadow/edge cf:deploy"
+    "cf:deploy:api": "pnpm --filter @shadow/edge cf:deploy",
+    "api:public": "node scripts/api-tunnel.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

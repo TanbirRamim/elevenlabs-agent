@@ -47,7 +47,7 @@ flowchart LR
 | Web | Next.js 16, React 19, Tailwind CSS |
 | API | Fastify 5 with WebSockets, Zod contracts shared end to end |
 | Privacy | Microsoft Presidio (text and image redaction) |
-| Hosting | Cloudflare Workers (web via OpenNext, API front door), Cloudflare Containers (API, Presidio), R2 storage |
+| Hosting | Web on Vercel; API + Presidio in Docker behind a Cloudflare Tunnel (free). Optional paid path: Cloudflare Workers + Containers |
 | Quality | TypeScript strict, Vitest, Playwright, Biome, GitHub Actions with a guardrail eval on every PR |
 
 ## Run it locally
@@ -81,7 +81,7 @@ docs/             Product plan, implementation plan, tasks, ADRs
 - [Product plan](docs/PRODUCT_PLAN.md): the problem, market fit and scope
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): architecture, component specs, timeline
 - [Demo walkthrough](docs/demo-script.md)
-- [Deploying to Cloudflare](docs/DEPLOY_CLOUDFLARE.md)
+- [Deploying (free setup)](docs/DEPLOY.md) · [Cloudflare paid alternative](docs/DEPLOY_CLOUDFLARE.md)
 - [Contributing](CONTRIBUTING.md) · [Rules for AI coding assistants](AGENTS.md)
 
 ## Team

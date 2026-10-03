@@ -236,14 +236,14 @@ You own the sandbox helpdesk (DeskSim) and everything behind the API: screen und
 
 ---
 
-## HAR-14 · Production deploy
+## HAR-14 · Deploy (Vercel + tunnel, free)
 **Window:** H19:00–20:30 · **Branch:** `harshit/deploy` · **Depends:** gates passed
 
 **Owns:** `infra/**`, `apps/api/Dockerfile`, `apps/edge/**`
 
-**Build:** follow `docs/DEPLOY_CLOUDFLARE.md`. The API Worker, its container and the three Presidio containers are already configured in `apps/edge/`; create the R2 bucket and token, set the secrets, run `pnpm cf:deploy:api`, and send Tanbir the API URL so he can deploy the web Worker (`pnpm cf:deploy:web`). Then set `WEB_ORIGIN` and redeploy the API.
+**Build:** follow `docs/DEPLOY.md`. Run `pnpm api:public --web <vercel url>` on the demo laptop, send Tanbir the printed tunnel URL so he sets `NEXT_PUBLIC_API_*` on Vercel and redeploys, then run one full Capture → Map → Teach on the deployed web app. The paid Cloudflare path in `apps/edge/` stays as an option if the Workers Paid plan is ever enabled.
 
-**Acceptance:** from the demo laptop over HTTPS: `/health` OK, one full Capture → Map → Teach run on production.
+**Acceptance:** `https://<tunnel>/health` OK from another device, and one full Capture → Map → Teach run on the Vercel URL.
 
 ---
 

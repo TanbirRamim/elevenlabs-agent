@@ -4,7 +4,8 @@ import { z } from "zod";
 const Env = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   API_PORT: z.coerce.number().int().default(4000),
-  WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+  /** One or more allowed browser origins, comma-separated. */
+  WEB_ORIGIN: z.string().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   ANTHROPIC_API_KEY: z.string().optional(),
   SHADOW_MODEL: z.string().default("claude-opus-5-5"),

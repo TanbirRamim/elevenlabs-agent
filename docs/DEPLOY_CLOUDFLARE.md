@@ -1,4 +1,6 @@
-# Deploying Shadow to Cloudflare
+# Deploying Shadow to Cloudflare (paid alternative)
+
+> Needs the Workers Paid plan (US$5/month) for Containers. The free setup we use for the hackathon is in `docs/DEPLOY.md`.
 
 Everything runs on Cloudflare: the web app as a Worker, the API and Presidio as Containers, and frames, recordings and session snapshots in R2.
 
