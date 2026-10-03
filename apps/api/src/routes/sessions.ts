@@ -79,8 +79,8 @@ export function registerSessionRoutes(app: FastifyInstance, store: Store): void 
           }
           case "frame":
             if (isOffRecord(session, m.tMs)) return;
-            // Pipeline (owner: Dev B, H5-H10): redact -> store keyframe -> vision -> curiosity.
-            // See docs/IMPLEMENTATION_PLAN.md section 6.3.
+            // Frame pipeline (HAR-5, HAR-6): redact -> store keyframe -> vision -> curiosity.
+            // Spec: docs/IMPLEMENTATION_PLAN.md §6.3.
             return;
           case "question_asked":
             return;

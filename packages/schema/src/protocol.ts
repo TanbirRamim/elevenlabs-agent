@@ -48,6 +48,14 @@ export const ServerMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("screen_event"), event: ScreenEvent }),
   z.object({ type: z.literal("candidate_question"), question: CandidateQuestion }),
   z.object({ type: z.literal("guard_verdict"), requestId: Id, verdict: GuardVerdict }),
+  z.object({
+    type: z.literal("insight"),
+    /** Numbers for the web app's Insight panel: why the system did what it did. */
+    visionLatencyMsP90: z.number().nonnegative().nullable(),
+    visionUnreadableFrames: z.number().int().nonnegative(),
+    domVisionAgreement: z.number().min(0).max(1).nullable(),
+    openGaps: z.number().int().nonnegative(),
+  }),
   z.object({ type: z.literal("error"), code: z.string(), message: z.string() }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;

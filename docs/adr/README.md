@@ -6,7 +6,7 @@ gets its own file here, `NNNN-short-title.md`, using this template:
 
 ```markdown
 # NNNN: Title
-Date: YYYY-MM-DD · Owner: Dev A/B · Status: accepted
+Date: YYYY-MM-DD · Owner: Tanbir / Harshit · Status: accepted
 
 ## Context
 What forced a decision (with numbers if measured).

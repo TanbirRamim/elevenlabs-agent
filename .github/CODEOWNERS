@@ -1,12 +1,22 @@
-# Replace @dev-a / @dev-b with your GitHub handles (CONTRIBUTING.md, setup step 3).
-*                         @dev-a @dev-b
-/apps/web/                @dev-a
-/apps/web/src/app/desk/   @dev-b
-/agents/                  @dev-a
-/docs/                    @dev-a
-/apps/api/                @dev-b
-/packages/guard/          @dev-b
-/packages/prompts/        @dev-b
-/seed/                    @dev-b
-# Contracts: both must approve.
-/packages/schema/         @dev-a @dev-b
+# Generated from ownership.json by scripts/sync-codeowners.mjs. Do not edit by hand.
+
+*                                          @TanbirRamim
+/docs/                                     @TanbirRamim
+/seed/                                     @TanbirRamim
+/eval/                                     @TanbirRamim
+/infra/                                    @TanbirRamim
+/agents/                                   @TanbirRamim
+/apps/web/                                 @TanbirRamim
+/README.md                                 @TanbirRamim
+/apps/api/                                 @TanbirRamim
+/pnpm-lock.yaml                            @TanbirRamim
+/packages/guard/                           @TanbirRamim
+/packages/schema/                          @TanbirRamim
+/packages/prompts/                         @TanbirRamim
+/apps/web/package.json                     @TanbirRamim
+/docs/tasks/harshit.md                     @TanbirRamim
+/apps/api/package.json                     @TanbirRamim
+/apps/web/src/app/desk/                    @TanbirRamim
+/docs/prompt-changelog.md                  @TanbirRamim
+/apps/web/src/components/desk/             @TanbirRamim
+/apps/web/src/components/desk/types.ts     @TanbirRamim

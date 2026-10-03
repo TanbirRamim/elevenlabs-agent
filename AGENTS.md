@@ -8,9 +8,10 @@ more than "I don't know."**
 
 ## 0. Before you write anything
 
-1. Read the task's section in `docs/IMPLEMENTATION_PLAN.md` and the files you will touch.
-2. Read the contracts you depend on in `packages/schema/src/`. They are the source of truth.
-3. If the task, the plan and the code disagree, **stop and ask**. Do not pick one silently.
+1. Find your task in `docs/tasks/tanbir.md` or `docs/tasks/harshit.md` (ask your human which one if it isn't stated). Do **only** that task.
+2. Read every file under the task's **Reads** and the files you will touch. The contracts in `packages/schema/src/` and `apps/web/src/components/desk/types.ts` are the source of truth.
+3. Change only paths under the task's **Owns**. `ownership.json` maps every path to an owner, and CI fails a PR that touches another owner's files.
+4. If the task, the plan and the code disagree, **stop and ask**. Do not pick one silently.
 
 ## 1. Anti-hallucination rules (hard rules)
 
@@ -31,7 +32,8 @@ After two failed attempts at the same fix, stop and report what you tried. Don't
 
 ## 2. Scope rules
 
-- Touch only files in your task's area (see ownership in `.github/CODEOWNERS`). No drive-by refactors, renames or reformatting of unrelated code.
+- Touch only files your task owns. A needed change elsewhere is reported to your human, not made. No drive-by refactors, renames or reformatting of unrelated code.
+- Shared paths (`packages/schema/`, `apps/web/src/components/desk/types.ts`, `package.json` files, root config) change only in a separate PR labelled `shared-change`.
 - No new dependencies without a one-line reason in the PR. Prefer what's already installed.
 - No placeholders presented as done: no `TODO` without an issue number, no mocked data in production code paths, no `return true // works for demo`.
 - Don't delete or weaken tests to make them pass. Fix the code, or explain in the PR why the test was wrong.
@@ -70,7 +72,7 @@ Plus: browser-tested if it's UI, PR template filled in honestly.
 
 ## 7. Git
 
-- Branch from `main`: `a/<short-topic>` or `b/<short-topic>`. Small PRs (aim for under 300 changed lines).
+- Branch from `main` using the branch name in the task (`tanbir/...` or `harshit/...`; CI uses the prefix to check ownership). Small PRs (aim for under 300 changed lines).
 - Conventional commits with scope, enforced by a hook: `feat(api): add vision extractor`.
 - Never `--no-verify`, never force-push `main`, never commit generated files (`dist/`, `.next/`).
 - No AI co-author trailers or "generated with" lines in commits or PRs.

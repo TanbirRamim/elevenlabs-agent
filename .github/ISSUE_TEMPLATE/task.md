@@ -1,12 +1,13 @@
 ---
 name: Task
-about: A unit of work from the implementation plan
+about: A unit of work from docs/tasks
 labels: task
 ---
 
-**Plan ref:** docs/IMPLEMENTATION_PLAN.md section ...
-**Owner:** Dev A / Dev B
-**Milestone:** M0 / M1 / M2 / M3 / M4
+**Task:** TAN-n / HAR-n (spec in `docs/tasks/<owner>.md`)
+**Owner:** Tanbir / Harshit
+**Branch:** `tanbir/...` or `harshit/...`
 
 ### Done when
-- [ ] ...
+- [ ] Acceptance checks from the task spec pass
+- [ ] `pnpm verify` green, PR template filled with real output
