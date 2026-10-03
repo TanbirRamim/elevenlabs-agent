@@ -10,3 +10,5 @@ coverage/
 !.env.example
 infra/data/
 eval/out/
+*.tsbuildinfo
+next-env.d.ts

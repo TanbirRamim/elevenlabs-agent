@@ -1,47 +1,72 @@
-// Creates one GitHub issue per backlog row in docs/IMPLEMENTATION_PLAN.md §10.
-// Dry run by default; pass --apply to create. Requires `gh auth login` and a GitHub remote.
+// Creates one GitHub issue per task in docs/tasks/{tanbir,harshit}.md.
+// Dry run by default; pass --apply to create. Requires `gh auth login` and the GitHub remote.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const apply = process.argv.includes("--apply");
-const plan = readFileSync(new URL("../docs/IMPLEMENTATION_PLAN.md", import.meta.url), "utf8");
-const section = plan.split("## 10. Backlog")[1]?.split("\n## ")[0] ?? "";
-const rows = section
-  .split("\n")
-  .filter((l) => /^\| [A-Z]\d+ \|/.test(l))
-  .map((l) =>
-    l
-      .split("|")
-      .slice(1, -1)
-      .map((c) => c.trim()),
-  );
-
+const repo = "https://github.com/TanbirRamim/elevenlabs-agent/blob/main";
 const gh = (args) => execFileSync("gh", args, { stdio: ["ignore", "pipe", "inherit"] }).toString();
+
+const owners = [
+  { id: "tanbir", file: "docs/tasks/tanbir.md", color: "1f6feb" },
+  { id: "harshit", file: "docs/tasks/harshit.md", color: "8250df" },
+];
+
 if (apply) {
-  for (const [name, color] of [
-    ["dev-a", "1f6feb"],
-    ["dev-b", "8250df"],
-    ["stretch", "bf8700"],
-  ]) {
-    try {
-      gh(["label", "create", name, "--color", color, "--force"]);
-    } catch {}
+  for (const { id, color } of owners) gh(["label", "create", id, "--color", color, "--force"]);
+  gh(["label", "create", "stretch", "--color", "bf8700", "--force"]);
+  gh([
+    "label",
+    "create",
+    "shared-change",
+    "--color",
+    "d73a4a",
+    "--force",
+    "--description",
+    "Touches shared paths; both owners approve",
+  ]);
+  gh(["label", "create", "post-merge-review", "--color", "fbca04", "--force"]);
+  gh([
+    "label",
+    "create",
+    "cross-owner",
+    "--color",
+    "5319e7",
+    "--force",
+    "--description",
+    "Agreed exception: touches both owners; both approve",
+  ]);
+}
+
+let count = 0;
+for (const { id, file } of owners) {
+  const text = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+  const tasks = text.split(/\n(?=## [A-Z]+-\d+ · )/).filter((t) => t.startsWith("## "));
+  for (const task of tasks) {
+    const heading = task.split("\n")[0].replace(/^## /, "");
+    const [taskId] = heading.split(" · ");
+    if (taskId.endsWith("-0")) continue; // setup tasks are done together at kickoff
+    const meta =
+      task.split("\n").find((l) => l.startsWith("**Window:**") || l.startsWith("**Branch:**")) ??
+      "";
+    const anchor = heading
+      .toLowerCase()
+      .replace(/[^a-z0-9 -]/g, "")
+      .replace(/ /g, "-");
+    const body = `${meta}\n\nFull spec: [${file}#${taskId}](${repo}/${file}#${anchor})\n\nDone when the task's **Acceptance** checks pass and \`pnpm verify\` is green.`;
+    const labels = [id, ...(/stretch/i.test(heading) ? ["stretch"] : [])];
+    const args = [
+      "issue",
+      "create",
+      "--title",
+      heading,
+      "--body",
+      body,
+      ...labels.flatMap((l) => ["--label", l]),
+    ];
+    if (apply) process.stdout.write(gh(args));
+    else console.warn(`would create: ${heading}  [${labels.join(", ")}]`);
+    count++;
   }
 }
-
-for (const [id, title, owner, window, depends, done] of rows) {
-  const labels = [owner === "A" ? "dev-a" : "dev-b", ...(id.startsWith("S") ? ["stretch"] : [])];
-  const body = `**Window:** ${window}\n**Depends on:** ${depends}\n**Plan:** docs/IMPLEMENTATION_PLAN.md §10\n\n### Done when\n- [ ] ${done}\n- [ ] \`pnpm verify\` green, PR template filled`;
-  const args = [
-    "issue",
-    "create",
-    "--title",
-    `[${id}] ${title}`,
-    "--body",
-    body,
-    ...labels.flatMap((l) => ["--label", l]),
-  ];
-  if (apply) process.stdout.write(gh(args));
-  else console.warn(`would create: [${id}] ${title}  (${labels.join(", ")})`);
-}
-console.warn(`${rows.length} issues ${apply ? "created" : "found (dry run; add --apply)"}`);
+console.warn(`${count} issues ${apply ? "created" : "found (dry run; add --apply)"}`);

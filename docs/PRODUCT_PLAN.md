@@ -9,7 +9,7 @@
 
 ## 1. What the brief actually asks for
 
-The brief (`file.pdf`) is Challenge 01 of the Hack-Nation × ElevenLabs hackathon. It asks for a working end-to-end MVP that **captures** an expert's judgment while they work, **maps** it into a clickable Work Map, and **teaches** it to a new hire through a voice tutor. "Support escalations" is one of four use cases the brief names explicitly, so our idea is in scope.
+The brief (`docs/challenge-brief.pdf`) is Challenge 01 of the Hack-Nation × ElevenLabs hackathon. It asks for a working end-to-end MVP that **captures** an expert's judgment while they work, **maps** it into a clickable Work Map, and **teaches** it to a new hire through a voice tutor. "Support escalations" is one of four use cases the brief names explicitly, so our idea is in scope.
 
 **The caveat that shapes everything.** The brief says *"an apprentice, not a recorder"* and *"an automation tool copies the clicks."* A service that just reads a ticket and decides reply / refund / escalate is exactly the automation tool it warns against. So our product **learns** the triage judgment from a senior support lead and **teaches** it to a new agent. The auto-decide idea survives as the stretch goal "agent-ready guardrails" (Section 2).
 

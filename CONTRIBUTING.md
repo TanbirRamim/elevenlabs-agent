@@ -1,36 +1,50 @@
 # Contributing
 
-Two developers, 24 hours, `main` always demoable. Read `AGENTS.md` too; its rules apply to humans.
+Team: **Tanbir Ramim** (voice, capture, every page people see) and **Harshit** (DeskSim, API, reasoning pipeline). `main` is always demoable. `AGENTS.md` applies to humans too.
 
-## One-time setup (both, before H0:45)
+## One-time setup
 
-1. Install Node 22, Docker, and enable pnpm: `corepack enable`.
+1. Node 22, Docker, and `corepack enable` (pnpm 12).
 2. Clone, then `pnpm install && pnpm verify`. It must be green.
-3. Replace `@dev-a` / `@dev-b` in `.github/CODEOWNERS` with your GitHub handles (one PR).
-4. Copy `.env.example` → `.env`, fill from the shared vault entry. Never paste keys in chat.
-5. `pnpm infra:up` and open http://localhost:3000.
-6. GitHub settings on `main`: require PRs, require the `CI / verify` check, allow squash merge only, auto-delete branches.
+3. Copy `.env.example` to `.env` and fill it from the shared vault entry. Never paste keys in chat.
+4. `pnpm infra:up`, `pnpm dev`, open http://localhost:3000.
+
+## Who owns what
+
+`ownership.json` is the source of truth; CI's `ownership` job enforces it on every PR, and `.github/CODEOWNERS` is generated from it (`node scripts/sync-codeowners.mjs`).
+
+| Owner | Paths |
+| --- | --- |
+| Tanbir | `apps/web/` (except DeskSim), `agents/`, `docs/`, `README.md` |
+| Harshit | `apps/web/src/components/desk/`, `apps/web/src/app/desk/`, `apps/api/`, `packages/guard/`, `packages/prompts/`, `seed/`, `eval/`, `infra/` |
+| Shared (label `shared-change`, both approve) | `packages/schema/`, `apps/web/src/components/desk/types.ts`, `package.json` files, root config |
+
+A PR that must touch both owners' areas (repo setup, an agreed cross-cutting fix) uses the `cross-owner` label and needs both approvals. It is the exception, not the workflow.
+
+## Tasks
+
+Your tasks are in `docs/tasks/tanbir.md` or `docs/tasks/harshit.md`. Each lists the paths it owns, the contracts it reads, its steps and its acceptance checks. `docs/tasks/README.md` has the prompt to give your coding agent.
 
 ## Daily loop
 
 ```bash
 git switch main && git pull --rebase
-git switch -c a/turn-gate-wiring        # a/ = Dev A, b/ = Dev B
-# … small commits: feat(web): wire turn gate signals
+git switch -c harshit/vision-queue        # tanbir/... or harshit/...
+# small commits: feat(api): add vision queue
 pnpm verify
 git push -u origin HEAD && gh pr create --fill
 ```
 
-- One issue per branch, branches live < 3 hours, PRs ideally < 300 changed lines.
-- Review within 10 minutes. In your own area with green CI you may self-merge and label `post-merge-review`.
-- `packages/schema` changes: separate PR, both approve, bump `PROTOCOL_VERSION` if breaking.
-- Prompt changes: bump the version, add a line to `docs/prompt-changelog.md`, paste the eval result.
-- Checkpoints at H4, H9, H14, H19: merge everything, demo the gate together, re-plan.
+- One task per branch; branches live under 3 hours; PRs ideally under 300 changed lines.
+- Review within 10 minutes. In your own area with green CI you may self-merge and add the `post-merge-review` label.
+- Shared changes go in their own PR with the `shared-change` label; breaking WebSocket changes bump `PROTOCOL_VERSION`.
+- Prompt changes bump the version, add a line to `docs/prompt-changelog.md`, and include the eval result.
+- If `pnpm-lock.yaml` conflicts on rebase: `git checkout --theirs pnpm-lock.yaml && pnpm install`.
 
 ## Commit messages
 
-`type(scope): summary`. Types: feat fix chore docs test refactor perf ci build. Scopes: web api schema guard prompts agents desk infra docs ci seed eval repo. The commit-msg hook enforces it.
+`type(scope): summary`, enforced by a hook. Types: feat fix chore docs test refactor perf ci build. Scopes: web api schema guard prompts agents desk infra docs ci seed eval repo.
 
-## Backlog
+## Issues
 
-`scripts/create-issues.sh` creates every backlog item from `docs/IMPLEMENTATION_PLAN.md` §10 as a GitHub issue with owner labels and milestones.
+`node scripts/create-issues.mjs` (dry run) / `--apply` creates one GitHub issue per task, labelled with its owner.

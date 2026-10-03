@@ -1,0 +1,29 @@
+{
+  "$comment": "Who may change what. Longest matching path prefix wins. CI (scripts/check-ownership.mjs) enforces it on every PR; scripts/sync-codeowners.mjs generates .github/CODEOWNERS from it. Shared paths need the 'shared-change' label and both owners' approval.",
+  "people": {
+    "tanbir": { "name": "Tanbir Ramim", "github": "TanbirRamim", "branchPrefix": "tanbir/" },
+    "harshit": { "name": "Harshit", "github": null, "branchPrefix": "harshit/" }
+  },
+  "paths": {
+    "apps/web/": "tanbir",
+    "apps/web/src/components/desk/": "harshit",
+    "apps/web/src/components/desk/types.ts": "shared",
+    "apps/web/src/app/desk/": "harshit",
+    "apps/web/package.json": "shared",
+    "agents/": "tanbir",
+    "docs/": "tanbir",
+    "docs/tasks/harshit.md": "harshit",
+    "docs/prompt-changelog.md": "harshit",
+    "README.md": "tanbir",
+    "apps/api/": "harshit",
+    "apps/api/package.json": "shared",
+    "packages/guard/": "harshit",
+    "packages/prompts/": "harshit",
+    "seed/": "harshit",
+    "eval/": "harshit",
+    "infra/": "harshit",
+    "packages/schema/": "shared",
+    "pnpm-lock.yaml": "any",
+    "": "shared"
+  }
+}
