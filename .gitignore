@@ -12,3 +12,11 @@ infra/data/
 eval/out/
 *.tsbuildinfo
 next-env.d.ts
+
+# Cloudflare
+.open-next/
+.wrangler/
+.dev.vars
+apps/edge/dist/
+apps/edge/worker-configuration.d.ts
+apps/web/cloudflare-env.d.ts

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { serverEnv } from "@/env";
+import { getServerEnv } from "@/env";
 
 const Query = z.object({ agent: z.enum(["interviewer", "tutor"]) });
 
@@ -9,6 +9,7 @@ const Query = z.object({ agent: z.enum(["interviewer", "tutor"]) });
  * The ElevenLabs API key never leaves the server.
  */
 export async function GET(req: Request) {
+  const serverEnv = getServerEnv();
   if (!serverEnv.success) {
     return NextResponse.json({ code: "eleven_not_configured" }, { status: 503 });
   }

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["./worker-configuration.d.ts"],
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": ["src", "worker-configuration.d.ts"]
+}

@@ -9,6 +9,7 @@
 /apps/web/                                 @TanbirRamim
 /README.md                                 @TanbirRamim
 /apps/api/                                 @TanbirRamim
+/apps/edge/                                @TanbirRamim
 /pnpm-lock.yaml                            @TanbirRamim
 /packages/guard/                           @TanbirRamim
 /packages/schema/                          @TanbirRamim
@@ -17,6 +18,7 @@
 /docs/tasks/harshit.md                     @TanbirRamim
 /apps/api/package.json                     @TanbirRamim
 /apps/web/src/app/desk/                    @TanbirRamim
+/apps/edge/package.json                    @TanbirRamim
 /docs/prompt-changelog.md                  @TanbirRamim
 /apps/web/src/components/desk/             @TanbirRamim
 /apps/web/src/components/desk/types.ts     @TanbirRamim

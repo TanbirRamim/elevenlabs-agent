@@ -17,6 +17,8 @@
     "README.md": "tanbir",
     "apps/api/": "harshit",
     "apps/api/package.json": "shared",
+    "apps/edge/": "harshit",
+    "apps/edge/package.json": "shared",
     "packages/guard/": "harshit",
     "packages/prompts/": "harshit",
     "seed/": "harshit",

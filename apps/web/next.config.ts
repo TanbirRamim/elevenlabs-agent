@@ -1,3 +1,4 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
@@ -8,3 +9,6 @@ const config: NextConfig = {
 };
 
 export default config;
+
+// Lets `next dev` read Cloudflare bindings the same way the deployed Worker does.
+initOpenNextCloudflareForDev();

@@ -8,7 +8,11 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf:types": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -18,10 +22,12 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "jsdom": "^30.1.1",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "wrangler": "^4.147.0"
   },
   "dependencies": {
     "@elevenlabs/react": "^1.16.0",
+    "@opennextjs/cloudflare": "^1.20.8",
     "@shadow/guard": "workspace:*",
     "@shadow/schema": "workspace:*",
     "next": "^16.3.8",

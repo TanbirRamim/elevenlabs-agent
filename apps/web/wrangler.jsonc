@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Next.js app on Cloudflare Workers via the OpenNext adapter (`pnpm cf:build`, `pnpm cf:deploy`).
+  "name": "shadow-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "shadow-web" }],
+  // ElevenLabs credentials stay server-side; set with `wrangler secret put <NAME>`.
+  "secrets": {
+    "required": [
+      "ELEVENLABS_API_KEY",
+      "ELEVENLABS_INTERVIEWER_AGENT_ID",
+      "ELEVENLABS_TUTOR_AGENT_ID"
+    ]
+  }
+}

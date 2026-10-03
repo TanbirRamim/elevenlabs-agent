@@ -26,6 +26,23 @@ jobs:
         run: pnpm eval:guard
       - run: pnpm build
 
+  cloudflare-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Web Worker bundle (OpenNext)
+        run: pnpm cf:build:web
+        env:
+          NEXT_PUBLIC_API_URL: https://shadow-api.example.workers.dev
+          NEXT_PUBLIC_API_WS_URL: wss://shadow-api.example.workers.dev
+      - name: API Worker bundle (containers not built in CI)
+        run: pnpm --filter @shadow/edge exec wrangler deploy --dry-run --outdir dist --containers-rollout=none
+
   ownership:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

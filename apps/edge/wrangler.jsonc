@@ -1,0 +1,69 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Public entry point for the Shadow API on Cloudflare.
+  // The Worker forwards every request (HTTP and WebSocket) to one API container;
+  // the three Presidio containers are private and only reachable from the API container.
+  "name": "shadow-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "ApiContainer",
+      "image": "../api/Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "basic",
+      "max_instances": 1
+    },
+    {
+      "class_name": "PresidioAnalyzer",
+      "image": "./containers/presidio-analyzer/Dockerfile",
+      "instance_type": "standard-1",
+      "max_instances": 1
+    },
+    {
+      "class_name": "PresidioAnonymizer",
+      "image": "./containers/presidio-anonymizer/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 1
+    },
+    {
+      "class_name": "PresidioImageRedactor",
+      "image": "./containers/presidio-image-redactor/Dockerfile",
+      "instance_type": "standard-1",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "API", "class_name": "ApiContainer" },
+      { "name": "PRESIDIO_ANALYZER", "class_name": "PresidioAnalyzer" },
+      { "name": "PRESIDIO_ANONYMIZER", "class_name": "PresidioAnonymizer" },
+      { "name": "PRESIDIO_IMAGE_REDACTOR", "class_name": "PresidioImageRedactor" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "ApiContainer",
+        "PresidioAnalyzer",
+        "PresidioAnonymizer",
+        "PresidioImageRedactor"
+      ]
+    }
+  ],
+  // Secrets: set with `wrangler secret put <NAME>`; deploys fail if one is missing.
+  "secrets": { "required": ["ANTHROPIC_API_KEY", "S3_ACCESS_KEY", "S3_SECRET_KEY"] },
+  // Non-secret config. Secrets are set with `wrangler secret put` (see docs/DEPLOY_CLOUDFLARE.md).
+  "vars": {
+    "SHADOW_MODEL": "claude-opus-5-5",
+    "LOG_LEVEL": "info",
+    "WEB_ORIGIN": "https://shadow-web.example.workers.dev",
+    "S3_BUCKET": "shadow-frames",
+    "S3_ENDPOINT": "https://ACCOUNT_ID.r2.cloudflarestorage.com",
+    "DEMO_FALLBACK_RULES": "0",
+    "MOCK_AI": "0"
+  }
+}
