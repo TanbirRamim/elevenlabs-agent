@@ -9,7 +9,7 @@
 ## 0. TL;DR
 
 - **Build:** an apprentice that watches a senior support lead triage tickets in our sandbox helpdesk (DeskSim), asks *why* at real pauses, turns the session into an evidence-linked Work Map, and coaches a new hire, blocking a wrong refund before it is saved.
-- **Stack:** TypeScript monorepo (pnpm + Turborepo). Next.js 16 web, Fastify 5 API with WebSockets, Zod contracts shared by both, ElevenAgents for voice, Claude (`claude-opus-5-5`, per-route effort) for vision and reasoning, Presidio for redaction, R2 storage; hosted on Cloudflare Workers + Containers.
+- **Stack:** TypeScript monorepo (pnpm + Turborepo). Next.js 16 web, Fastify 5 API with WebSockets, Zod contracts shared by both, ElevenAgents for voice, Claude (`claude-opus-5-5`, per-route effort) for vision and reasoning, Presidio for redaction; web on Vercel, API in Docker behind a Cloudflare Tunnel (free), with a paid Cloudflare Containers option.
 - **Split:** **Tanbir** owns the voice agents and every page people see. **Harshit** owns DeskSim and everything behind the API. Interfaces are frozen in `packages/schema` and `apps/web/src/components/desk/types.ts`; `ownership.json` + CI keep each PR inside its owner's folders; Harshit's mock mode lets the UI run before the pipeline exists.
 - **Gates:** H4 voice + one screen · H9 Capture · H14 Map · H19 Teach · **H20 feature freeze** · H21 deployed · H24 submitted.
 - **Already done (scaffold, verified):** monorepo, CI, hooks, contracts, guardrail engine (9/9 catches, 0 false blocks on seed), Turn Gate logic (7 tests), API skeleton (guard, sessions, WS), typed Claude wrapper, vision extractor, agent prompts, seed tickets, AI-assistant rules, ownership enforcement, per-person task files.
@@ -371,10 +371,16 @@ flowchart LR
 - Production keys live only in Cloudflare Worker secrets (`wrangler secret put`).
 - Both machines: Node 22, pnpm 12, Docker. `pnpm install && pnpm verify` green before H0:45.
 
-### 7.4 Deployment (Cloudflare)
+### 7.4 Deployment (free)
 
 | Piece | Where | How |
 | --- | --- | --- |
+| Web | Vercel Hobby, root `apps/web`, auto-deploy from `main` | `docs/DEPLOY.md` §2 |
+| API + Presidio + storage | Docker on the demo laptop, public URL via a Cloudflare quick tunnel | `pnpm api:public --web <vercel url>` |
+
+Trade-off: the API lives on one laptop and the tunnel URL changes per run (update `NEXT_PUBLIC_API_*` on Vercel and redeploy). The fully hosted alternative (Cloudflare Workers + Containers, needs the Workers Paid plan) stays documented in `docs/DEPLOY_CLOUDFLARE.md`.
+
+--- | --- | --- |
 | Web | `shadow-web` Worker via the OpenNext adapter | `pnpm cf:deploy:web` |
 | API | `elevenlabs-agent` Worker fronting one `ApiContainer` (Fastify, WebSockets) | `pnpm cf:deploy:api` |
 | Presidio | three private Containers (analyzer, anonymizer, image redactor) | deployed with the API; reachable only from the API container |
@@ -458,7 +464,7 @@ gantt
   HAR-11 guard + LLM judge         :h11, 14:45, 105m
   HAR-12 teach + mastery           :h12, 16:30, 90m
   HAR-13 captured-map eval         :h13, 18:00, 1h
-  HAR-14 Cloudflare deploy         :h14, 19:00, 90m
+  HAR-14 deploy (Vercel + tunnel)  :h14, 19:00, 90m
 ```
 
 | Gate | When | Passes when |

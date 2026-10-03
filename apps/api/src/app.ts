@@ -24,7 +24,8 @@ export async function buildApp({ env, store = createMemoryStore(), fallbackRules
           },
     bodyLimit: 4 * 1024 * 1024,
   });
-  await app.register(cors, { origin: env.WEB_ORIGIN });
+  // WEB_ORIGIN may list several origins, comma-separated (local dev + the deployed web app).
+  await app.register(cors, { origin: env.WEB_ORIGIN.split(",").map((o) => o.trim()) });
   await app.register(websocket, { options: { maxPayload: 4 * 1024 * 1024 } });
 
   app.get("/health", async () => ({ ok: true, model: env.SHADOW_MODEL }));
