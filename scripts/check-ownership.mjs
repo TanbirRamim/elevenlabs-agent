@@ -14,6 +14,12 @@ if (!person) {
   process.exit(1);
 }
 
+if (labels.includes("cross-owner")) {
+  // Agreed exception (repo setup, coordinated refactors): both owners approve the PR.
+  console.warn("ownership check skipped: PR labelled cross-owner (both owners must approve)");
+  process.exit(0);
+}
+
 const files = execFileSync("git", ["diff", "--name-only", `${base}...HEAD`])
   .toString()
   .split("\n")

@@ -26,6 +26,16 @@ if (apply) {
     "Touches shared paths; both owners approve",
   ]);
   gh(["label", "create", "post-merge-review", "--color", "fbca04", "--force"]);
+  gh([
+    "label",
+    "create",
+    "cross-owner",
+    "--color",
+    "5319e7",
+    "--force",
+    "--description",
+    "Agreed exception: touches both owners; both approve",
+  ]);
 }
 
 let count = 0;

@@ -19,6 +19,8 @@ Team: **Tanbir Ramim** (voice, capture, every page people see) and **Harshit** (
 | Harshit | `apps/web/src/components/desk/`, `apps/web/src/app/desk/`, `apps/api/`, `packages/guard/`, `packages/prompts/`, `seed/`, `eval/`, `infra/` |
 | Shared (label `shared-change`, both approve) | `packages/schema/`, `apps/web/src/components/desk/types.ts`, `package.json` files, root config |
 
+A PR that must touch both owners' areas (repo setup, an agreed cross-cutting fix) uses the `cross-owner` label and needs both approvals. It is the exception, not the workflow.
+
 ## Tasks
 
 Your tasks are in `docs/tasks/tanbir.md` or `docs/tasks/harshit.md`. Each lists the paths it owns, the contracts it reads, its steps and its acceptance checks. `docs/tasks/README.md` has the prompt to give your coding agent.
