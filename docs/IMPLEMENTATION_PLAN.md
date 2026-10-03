@@ -9,7 +9,7 @@
 ## 0. TL;DR
 
 - **Build:** an apprentice that watches a senior support lead triage tickets in our sandbox helpdesk (DeskSim), asks *why* at real pauses, turns the session into an evidence-linked Work Map, and coaches a new hire, blocking a wrong refund before it is saved.
-- **Stack:** TypeScript monorepo (pnpm + Turborepo). Next.js 16 web, Fastify 5 API with WebSockets, Zod contracts shared by both, ElevenAgents for voice, Claude (`claude-opus-5-5`, per-route effort) for vision and reasoning, Presidio (Docker) for redaction, Postgres + S3-compatible storage.
+- **Stack:** TypeScript monorepo (pnpm + Turborepo). Next.js 16 web, Fastify 5 API with WebSockets, Zod contracts shared by both, ElevenAgents for voice, Claude (`claude-opus-5-5`, per-route effort) for vision and reasoning, Presidio for redaction, R2 storage; hosted on Cloudflare Workers + Containers.
 - **Split:** **Tanbir** owns the voice agents and every page people see. **Harshit** owns DeskSim and everything behind the API. Interfaces are frozen in `packages/schema` and `apps/web/src/components/desk/types.ts`; `ownership.json` + CI keep each PR inside its owner's folders; Harshit's mock mode lets the UI run before the pipeline exists.
 - **Gates:** H4 voice + one screen · H9 Capture · H14 Map · H19 Teach · **H20 feature freeze** · H21 deployed · H24 submitted.
 - **Already done (scaffold, verified):** monorepo, CI, hooks, contracts, guardrail engine (9/9 catches, 0 false blocks on seed), Turn Gate logic (7 tests), API skeleton (guard, sessions, WS), typed Claude wrapper, vision extractor, agent prompts, seed tickets, AI-assistant rules, ownership enforcement, per-person task files.
@@ -311,7 +311,7 @@ Concurrency: at most one vision call in flight per session; if a frame arrives w
 
 ### 6.11 Persistence (Harshit · HAR-10)
 
-Must: in-memory `Store` + an append-only JSONL snapshot per session in `infra/data/` (survives an API restart during the demo). Should: Drizzle + Postgres adapter behind the same `Store` interface.
+Must: in-memory `Store` + an append-only JSONL snapshot per session, on local disk in development and in R2 in production (container disks are wiped when a container stops). Should: Drizzle + Postgres adapter behind the same `Store` interface.
 
 ### 6.12 Observability and robustness
 
@@ -368,19 +368,21 @@ flowchart LR
 ### 7.3 Environment and secrets
 
 - One shared vault entry (1Password/Bitwarden) holds `.env` values. Never in chat, never in git.
-- Production keys live only in Vercel/Railway settings.
+- Production keys live only in Cloudflare Worker secrets (`wrangler secret put`).
 - Both machines: Node 22, pnpm 12, Docker. `pnpm install && pnpm verify` green before H0:45.
 
-### 7.4 Deployment
+### 7.4 Deployment (Cloudflare)
 
 | Piece | Where | How |
 | --- | --- | --- |
-| Web | Vercel | Git integration; preview per PR; production from `main` |
-| API | Railway (or Fly.io) | `apps/api/Dockerfile`; WebSockets on; health check `/health` |
-| Storage | Cloudflare R2 or Railway volume (S3 API) | env vars only |
-| Presidio | Railway services from the official images | three small services |
+| Web | `shadow-web` Worker via the OpenNext adapter | `pnpm cf:deploy:web` |
+| API | `shadow-api` Worker fronting one `ApiContainer` (Fastify, WebSockets) | `pnpm cf:deploy:api` |
+| Presidio | three private Containers (analyzer, anonymizer, image redactor) | deployed with the API; reachable only from the API container |
+| Storage | R2 bucket via the S3 API | `S3_*` vars and secrets |
 
-HTTPS is mandatory: screen capture and the microphone need a secure context.
+Step-by-step: `docs/DEPLOY_CLOUDFLARE.md`. HTTPS is automatic on `workers.dev`, which screen capture and the microphone require.
+
+---
 
 ## 8. Testing and validation
 
@@ -456,7 +458,7 @@ gantt
   HAR-11 guard + LLM judge         :h11, 14:45, 105m
   HAR-12 teach + mastery           :h12, 16:30, 90m
   HAR-13 captured-map eval         :h13, 18:00, 1h
-  HAR-14 production deploy         :h14, 19:00, 90m
+  HAR-14 Cloudflare deploy         :h14, 19:00, 90m
 ```
 
 | Gate | When | Passes when |

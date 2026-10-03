@@ -4,7 +4,7 @@ You own the sandbox helpdesk (DeskSim) and everything behind the API: screen und
 
 **Before every task:** read `AGENTS.md` and the contracts listed under **Reads**. Change only the paths under **Owns**. Work on the branch named in the task. Done means the **Acceptance** checks pass and the PR shows their real output.
 
-**Your paths** (from `ownership.json`): `apps/api/`, `apps/web/src/components/desk/` (except `types.ts`), `apps/web/src/app/desk/`, `packages/guard/`, `packages/prompts/`, `seed/`, `eval/`, `infra/`, `docs/prompt-changelog.md`, this file.
+**Your paths** (from `ownership.json`): `apps/api/`, `apps/edge/`, `apps/web/src/components/desk/` (except `types.ts`), `apps/web/src/app/desk/`, `packages/guard/`, `packages/prompts/`, `seed/`, `eval/`, `infra/`, `docs/prompt-changelog.md`, this file.
 
 **Contracts you serve (read-only, shared):** `packages/schema/src/api.ts` (REST), `packages/schema/src/protocol.ts` (WebSocket), `apps/web/src/components/desk/types.ts` (DeskSim props).
 
@@ -189,7 +189,7 @@ You own the sandbox helpdesk (DeskSim) and everything behind the API: screen und
 
 **Owns:** `apps/api/src/store/**`
 
-**Build:** a `jsonl` adapter for `Store`: append every mutation to `infra/data/sessions/<id>.jsonl`; replay on boot. Keep the in-memory adapter for tests. (Postgres via Drizzle is optional after H19.)
+**Build:** a `jsonl` adapter for `Store`: append every mutation to `sessions/<id>.jsonl`, on local disk (`infra/data/`) in development and in R2 (via `storage/s3.ts`) when `S3_ENDPOINT` is set. In production the API runs in a Cloudflare Container whose disk is wiped when it stops, so R2 is the only durable copy. Replay on boot. Keep the in-memory adapter for tests.
 
 **Acceptance:** start a session, restart the API, the session and published map are still there (test with a temp dir).
 
@@ -239,9 +239,9 @@ You own the sandbox helpdesk (DeskSim) and everything behind the API: screen und
 ## HAR-14 · Production deploy
 **Window:** H19:00–20:30 · **Branch:** `harshit/deploy` · **Depends:** gates passed
 
-**Owns:** `infra/**`, `apps/api/Dockerfile`
+**Owns:** `infra/**`, `apps/api/Dockerfile`, `apps/edge/**`
 
-**Build:** API on Railway from `apps/api/Dockerfile` (WebSockets on); Postgres optional; MinIO → Cloudflare R2 or Railway volume; Presidio analyzer/anonymizer/image-redactor as three Railway services. Web on Vercel (Tanbir connects the project; you provide `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_WS_URL`).
+**Build:** follow `docs/DEPLOY_CLOUDFLARE.md`. The API Worker, its container and the three Presidio containers are already configured in `apps/edge/`; create the R2 bucket and token, set the secrets, run `pnpm cf:deploy:api`, and send Tanbir the API URL so he can deploy the web Worker (`pnpm cf:deploy:web`). Then set `WEB_ORIGIN` and redeploy the API.
 
 **Acceptance:** from the demo laptop over HTTPS: `/health` OK, one full Capture → Map → Teach run on production.
 

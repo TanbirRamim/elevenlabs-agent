@@ -8,7 +8,11 @@
       "!**/.next",
       "!**/.turbo",
       "!**/next-env.d.ts",
-      "!PROJECT_PLAN.md"
+      "!PROJECT_PLAN.md",
+      "!**/.open-next",
+      "!**/.wrangler",
+      "!**/worker-configuration.d.ts",
+      "!**/cloudflare-env.d.ts"
     ]
   },
   "formatter": {

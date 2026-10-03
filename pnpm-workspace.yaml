@@ -8,3 +8,4 @@ allowBuilds:
   lefthook: true
   sharp: true
   "@tailwindcss/oxide": true
+  workerd: true

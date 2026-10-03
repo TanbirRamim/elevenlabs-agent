@@ -16,7 +16,7 @@ Team: **Tanbir Ramim** (voice, capture, every page people see) and **Harshit** (
 | Owner | Paths |
 | --- | --- |
 | Tanbir | `apps/web/` (except DeskSim), `agents/`, `docs/`, `README.md` |
-| Harshit | `apps/web/src/components/desk/`, `apps/web/src/app/desk/`, `apps/api/`, `packages/guard/`, `packages/prompts/`, `seed/`, `eval/`, `infra/` |
+| Harshit | `apps/web/src/components/desk/`, `apps/web/src/app/desk/`, `apps/api/`, `apps/edge/`, `packages/guard/`, `packages/prompts/`, `seed/`, `eval/`, `infra/` |
 | Shared (label `shared-change`, both approve) | `packages/schema/`, `apps/web/src/components/desk/types.ts`, `package.json` files, root config |
 
 A PR that must touch both owners' areas (repo setup, an agreed cross-cutting fix) uses the `cross-owner` label and needs both approvals. It is the exception, not the workflow.

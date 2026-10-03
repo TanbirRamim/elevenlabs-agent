@@ -47,7 +47,7 @@ flowchart LR
 | Web | Next.js 16, React 19, Tailwind CSS |
 | API | Fastify 5 with WebSockets, Zod contracts shared end to end |
 | Privacy | Microsoft Presidio (text and image redaction) |
-| Data | Postgres, S3-compatible object storage |
+| Hosting | Cloudflare Workers (web via OpenNext, API front door), Cloudflare Containers (API, Presidio), R2 storage |
 | Quality | TypeScript strict, Vitest, Playwright, Biome, GitHub Actions with a guardrail eval on every PR |
 
 ## Run it locally
@@ -67,6 +67,7 @@ pnpm eval:guard           # guardrail catch-rate eval on the seed tickets
 ```
 apps/web          Next.js app: capture, Work Map, tutor, DeskSim helpdesk
 apps/api          Fastify API: vision pipeline, Curiosity Engine, Work Map builder, guard
+apps/edge         Cloudflare Worker + Containers config for the API and Presidio
 packages/schema   Zod contracts shared by web and API
 packages/guard    Deterministic guardrail engine + eval
 packages/prompts  Versioned LLM prompts
@@ -80,6 +81,7 @@ docs/             Product plan, implementation plan, tasks, ADRs
 - [Product plan](docs/PRODUCT_PLAN.md): the problem, market fit and scope
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): architecture, component specs, timeline
 - [Demo walkthrough](docs/demo-script.md)
+- [Deploying to Cloudflare](docs/DEPLOY_CLOUDFLARE.md)
 - [Contributing](CONTRIBUTING.md) · [Rules for AI coding assistants](AGENTS.md)
 
 ## Team

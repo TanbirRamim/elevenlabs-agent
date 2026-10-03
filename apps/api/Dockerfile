@@ -1,6 +1,8 @@
 # Build from the repo root: docker build -f apps/api/Dockerfile .
 FROM node:22-slim AS build
 WORKDIR /repo
+# LEFTHOOK=0: git hooks are for developer machines, not image builds.
+ENV LEFTHOOK=0
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile && pnpm --filter @shadow/api... build && pnpm deploy --filter @shadow/api --prod /out
