@@ -32,12 +32,9 @@ test("capture loads the expert tickets into DeskSim and shows the side panel", a
   await expect(page.getByRole("button", { name: "Refund", exact: true })).toBeEnabled();
 });
 
-// FIXME: lib/voice/useVoice.ts calls sendContextualUpdate / sendUserActivity while no ElevenLabs
-// session is active, so opening a ticket before "Share this tab and start" throws
-// "No active conversation. Call startSession() first." in the browser. Enable once fixed.
-test.fixme("capture: working the desk before voice starts raises no page errors", async ({
-  page,
-}) => {
+// Regression: voice sends before "Share this tab and start" used to throw
+// "No active conversation"; useVoice now drops them while disconnected.
+test("capture: working the desk before voice starts raises no page errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
   await page.goto("/capture");
