@@ -69,6 +69,8 @@ export interface CapturePillProps {
   visionLines?: VisionLine[];
   questionsAsked?: number;
   questionBudget?: number;
+  /** [ASK] questions the voice agent actually received this session; shown on the dock. */
+  questionsDelivered?: number;
   /** Floating notices (connection loss, session problems) stacked above the dock. */
   notice?: ReactNode;
 }
@@ -90,6 +92,7 @@ export function CapturePill({
   visionLines = [],
   questionsAsked = 0,
   questionBudget = 5,
+  questionsDelivered,
   notice,
 }: CapturePillProps) {
   const [peek, setPeek] = useState(false);
@@ -184,6 +187,17 @@ export function CapturePill({
           <div className="flex min-w-0 items-center gap-2 sm:flex-1">
             <SingodaNav placement="up" showName={false} />
             <DockTimer elapsed={elapsed} state={recordingState} />
+            {questionsDelivered !== undefined ? (
+              <span
+                role="status"
+                aria-label={`Questions asked: ${questionsDelivered}`}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sunken px-2 py-0.5 text-2xs text-ink-muted"
+              >
+                <MessageCircleQuestion aria-hidden="true" className="size-3.5 stroke-[1.75]" />
+                Questions asked:{" "}
+                <span className="font-mono text-ink tabular-nums">{questionsDelivered}</span>
+              </span>
+            ) : null}
           </div>
 
           <div

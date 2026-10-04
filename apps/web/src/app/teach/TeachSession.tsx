@@ -396,7 +396,8 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
     if (!sessionId) return;
     setEnding(true);
     setReportError(null);
-    if (voiceLiveRef.current) voice.stop();
+    // Always: a call still connecting would otherwise open after the session ended (idempotent).
+    voice.stop();
     try {
       setReport(await getMastery(sessionId));
       setPhase("ended");

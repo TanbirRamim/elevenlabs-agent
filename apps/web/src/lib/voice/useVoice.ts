@@ -28,7 +28,21 @@ export interface UseVoiceOptions {
   dynamicVariables?: Record<string, string | number | boolean>;
   /** Session clock. Defaults to time since `start()` succeeded. */
   clock?: () => number;
+  /**
+   * Off the record or paused: the agent hears nothing (microphone muted to it) and says nothing
+   * (its output volume is 0). Back to normal when false.
+   */
+  hold?: boolean;
+  /** The expert's own microphone toggle; muted to the agent while true. */
+  micMuted?: boolean;
+  /**
+   * The call ended without `stop()`: the agent hung up (`end_call`) or the connection failed.
+   * Never fires for the caller's own `stop()`, and the hook never reconnects by itself.
+   */
+  onEnded?: (reason: VoiceEndReason, message: string | null) => void;
 }
+
+export type VoiceEndReason = "agent" | "error";
 
 export interface Voice {
   status: VoiceStatus;
@@ -64,7 +78,14 @@ const SCREEN_COALESCE_MS = 2000;
 /** VAD score (0..1) above which we treat the user as speaking. */
 const VAD_SPEECH_THRESHOLD = 0.5;
 
-export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): Voice {
+export function useVoice({
+  agent,
+  dynamicVariables,
+  clock,
+  hold = false,
+  micMuted = false,
+  onEnded,
+}: UseVoiceOptions): Voice {
   const startedAt = useRef<number | null>(null);
   const now = useCallback(() => {
     if (clock) return clock();
@@ -76,6 +97,14 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
   const [lastUserSpeechMs, setLastUserSpeechMs] = useState<number | null>(null);
   const speechListeners = useRef(new Set<(tMs: number) => void>());
   const lineSeq = useRef(0);
+  /** Bumped by every start() and stop(); an older start() that resolves late does nothing. */
+  const generation = useRef(0);
+  /** True from stop() until the next start(): the disconnect that follows is ours, not news. */
+  const stoppedByUs = useRef(true);
+  /** The current session reached "connected"; a failed start is an error, not an ended call. */
+  const wasConnected = useRef(false);
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
 
   const noteUserSpeech = useCallback(() => {
     const t = now();
@@ -84,6 +113,25 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
   }, [now]);
 
   const conversation = useConversation({
+    // The SDK applies these to the live conversation whenever one exists (setMicMuted, setVolume).
+    micMuted: hold || micMuted,
+    volume: hold ? 0 : 1,
+    onConnect: () => {
+      wasConnected.current = true;
+    },
+    onDisconnect: (details) => {
+      if (details.reason === "user" || stoppedByUs.current) return;
+      stoppedByUs.current = true;
+      if (!wasConnected.current) {
+        if (details.reason === "error") setError(details.message);
+        return;
+      }
+      generation.current += 1;
+      onEndedRef.current?.(
+        details.reason === "agent" ? "agent" : "error",
+        details.reason === "error" ? details.message : null,
+      );
+    },
     onMessage: ({ message, role }) => {
       if (role === "user") noteUserSpeech();
       if (isControlMessage(message)) return;
@@ -124,8 +172,15 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
   }, [sendContextualUpdate]);
 
   const start = useCallback(async () => {
+    generation.current += 1;
+    const mine = generation.current;
+    stoppedByUs.current = false;
+    wasConnected.current = false;
     setError(null);
     const res = await fetch(`/api/eleven/signed-url?agent=${agent}`, { cache: "no-store" });
+    // stop() (or another start()) came in while the URL was loading: starting now would open a
+    // session nobody asked for, still listening after the call was ended.
+    if (mine !== generation.current) return;
     if (!res.ok) {
       const code = (await res.json().catch(() => ({ code: "unknown" }))) as { code?: string };
       setError(
@@ -136,6 +191,7 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
       return;
     }
     const access = VoiceAccess.parse(await res.json());
+    if (mine !== generation.current) return;
     startedAt.current = Date.now();
     setTranscript([]);
     const variables = dynamicVariables ? { dynamicVariables } : {};
@@ -147,9 +203,23 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
   }, [agent, dynamicVariables, startSession]);
 
   const stop = useCallback(() => {
+    generation.current += 1;
+    stoppedByUs.current = true;
     screen.current?.flush();
     endSession();
   }, [endSession]);
+
+  // Leaving the page ends the call: no conversation keeps listening after its view is gone.
+  const endSessionRef = useRef(endSession);
+  endSessionRef.current = endSession;
+  useEffect(
+    () => () => {
+      generation.current += 1;
+      stoppedByUs.current = true;
+      endSessionRef.current();
+    },
+    [],
+  );
 
   const sendControl = useCallback(
     (prefix: ControlPrefix, payload: string | object): boolean => {

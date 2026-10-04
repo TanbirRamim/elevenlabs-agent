@@ -82,6 +82,10 @@ export interface FakeVoiceAgent {
   say(text: string): void;
   /** Singoda AI says something out loud (an agent response line). */
   reply(text: string): void;
+  /** The agent ends the call (its `end_call` tool): the server closes the conversation socket. */
+  hangUp(): void;
+  /** How many conversation sockets the page has opened; a reconnect would make this grow. */
+  readonly connections: () => number;
 }
 
 /**
@@ -95,6 +99,8 @@ export async function fakeVoiceAgent(page: Page): Promise<FakeVoiceAgent> {
   const controls: ControlSent[] = [];
   const contextual: string[] = [];
   let send: ((m: object) => void) | null = null;
+  let close: (() => void) | null = null;
+  let connections = 0;
   let seq = 0;
 
   await page.unroute("**/api/eleven/signed-url**");
@@ -116,7 +122,9 @@ export async function fakeVoiceAgent(page: Page): Promise<FakeVoiceAgent> {
 
   await page.routeWebSocket(/fake-elevenlabs\.invalid/, (ws) => {
     let initiated = false;
+    connections += 1;
     send = (m) => ws.send(JSON.stringify(m));
+    close = () => void ws.close({ code: 1000, reason: "end_call" });
     ws.onMessage((raw) => {
       const text = typeof raw === "string" ? raw : raw.toString("utf8");
       let msg: { type?: string; text?: string } = {};
@@ -166,6 +174,10 @@ export async function fakeVoiceAgent(page: Page): Promise<FakeVoiceAgent> {
       });
     },
     reply: agentLine,
+    hangUp() {
+      close?.();
+    },
+    connections: () => connections,
   };
 }
 

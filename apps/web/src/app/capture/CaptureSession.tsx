@@ -1,6 +1,5 @@
 "use client";
 
-import { useConversationInput } from "@elevenlabs/react";
 import type {
   CandidateQuestion,
   DeskEvent,
@@ -8,7 +7,7 @@ import type {
   PendingAction,
   PublicTicket,
 } from "@shadow/schema";
-import { EyeOff, Mic, Pause, Play, RotateCw, ShieldCheck } from "lucide-react";
+import { EyeOff, Mic, Pause, PhoneOff, Play, RotateCw, ShieldCheck } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DebriefPanel } from "@/components/debrief/DebriefPanel";
@@ -52,6 +51,7 @@ import { openSessionStream, QUEUE_LIMIT, type SessionStream, type StreamState } 
 import { DEFAULT_GATE } from "@/lib/turnGate";
 import { useVoice } from "@/lib/voice";
 import { CapturePill, PresentingBanner } from "./CapturePill";
+import { type EndReason, endReasonForVoice, voiceHold } from "./lifecycle";
 import {
   buildPreflight,
   HoldStrip,
@@ -71,7 +71,6 @@ const QUESTION_CALLOUT_MS = 30_000;
 type Phase = "loading" | "ready" | "countdown" | "capturing" | "processing" | "debrief" | "failed";
 
 type LoadError = { offline: boolean; message: string };
-type EndReason = "stopped" | "share_ended";
 
 /** What is shared when it is not this tab; nothing is kept then. */
 const OTHER_SURFACE: Record<string, string> = {
@@ -122,6 +121,8 @@ export function CaptureSession() {
   const [preview, setPreview] = useState<MediaStream | null>(null);
   /** Where a link click wanted to go mid-recording; the leave dialog is open while set. */
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  /** [ASK] questions the voice agent actually received (not just ones the gate opened for). */
+  const [questionsDelivered, setQuestionsDelivered] = useState(0);
 
   const startedAt = useRef<number | null>(null);
   const clock = useCallback(
@@ -155,12 +156,23 @@ export function CaptureSession() {
   /** Nothing leaves the browser while this is true. */
   const holding = useCallback(() => offRecordRef.current || pausedRef.current, []);
 
+  /** The voice call ended on its own (agent hang-up, lost connection): ends a live capture. */
+  const voiceEndedRef = useRef<(reason: EndReason) => void>(() => {});
+  const onVoiceEnded = useCallback((reason: "agent" | "error") => {
+    const why = endReasonForVoice(phaseRef.current, reason);
+    if (why) voiceEndedRef.current(why);
+  }, []);
+  const voiceVariables = useMemo(() => ({ expert_name: "Maya" }), []);
+  // Off the record and paused hold the agent (mic muted to it, output silenced); the pill's mic
+  // toggle mutes only the microphone. Applied by the SDK to the live conversation.
   const voice = useVoice({
     agent: "interviewer",
-    dynamicVariables: { expert_name: "Maya" },
+    dynamicVariables: voiceVariables,
     clock,
+    hold: phase === "capturing" && voiceHold({ offRecord, paused }),
+    micMuted,
+    onEnded: onVoiceEnded,
   });
-  const { setMuted } = useConversationInput();
   const preflight = usePreflight({ deskReady: phase !== "loading" && phase !== "failed" });
 
   // Load the expert's tickets and create the session.
@@ -256,16 +268,6 @@ export function CaptureSession() {
     [applyCapture],
   );
 
-  // Paused — or the pill's mic toggle — mutes the microphone for the voice agent.
-  useEffect(() => {
-    if (voice.status !== "connected") return;
-    try {
-      setMuted(paused || micMuted);
-    } catch {
-      // No live conversation to mute; nothing is being heard.
-    }
-  }, [paused, micMuted, voice.status, setMuted]);
-
   // Alt+O toggles off the record while recording.
   useEffect(() => {
     if (phase !== "capturing") return;
@@ -337,9 +339,10 @@ export function CaptureSession() {
     offRecord,
     candidate,
     onOpen: (q, asked) => {
-      voice.sendControl("[ASK]", q.text);
-      stream.current?.send({ type: "question_asked", questionId: q.id, tMs: asked.atMs });
       setCandidate(null);
+      if (holding() || !voice.sendControl("[ASK]", q.text)) return; // not delivered, not asked
+      setQuestionsDelivered((n) => n + 1);
+      stream.current?.send({ type: "question_asked", questionId: q.id, tMs: asked.atMs });
     },
   });
 
@@ -492,9 +495,12 @@ export function CaptureSession() {
       setSteps(INITIAL_STEPS);
       setUploadProblem(null);
       go("processing");
+      // Ended by the call itself (agent hang-up, lost connection): nothing to keep open, and
+      // useVoice never reconnects. Ended by the expert: the same call runs the spoken debrief,
+      // shown as a live call with its own End call; it ends when the debrief is done or left.
+      if (reason === "agent_ended" || reason === "voice_lost") voice.stop();
       loop.current?.stop();
       loop.current = null;
-      // The voice session stays open: Singoda AI runs the debrief in the same conversation.
       for (const track of media.current?.getTracks() ?? []) track.stop();
       media.current = null;
       setPreview(null);
@@ -540,9 +546,10 @@ export function CaptureSession() {
       redacted.current = null;
       go("debrief");
     },
-    [sessionId, elapsed, setRecord, setStep, go],
+    [sessionId, elapsed, setRecord, setStep, go, voice.stop],
   );
   endRef.current = end;
+  voiceEndedRef.current = (reason) => void end(reason);
 
   shareEndedRef.current = () => {
     if (phaseRef.current === "capturing") {
@@ -662,12 +669,11 @@ export function CaptureSession() {
         ? "off-record"
         : "recording"
     : "idle";
-  const voiceState = listeningStateFor(
-    voice.status,
-    voice.mode,
-    voice.agentSpeaking,
-    offRecord || paused,
-  );
+  const held = live && voiceHold({ offRecord, paused });
+  // Held, the agent is muted both ways: never show it as listening or asking.
+  const voiceState = held
+    ? "quiet"
+    : listeningStateFor(voice.status, voice.mode, voice.agentSpeaking, false);
   const askedAt = gate.asked.map((q) => q.atMs);
   const nowMs = gate.signals.nowMs;
   const lastAsked = gate.asked.at(-1);
@@ -763,7 +769,7 @@ export function CaptureSession() {
                   <HoldStrip
                     icon={<EyeOff />}
                     title="You are off the record."
-                    text="Nothing you do or say is captured until you resume."
+                    text="Singoda AI can't hear you and stays silent. Nothing you do or say is captured until you resume."
                     action={
                       <Button
                         size="sm"
@@ -831,12 +837,18 @@ export function CaptureSession() {
             insight={insight}
             visionLines={visionLines}
             questionsAsked={questionsInWindow(askedAt, nowMs)}
+            questionsDelivered={questionsDelivered}
             questionBudget={DEFAULT_GATE.maxPer10Min}
             notice={
               <>
                 {problem ? (
                   <Alert tone="danger" title="The session could not start">
                     {problem}
+                  </Alert>
+                ) : null}
+                {live && voice.error ? (
+                  <Alert tone="danger" title="The voice agent is not connected">
+                    {voice.error} Recording continues without Singoda AI's voice.
                   </Alert>
                 ) : null}
                 {streamDown ? (
@@ -858,9 +870,28 @@ export function CaptureSession() {
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8 motion-safe:animate-fade-in">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-ink">Singoda AI · Debrief</p>
-              <LiveRecordingStatus state="idle" elapsed={elapsed} />
+              <div className="flex items-center gap-2">
+                <LiveRecordingStatus state="idle" elapsed={elapsed} />
+                {voiceConnected || voice.status === "connecting" ? (
+                  <Button size="sm" variant="secondary" icon={<PhoneOff />} onClick={voice.stop}>
+                    End call
+                  </Button>
+                ) : null}
+              </div>
             </div>
+            {voiceConnected ? (
+              <p className="text-xs text-ink-muted" role="status">
+                Voice debrief: Singoda AI can hear you. Nothing is recorded from your screen.
+              </p>
+            ) : null}
             {endReason === "share_ended" ? <ShareEndedNotice /> : null}
+            {endReason === "agent_ended" || endReason === "voice_lost" ? (
+              <Alert tone="info" title="The call ended">
+                {endReason === "agent_ended"
+                  ? "Singoda AI ended the call, so recording stopped and your screen is no longer shared."
+                  : "The voice connection was lost, so recording stopped and your screen is no longer shared."}
+              </Alert>
+            ) : null}
             {phase === "processing" ? (
               <ProcessingSteps
                 title="Processing the session"
