@@ -205,7 +205,30 @@ await route("/demo", async (page) => {
 });
 
 await route("/capture", async (page) => {
-  await see(page, /Interviewer agent, (signed session ready|public agent id)/, 20000);
+  // Fail fast with the page's own reason when the voice agent check fails (e.g. the server
+  // answers 503 eleven_not_configured) instead of waiting out the "ready" timeout.
+  const agentItem = page
+    .getByRole("list", { name: "Preflight checks" })
+    .getByRole("listitem")
+    .filter({ hasText: "Voice agent" });
+  const agentReady = page.getByText(/Interviewer agent, (signed session ready|public agent id)/);
+  const agentFailed = agentItem.filter({ hasText: "Needs attention" });
+  const deadline = Date.now() + 20000;
+  for (;;) {
+    if (await agentReady.first().isVisible()) break;
+    if (await agentFailed.isVisible()) {
+      const reason = (
+        await agentItem
+          .locator("p")
+          .nth(1)
+          .innerText()
+          .catch(() => "")
+      ).trim();
+      throw new Error(`voice agent check failed: ${reason || "no reason shown"}`);
+    }
+    if (Date.now() > deadline) throw new Error("voice agent check not ready within 20 s");
+    await page.waitForTimeout(250);
+  }
   await see(page, /Redaction on|blacked out in this browser/, 20000);
   const failed = await page.getByText(/Check again/).count();
   if (failed) throw new Error("preflight shows a failed check (Check again visible)");
@@ -259,7 +282,7 @@ await browser.close();
 
 // ---------- Report ----------
 const pad = (s, n) => String(s).padEnd(n);
-out(`\nShadow production smoke — web ${WEB}\n`);
+out(`\nSingoda AI production smoke — web ${WEB}\n`);
 out(`${pad("RESULT", 7)}${pad("CHECK", 38)}${pad("TIME", 9)}DETAIL`);
 for (const r of results)
   out(`${pad(r.ok ? "PASS" : "FAIL", 7)}${pad(r.name, 38)}${pad(`${r.ms}ms`, 9)}${r.detail}`);
