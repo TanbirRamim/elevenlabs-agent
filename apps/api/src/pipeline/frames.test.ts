@@ -198,4 +198,27 @@ describe("createFrameProcessor", () => {
       vi.useRealTimers();
     }
   });
+
+  it("ignores an older frame whose redaction finishes after a newer one", async () => {
+    const slowFirst = deferred<Buffer>();
+    const seen: string[] = [];
+    const { sink, session, storage } = setup({
+      redactImage: (jpeg) =>
+        jpeg.toString() === "raw-f1"
+          ? slowFirst.promise
+          : Promise.resolve(Buffer.from(`redacted-${jpeg.toString()}`)),
+      extract: async (_llm, _prev, cur) => {
+        seen.push(cur.frameId);
+        return okResult();
+      },
+    });
+    sink.onFrame(frameMsg("f1", 1000));
+    sink.onFrame(frameMsg("f2", 2500));
+    await flush();
+    slowFirst.resolve(Buffer.from("redacted-raw-f1"));
+    await flush();
+    expect(seen).toEqual(["f2"]); // f1 is stale: never sent to vision after f2
+    expect(storage.objects.has(`frames/${session.id}/f1.jpg`)).toBe(true); // still stored as evidence
+    sink.stop();
+  });
 });

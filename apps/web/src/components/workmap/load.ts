@@ -1,91 +1,51 @@
-import { WorkMap, type WorkMapPatch } from "@shadow/schema";
-import { z } from "zod";
+import type { WorkMap } from "@shadow/schema";
 import { publicEnv } from "../../env";
+// Relative, not "@/lib/api": vitest has no "@/" alias and WorkMapView.test imports this file.
+import {
+  ApiClientError,
+  getPublishedWorkMap,
+  getWorkMap,
+  patchWorkMap,
+  publishWorkMap,
+  recordingUrl,
+  type WorkMapPatchInput,
+} from "../../lib/api";
 import { sampleWorkMap } from "./fixture";
 
 /**
- * Local data access for the Work Map page. Deliberately small: `lib/api.ts` (TAN-2) is the
- * shared client; this file only covers the routes this page needs and parses every
- * response with the `@shadow/schema` contracts.
+ * Work Map data access on top of the shared API client (`lib/api.ts`). The only logic
+ * kept here is the page's fallback rule: the sample map is shown when forced or when the
+ * API cannot be reached at all.
  */
 
-export type WorkMapPatchInput = z.input<typeof WorkMapPatch>;
+export { patchWorkMap, publishWorkMap, recordingUrl, type WorkMapPatchInput };
 
 export type LoadResult =
   | { source: "api"; map: WorkMap }
   | { source: "fixture"; map: WorkMap; reason: "forced" | "unreachable" };
 
-export class WorkMapLoadError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-    this.name = "WorkMapLoadError";
-  }
-}
-
-const PublishResponse = z.object({ id: z.string() });
-
-export function workMapUrl(id: string): string {
-  return id === "latest"
-    ? `${publicEnv.apiUrl}/workmaps/published`
-    : `${publicEnv.apiUrl}/workmaps/${encodeURIComponent(id)}`;
-}
-
+/** `GET /frames/:frameId.jpg` has no client method (it is an <img src>), so it is built here. */
 export function frameUrl(frameId: string): string {
   return `${publicEnv.apiUrl}/frames/${encodeURIComponent(frameId)}.jpg`;
 }
 
-export function recordingUrl(sessionId: string): string {
-  return `${publicEnv.apiUrl}/sessions/${encodeURIComponent(sessionId)}/recording`;
-}
-
-async function parseResponse<T>(res: Response, schema: z.ZodType<T>, what: string): Promise<T> {
-  if (!res.ok) {
-    throw new WorkMapLoadError(`${what} failed with HTTP ${res.status}`, res.status);
-  }
-  const parsed = schema.safeParse(await res.json());
-  if (!parsed.success) {
-    throw new WorkMapLoadError(`${what} returned data that does not match the WorkMap contract`);
-  }
-  return parsed.data;
-}
-
 /**
- * Loads a map from the API. Falls back to the sample map only when the API cannot be
- * reached at all (network error) or when the caller forces it; an HTTP error or an
- * invalid body is reported, never papered over.
+ * Loads a map from the API ("latest" means the latest published map). Falls back to the
+ * sample map only on a network error or when the caller forces it; an HTTP error or an
+ * invalid body is thrown as an `ApiClientError`, never papered over.
  */
 export async function loadWorkMap(
   id: string,
   opts: { forceFixture: boolean },
 ): Promise<LoadResult> {
   if (opts.forceFixture) return { source: "fixture", map: sampleWorkMap, reason: "forced" };
-
-  let res: Response;
   try {
-    res = await fetch(workMapUrl(id), { headers: { accept: "application/json" } });
-  } catch {
-    return { source: "fixture", map: sampleWorkMap, reason: "unreachable" };
+    const map = id === "latest" ? await getPublishedWorkMap() : await getWorkMap(id);
+    return { source: "api", map };
+  } catch (err) {
+    if (err instanceof ApiClientError && err.kind === "network") {
+      return { source: "fixture", map: sampleWorkMap, reason: "unreachable" };
+    }
+    throw err;
   }
-  const map = await parseResponse(res, WorkMap, `Loading Work Map "${id}"`);
-  return { source: "api", map };
-}
-
-export async function patchWorkMap(id: string, patch: WorkMapPatchInput): Promise<WorkMap> {
-  const res = await fetch(`${publicEnv.apiUrl}/workmaps/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify(patch),
-  });
-  return parseResponse(res, WorkMap, "Updating the Work Map");
-}
-
-export async function publishWorkMap(id: string): Promise<{ id: string }> {
-  const res = await fetch(`${publicEnv.apiUrl}/workmaps/${encodeURIComponent(id)}/publish`, {
-    method: "POST",
-    headers: { accept: "application/json" },
-  });
-  return parseResponse(res, PublishResponse, "Publishing the Work Map");
 }
