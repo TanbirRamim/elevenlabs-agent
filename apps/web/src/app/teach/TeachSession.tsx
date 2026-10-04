@@ -207,7 +207,8 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
     async (action: PendingAction): Promise<GuardVerdict> => {
       let verdict: GuardVerdict;
       try {
-        verdict = await withTimeout(preSave(action), GUARD_TIMEOUT_MS);
+        // The session id lets the API score this verdict in the mastery report.
+        verdict = await withTimeout(preSave(action, sessionId ?? undefined), GUARD_TIMEOUT_MS);
       } catch (err) {
         warn(
           `Guard unavailable (${describeError(err)}). ${action.ticket.id} was saved without a check.`,
@@ -224,7 +225,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
       }
       return verdict;
     },
-    [control, warn],
+    [control, warn, sessionId],
   );
 
   // The tutor calls this after explaining (agents/tutor.md).

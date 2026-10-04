@@ -113,6 +113,18 @@ describe("api client", () => {
       verdict,
     );
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://api.test/guard/presave");
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).has("x-shadow-session")).toBe(false);
+  });
+
+  it("names the teach session in the x-shadow-session header, not the URL", async () => {
+    const { client, fetchMock } = clientWith(async () => jsonResponse(200, verdict));
+    await client.preSave({ ticket, outcome: "refund" }, "ses_abc");
+    const call = fetchMock.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const [url, init] = call;
+    expect(url).toBe("http://api.test/guard/presave");
+    expect(new Headers(init?.headers).get("x-shadow-session")).toBe("ses_abc");
   });
 
   it("builds query strings and encodes path segments", async () => {
