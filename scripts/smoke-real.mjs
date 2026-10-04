@@ -28,6 +28,9 @@ const { values: args } = parseArgs({
     api: { type: "string", default: "http://localhost:4141" },
     "debrief-max": { type: "string", default: "8" },
     pace: { type: "string", default: "1" },
+    // "truth": send DeskSim DOM events (the API uses them per CAPTURE_SIGNALS; in the default
+    // vision mode only for the agreement metric). "off": send none, as a third-party app would.
+    desk: { type: "string", default: "truth" },
   },
 });
 const API = args.api.replace(/\/+$/, "");
@@ -276,7 +279,9 @@ async function main() {
     stream.send({ type: "frame", tMs: clock(), ...f });
     frames.push(f.frameId);
   };
-  const desk = (event) => stream.send({ type: "desk_event", event: { tMs: clock(), ...event } });
+  const desk = (event) => {
+    if (args.desk !== "off") stream.send({ type: "desk_event", event: { tMs: clock(), ...event } });
+  };
 
   const asked = [];
   const captureStarted = performance.now();
@@ -339,6 +344,11 @@ async function main() {
       `      insight: vision p90 ${lastInsight.visionLatencyMsP90 ?? "n/a"} ms, unreadable ${lastInsight.visionUnreadableFrames}, dom/vision agreement ${lastInsight.domVisionAgreement ?? "n/a"}, open gaps ${lastInsight.openGaps}`,
     );
   }
+  for (const c of stream.inbox.candidates) {
+    out(
+      `      candidate ${c.id} [${c.slot} ${c.priority.toFixed(2)}] about ${c.aboutTicketId}: ${c.text}`,
+    );
+  }
   if (browser) await browser.close();
 
   // ---- debrief
@@ -358,6 +368,7 @@ async function main() {
   const workMapId = end.json.workMapId;
   let open = end.json.openQuestions;
   let fraudSaid = false;
+  const answerMs = [];
   for (let i = 0; i < DEBRIEF_MAX && open.length > 0; i++) {
     const q = [...open].sort((a, b) => b.priority - a.priority)[0];
     const ids = [say(debriefAnswer(q))];
@@ -380,8 +391,45 @@ async function main() {
       },
     );
     if (r.status !== 200) break;
+    answerMs.push(r.ms);
     open = r.json.openQuestions;
     if (r.json.done) break;
+  }
+  if (answerMs.length > 0) {
+    const sorted = [...answerMs].sort((a, b) => a - b);
+    record(
+      "debrief answers instant (<= 3 s)",
+      sorted.at(-1) <= 3000,
+      null,
+      `${answerMs.length} answers, p50 ${Math.round(sorted[Math.floor(sorted.length / 2)])} ms, max ${Math.round(sorted.at(-1))} ms`,
+    );
+  }
+  // The map is rebuilt and verified in the background; time until it has caught up.
+  const bgStarted = performance.now();
+  for (;;) {
+    const res = await fetch(`${API}/sessions/${sessionId}/debrief`);
+    if (res.status !== 200 || res.headers.get("x-shadow-rebuilding") !== "1") {
+      const j = res.status === 200 ? await res.json() : null;
+      record(
+        "background rebuild settled",
+        res.status === 200,
+        performance.now() - bgStarted,
+        j
+          ? `coverage ${j.coverage}, ${j.openQuestions.length} open, done ${j.done}`
+          : `HTTP ${res.status}`,
+      );
+      break;
+    }
+    if (performance.now() - bgStarted > 300_000) {
+      record(
+        "background rebuild settled",
+        false,
+        performance.now() - bgStarted,
+        "still rebuilding",
+      );
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
   }
   await step(
     "teach-back text",
@@ -432,6 +480,9 @@ async function main() {
     mapMs,
     `${map.steps.length} steps, ${map.guardrails.length} guardrails (${map.guardrails.filter((g) => g.machineRule).length} machine rules), ${map.openQuestions.length} open questions (${removed} from failed evidence), coverage ${map.coverage}, teach-back ${map.teachBackConfirmedAtMs === null ? "unconfirmed" : "confirmed"}${problems.length ? `; ${problems.slice(0, 3).join("; ")}` : ""}`,
   );
+  for (const s of map.steps) {
+    out(`      ${s.id} ${s.title} -> ${s.decision} @ frame ${s.moment.frameId} t=${s.moment.tMs}`);
+  }
   for (const g of map.guardrails) {
     out(
       `      ${g.id} [${g.type}] ${g.condition} -> ${g.action}${g.machineRule ? ` | rule ${JSON.stringify(g.machineRule.when)} ${g.machineRule.effect} ${g.machineRule.expectedOutcome ?? ""}` : " | no machine rule"}`,
