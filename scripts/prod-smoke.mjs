@@ -212,26 +212,49 @@ await route("/capture", async (page) => {
   return "preflight ready";
 });
 
+// Map-agnostic: the published map may be the sample (G1..G6) or a real capture (g_fraud, …),
+// so this follows the guided start to whatever ticket and action it picks, and accepts any rule id.
 await route("/teach", async (page) => {
-  await page.getByText("N1", { exact: true }).first().click({ timeout: 20000 });
-  await page
-    .getByRole("button", { name: /^Refund$/ })
-    .first()
-    .click({ timeout: 10000 });
+  const guide = page.getByRole("region", { name: "Try Singoda AI" });
+  const open = guide.getByRole("button", { name: /^Open \S+$/ });
+  await open.waitFor({ state: "visible", timeout: 20000 });
+  // Read before clicking: the guide closes once the ticket opens.
+  const ticketId = (await open.innerText()).trim().replace(/^Open\s+/, "");
+  await open.click({ timeout: 10000 });
+  await page.locator("[data-shadow-hint]").first().click({ timeout: 10000 });
   const t0 = Date.now();
   await see(page, "Paused by Singoda AI", 15000);
-  await see(page, /G4/, 2000);
+  const chip = page.getByTestId("connector-chip").first();
+  await chip.waitFor({ state: "visible", timeout: 5000 });
+  const chipText = await chip.innerText();
+  const rule = chipText.match(/BLOCK · \d+ ms · (\S.*)$/)?.[1];
+  if (!rule)
+    throw new Error(`held ${ticketId}, but the connector chip names no rule: "${chipText}"`);
   const blockMs = Date.now() - t0;
-  await page.getByText("N2", { exact: true }).first().click({ timeout: 10000 });
-  await page
-    .getByRole("region", { name: "Predict the decision" })
-    .waitFor({ timeout: 15000 })
-    .catch(() => {
-      throw new Error(
-        `blocked in ${blockMs} ms with G4, but N2 showed no "Predict the decision" panel`,
-      );
-    });
-  return `block ${blockMs} ms; predict shown`;
+
+  // Predict: the first other ticket that hits a judgment point in the published map.
+  const predict = page.getByRole("region", { name: "Predict the decision" });
+  const rows = page.getByRole("navigation", { name: "Ticket queue" }).getByRole("button");
+  const count = await rows.count();
+  let predicted = null;
+  for (let i = 0; i < count && !predicted; i++) {
+    const row = rows.nth(i);
+    const name = (await row.innerText()).split(/\s/)[0];
+    if (name === ticketId) continue;
+    await row.click({ timeout: 10000 });
+    if (
+      await predict.waitFor({ state: "visible", timeout: 3000 }).then(
+        () => true,
+        () => false,
+      )
+    )
+      predicted = name;
+  }
+  if (!predicted)
+    throw new Error(
+      `held ${ticketId} in ${blockMs} ms with ${rule}, but no ticket showed a "Predict the decision" panel`,
+    );
+  return `held ${ticketId} with ${rule} in ${blockMs} ms; predict on ${predicted}`;
 });
 
 for (const path of ["/map/latest", "/map/latest?fixture=1"]) {
