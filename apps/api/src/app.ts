@@ -14,10 +14,12 @@ import { createMockStreamHooks } from "./mock/stream.js";
 import { createFrameProcessor } from "./pipeline/frames.js";
 import { createPresidioRedactor, identityRedactor } from "./privacy/presidio.js";
 import { createPresidioImageRedactor } from "./privacy/presidioImage.js";
+import { type DebriefDeps, registerDebriefRoutes } from "./routes/debrief.js";
 import { registerGuardRoutes } from "./routes/guard.js";
 import { registerRecordingRoutes } from "./routes/recording.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerTicketRoutes } from "./routes/tickets.js";
+import { registerWorkMapRoutes } from "./routes/workmaps.js";
 import { createS3Storage } from "./storage/s3.js";
 import type { ObjectStorage } from "./storage/types.js";
 import { createMemoryStore, type Store } from "./store/memory.js";
@@ -29,6 +31,10 @@ export interface AppDeps {
   tickets?: Ticket[];
   /** Test override: inject a fake ObjectStorage, or null to simulate no storage. */
   storage?: ObjectStorage | null;
+  /** Test override: a fake LlmDeps (or null to force no-LLM mode) instead of the env key. */
+  llm?: ReturnType<typeof createLlm> | null;
+  /** Test seams for the debrief routes (fake map generation / teach-back text). */
+  debriefSeams?: Omit<DebriefDeps, "llm">;
   /** Test override for the global per-IP limit (default 300/min). */
   rateLimitMax?: number;
 }
@@ -39,6 +45,8 @@ export async function buildApp({
   fallbackRules = [],
   tickets = loadTickets(),
   storage,
+  llm: llmOverride,
+  debriefSeams,
   rateLimitMax = 300,
 }: AppDeps) {
   const app = Fastify({
@@ -88,8 +96,15 @@ export async function buildApp({
       log: app.log,
     });
     // Without a key, frames are stored (redacted) but never shown to a model.
-    const llm = env.ANTHROPIC_API_KEY ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL) : null;
+    const llm =
+      llmOverride !== undefined
+        ? llmOverride
+        : env.ANTHROPIC_API_KEY
+          ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL)
+          : null;
     const ticketsById = new Map(tickets.map((t) => [t.id, PublicTicket.parse(t)]));
+    registerWorkMapRoutes(app, store);
+    if (llm) registerDebriefRoutes(app, store, { llm, ...debriefSeams });
     registerSessionRoutes(app, store, {
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,

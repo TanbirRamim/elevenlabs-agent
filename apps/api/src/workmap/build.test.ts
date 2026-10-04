@@ -79,15 +79,17 @@ describe("buildWorkMap", () => {
     const session = sessionWithEvidence();
     const fabricated = validDraft();
     fabricated.guardrails = [];
+    const base = validDraft().steps[0];
+    if (!base) throw new Error("fixture missing step");
     fabricated.steps = [
-      ...validDraft().steps.map((s) => ({ ...s, guardrailIds: [] })),
+      { ...base, guardrailIds: [] },
       {
-        ...validDraft().steps[0]!,
+        ...base,
         id: "S2",
         order: 2,
         title: "Always refund VIPs instantly",
         guardrailIds: [],
-        reason: { ...validDraft().steps[0]!.reason, text: "VIPs always get instant refunds" },
+        reason: { ...base.reason, text: "VIPs always get instant refunds" },
       },
     ];
     const generate = vi.fn(async () => fabricated);
@@ -114,7 +116,9 @@ describe("buildWorkMap", () => {
   it("drops an unsupported machineRule but keeps the guardrail", async () => {
     const session = sessionWithEvidence();
     const draft = validDraft();
-    draft.guardrails[0]!.machineRule = {
+    const g0 = draft.guardrails[0];
+    if (!g0) throw new Error("fixture missing guardrail");
+    g0.machineRule = {
       when: { bodyMatchesAny: ["lawyer"] }, // not in the quote
       effect: "BLOCK",
     };
@@ -128,10 +132,9 @@ describe("buildWorkMap", () => {
   it("a removed guardrail is filtered out of step guardrailIds", async () => {
     const session = sessionWithEvidence();
     const draft = validDraft();
-    draft.guardrails[0]!.evidence.quote = {
-      ...draft.guardrails[0]!.evidence.quote,
-      text: "totally invented rule",
-    };
+    const g = draft.guardrails[0];
+    if (!g) throw new Error("fixture missing guardrail");
+    g.evidence.quote = { ...g.evidence.quote, text: "totally invented rule" };
     const generate = vi.fn(async () => draft);
     const { map, removed } = await buildWorkMap(llm, session, [], { generate });
     expect(map.guardrails).toEqual([]);
