@@ -213,3 +213,71 @@ describe("DeskSim", () => {
     expect(preSave).toHaveBeenCalledWith({ ticket: T3, outcome: "handoff_billing_disputes" });
   });
 });
+
+describe("DeskSim composer and status", () => {
+  it("the reply composer emits field_changed on blur and Reply commits", async () => {
+    const preSave = vi.fn(
+      async (): Promise<GuardVerdict> => ({
+        decision: "ALLOW",
+        ruleIds: [],
+        source: "machine_rule",
+      }),
+    );
+    const { onDeskEvent } = setup(preSave);
+    fireEvent.click(screen.getByRole("button", { name: /chargeback opened/i }));
+
+    const composer = screen.getByLabelText(/reply to the customer/i);
+    fireEvent.focus(composer);
+    fireEvent.change(composer, { target: { value: "On it — refunding the duplicate." } });
+    fireEvent.blur(composer);
+    fireEvent.click(screen.getByRole("button", { name: /^reply/i }));
+    await screen.findByText(/committed: reply/i);
+
+    const events = onDeskEvent.mock.calls.map(([e]) => e);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "field_changed",
+        field: "reply_draft",
+        from: null,
+        to: "On it — refunding the duplicate.",
+      }),
+    );
+    const commits = events.filter((e) => e.type === "action_committed");
+    expect(commits).toHaveLength(1);
+    expect(commits[0]).toMatchObject({ outcome: "reply", ticketId: "T3" });
+  });
+
+  it("the ticket header flips from Open to Solved after a commit", async () => {
+    const preSave = vi.fn(
+      async (): Promise<GuardVerdict> => ({
+        decision: "ALLOW",
+        ruleIds: [],
+        source: "machine_rule",
+      }),
+    );
+    setup(preSave);
+    fireEvent.click(screen.getByRole("button", { name: /chargeback opened/i }));
+    expect(screen.getAllByText("Open").length).toBeGreaterThan(0); // queue row + status pill
+    fireEvent.click(screen.getByRole("button", { name: /handoff: billing disputes/i }));
+    await screen.findByText(/committed:/i);
+    expect(screen.getByText("Solved")).toBeTruthy();
+  });
+
+  it("route actions render as a quieter row but still fire", async () => {
+    const preSave = vi.fn(
+      async (): Promise<GuardVerdict> => ({
+        decision: "ALLOW",
+        ruleIds: [],
+        source: "machine_rule",
+      }),
+    );
+    const { onDeskEvent } = setup(preSave);
+    fireEvent.click(screen.getByRole("button", { name: /chargeback opened/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^close/i }));
+    await screen.findByText(/committed: close/i);
+    const commits = onDeskEvent.mock.calls
+      .map(([e]) => e)
+      .filter((e) => e.type === "action_committed");
+    expect(commits[0]).toMatchObject({ outcome: "close" });
+  });
+});

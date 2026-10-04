@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { type Command, filterCommands, groupCommands, matchScore } from "./commands";
 import { interpretKey, isEditableTarget, isPaletteShortcut, modKeyLabel } from "./keys";
-import { findNavItem, isBareRoute, resolveCrumbs } from "./nav";
+import { findNavItem, isBareRoute, isNakedRoute, resolveCrumbs } from "./nav";
 import { parseThemePref, resolveTheme, toggledPref } from "./theme";
 
 const key = (
@@ -23,6 +23,13 @@ describe("nav", () => {
     expect(isBareRoute("/demo/")).toBe(true);
     expect(isBareRoute("/capture")).toBe(false);
     expect(isBareRoute("/map/latest")).toBe(false);
+  });
+
+  it("renders capture with no chrome at all", () => {
+    expect(isNakedRoute("/capture")).toBe(true);
+    expect(isNakedRoute("/capture/")).toBe(true);
+    expect(isNakedRoute("/teach")).toBe(false);
+    expect(isNakedRoute("/")).toBe(false);
   });
 
   it("matches nav items by prefix, not substring", () => {

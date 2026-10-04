@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
-import { Page } from "@/components/shell/Page";
-import { PageHeader } from "@/components/ui";
 import { VoiceProvider } from "@/lib/voice";
 import { CaptureSession } from "./CaptureSession";
 
 export const metadata: Metadata = { title: "Capture · Shadow" };
 
+/**
+ * No Shadow chrome here (the route is "naked" in the shell): the page IS the
+ * standalone DeskSim ticketing app the expert works in, and Shadow is present
+ * only as the floating dock. Work the queue as you always do and think aloud.
+ */
 export default function CapturePage() {
   return (
-    <Page width="wide">
-      <PageHeader
-        title="Capture"
-        description="Work the queue as you always do and think aloud. Shadow follows quietly and asks short questions at natural pauses."
-      />
-      <VoiceProvider>
-        <CaptureSession />
-      </VoiceProvider>
-    </Page>
+    <VoiceProvider>
+      <CaptureSession />
+    </VoiceProvider>
   );
 }
