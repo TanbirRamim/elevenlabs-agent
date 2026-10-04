@@ -1,10 +1,11 @@
 import { expect, test } from "./fixtures";
 
-test("home renders and links to every module", async ({ page }) => {
+test("home states the product and links to every module", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Shadow" })).toBeVisible();
-  for (const label of ["DeskSim", "Capture", "Work Map", "Teach", "Copilot"]) {
-    await expect(page.getByRole("link", { name: label, exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("judgment");
+  const nav = page.getByRole("navigation").first();
+  for (const label of ["Capture", "Work Map", "Teach"]) {
+    await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
 });
 

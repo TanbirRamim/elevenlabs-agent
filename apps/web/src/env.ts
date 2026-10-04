@@ -18,4 +18,6 @@ export function getServerEnv() {
 export const publicEnv = {
   apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000",
   apiWsUrl: process.env.NEXT_PUBLIC_API_WS_URL ?? "ws://localhost:4000",
+  /** Optional Spline scene for the landing hero (https only); the 3D orb is used when unset. */
+  splineSceneUrl: process.env.NEXT_PUBLIC_SPLINE_SCENE_URL ?? "",
 };
