@@ -5,6 +5,7 @@ import { ArrowRight, CircleCheck, Play } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { ACTION_LABELS, shortcutFor } from "@/components/desk/ActionBar";
 import { Avatar, Badge, Button, cx, Kbd } from "@/components/ui";
+import { NO_REPLAY_NOTE } from "@/components/workmap/ClipPlayer";
 import { formatClip, formatMs, SOURCE_LABEL } from "@/components/workmap/format";
 import { GuardrailTypeBadge } from "@/components/workmap/primitives";
 import type { Intervention } from "./logic";
@@ -16,6 +17,7 @@ export interface InterventionPanelProps {
   resolvedOutcome: Outcome | null;
   /** True when the tutor received `[INTERVENE]`; false when only this panel explains. */
   tutorNotified: boolean;
+  /** Opens the expert's screen moment; null when the map has no capture session to replay. */
   onReplay: (() => void) | null;
   /** Saves the suggested route through the desk (and the guard) again. */
   onChoose?: ((outcome: Outcome) => void) | null;
@@ -120,7 +122,9 @@ export function InterventionPanel({
                     >
                       Play {expertName}'s clip
                     </Button>
-                  ) : null}
+                  ) : (
+                    <span className="ml-auto">{NO_REPLAY_NOTE}</span>
+                  )}
                 </figcaption>
               </figure>
             </>

@@ -42,6 +42,7 @@ import { PredictPanel } from "@/components/tutor/PredictPanel";
 import { listeningStateFor } from "@/components/tutor/TutorVoicePanel";
 import { Alert, Avatar, Button, ButtonLink, buttonClasses, Skeleton } from "@/components/ui";
 import { formatMs } from "@/components/workmap/format";
+import { mapMoments, resolveExpertSession } from "@/components/workmap/load";
 import { publicEnv } from "@/env";
 import {
   ApiClientError,
@@ -84,7 +85,10 @@ interface InterventionState {
 export interface TeachSessionProps {
   /** `?workMap=`: teach from this map instead of the latest published one. */
   workMapId: string | null;
-  /** `?expertSession=`: the capture session whose recording holds the expert's clips. */
+  /**
+   * `?expertSession=`: the capture session whose recording holds the expert's clips. Optional:
+   * without it the published map's `sourceSessionId` is used (resolveExpertSession).
+   */
   expertSessionId: string | null;
   learnerName: string | null;
 }
@@ -135,6 +139,9 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const explained = useRef(oncePerKey());
 
   const expertName = map?.expertName ?? "The expert";
+  // The query wins, then the map's own capture session; null means no screen replay.
+  const expertSession = resolveExpertSession(expertSessionId, map);
+  const moments = useMemo(() => mapMoments(map), [map]);
   const dynamicVariables = useMemo(
     () => ({ expert_name: expertName, learner_name: learnerName ?? "the new hire" }),
     [expertName, learnerName],
@@ -344,9 +351,9 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
     );
     setReplay({ frameId: parsed.data.frameId, ref: found });
     if (!found) return `No moment for frame ${parsed.data.frameId} in the Work Map.`;
-    return expertSessionId
-      ? "Playing the expert's clip on the learner's screen."
-      : "Showing the expert's quote; the recording is not linked on this page.";
+    return resolveExpertSession(expertSessionId, mapRef.current)
+      ? "Playing the expert's screen moment on the learner's screen."
+      : "Showing the expert's quote with its timestamp; this map has no captured screen to replay.";
   });
 
   const choosePrediction = useCallback(
@@ -426,7 +433,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
               resolvedOutcome={intervention.resolvedOutcome}
               tutorNotified={intervention.tutorNotified}
               onReplay={
-                primary
+                primary && expertSession
                   ? () =>
                       setReplay({
                         frameId: primary.evidence.moment.frameId,
@@ -444,7 +451,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
       if (check) return <ConnectorChip verdict={check} subtle={!held} />;
       return null;
     },
-    [intervention, expertName, primary, checks],
+    [intervention, expertName, primary, checks, expertSession],
   );
 
   const notices = (
@@ -659,15 +666,19 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
               <MasteryReportView
                 report={report}
                 workMap={map}
-                onPlayClip={(item) =>
-                  setReplay({
-                    frameId: item.frameId,
-                    ref: {
-                      moment: { tMs: item.tMs, frameId: item.frameId, clip: item.clip },
-                      quote: item.quote,
-                      title: item.title,
-                    },
-                  })
+                // Without a capture session the report already shows the words: no dead control.
+                onPlayClip={
+                  expertSession
+                    ? (item) =>
+                        setReplay({
+                          frameId: item.frameId,
+                          ref: {
+                            moment: { tMs: item.tMs, frameId: item.frameId, clip: item.clip },
+                            quote: item.quote,
+                            title: item.title,
+                          },
+                        })
+                    : undefined
                 }
               />
             ) : (
@@ -681,7 +692,8 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         frameId={replay?.frameId ?? null}
         moment={replay?.ref ?? null}
         expertName={expertName}
-        expertSessionId={expertSessionId}
+        expertSessionId={expertSession}
+        nearby={moments}
         onClose={() => setReplay(null)}
       />
     </div>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NO_REPLAY_NOTE } from "./ClipPlayer";
 import { sampleWorkMap } from "./fixture";
 import { FrameImage, StepDetail } from "./StepDetail";
 import { WorkMapView } from "./WorkMapView";
@@ -9,6 +10,18 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+/** Makes every `new Image()` load (or fail) on the next tick, as the API would answer. */
+function stubImages(ok: boolean) {
+  class FakeImage {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    set src(_: string) {
+      setTimeout(() => (ok ? this.onload?.() : this.onerror?.()), 0);
+    }
+  }
+  vi.stubGlobal("Image", FakeImage);
+}
 
 async function renderFixture(sessionId: string | null = null) {
   const utils = render(<WorkMapView id="latest" sessionId={sessionId} forceFixture />);
@@ -90,11 +103,21 @@ describe("WorkMapView with the sample map", () => {
     );
   });
 
-  it("shows a no-recording state instead of a broken player when the clip fails", async () => {
+  it("shows the stored frames when the recording is missing", async () => {
+    stubImages(true);
     await renderFixture("sess_42");
     fireEvent.error(screen.getByLabelText(/Session clip/));
-    expect(screen.getByText("The recording could not be loaded")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Play clip" }).hasAttribute("disabled")).toBe(true);
+    const img = await screen.findByRole("img", { name: /Redacted screen at/ });
+    expect(img.getAttribute("src")).toMatch(/\/sessions\/sess_42\/frames\/f_1\.jpg$/);
+    expect(screen.queryByRole("button", { name: "Play clip" })).toBeNull();
+  });
+
+  it("shows an honest note, no dead controls, when neither recording nor frames exist", async () => {
+    stubImages(false);
+    await renderFixture("sess_42");
+    fireEvent.error(screen.getByLabelText(/Session clip/));
+    expect((await screen.findAllByText(NO_REPLAY_NOTE)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Play clip" })).toBeNull();
   });
 
   it("disables expert controls in fixture mode", async () => {

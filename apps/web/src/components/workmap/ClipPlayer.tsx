@@ -1,33 +1,190 @@
 "use client";
 
 import type { ScreenMoment } from "@shadow/schema";
-import { Pause, Play, RotateCcw, VideoOff } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Film, Pause, Play, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx, IconButton } from "../ui";
 import { formatClip, formatMs } from "./format";
-import { frameUrl, recordingUrl } from "./load";
+import {
+  framesAroundMoment,
+  frameUrl,
+  type RecordingState,
+  type ReplayMode,
+  recordingUrl,
+  replayMode,
+} from "./load";
+
+/** The honest line shown where a screen replay would be when there is nothing to play. */
+export const NO_REPLAY_NOTE = "Screen replay appears for maps captured in a live session.";
+
+const SLIDE_MS = 1_500;
+
+/**
+ * Checks which of `frameIds` the API has stored for `sessionId` by loading each as an image.
+ * Returns "pending" until every probe has answered; a null session probes nothing.
+ */
+export function useStoredFrames(
+  sessionId: string | null,
+  frameIds: readonly string[],
+): readonly string[] | "pending" {
+  const key = frameIds.join("|");
+  const [result, setResult] = useState<{ key: string; ok: string[] } | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for frameIds
+  useEffect(() => {
+    if (!sessionId || frameIds.length === 0) return;
+    let cancelled = false;
+    const probes = frameIds.map(
+      (id) =>
+        new Promise<string | null>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(id);
+          img.onerror = () => resolve(null);
+          img.src = frameUrl(sessionId, id);
+        }),
+    );
+    void Promise.all(probes).then((ids) => {
+      if (!cancelled) setResult({ key: `${sessionId}#${key}`, ok: ids.filter((x) => x !== null) });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, key]);
+  if (!sessionId || frameIds.length === 0) return [];
+  return result?.key === `${sessionId}#${key}` ? result.ok : "pending";
+}
+
+/**
+ * Decides how a moment is replayed: the recording first; if it fails, the stored redacted
+ * frames around the moment (from `nearby`, the map's other moments); else the quote alone.
+ * Frames are only probed once the recording has failed.
+ */
+export function useScreenReplay(
+  sessionId: string | null,
+  moment: ScreenMoment | null,
+  nearby: readonly ScreenMoment[],
+) {
+  // The answer is stored with the clip it belongs to, so a new clip reads "pending" without an
+  // effect resetting it: a reset effect could run after a fast 404 and lose the error.
+  const clipKey = moment ? `${sessionId ?? ""}#${moment.frameId}#${moment.clip.join("-")}` : "";
+  const [answer, setAnswer] = useState<{ key: string; state: RecordingState } | null>(null);
+  const recording: RecordingState = answer?.key === clipKey ? answer.state : "pending";
+  const candidates = useMemo(
+    () => (moment ? framesAroundMoment(moment, nearby) : []),
+    [moment, nearby],
+  );
+  const stored = useStoredFrames(
+    recording === "missing" ? sessionId : null,
+    candidates.map((c) => c.frameId),
+  );
+  const frames = recording !== "missing" ? "pending" : stored === "pending" ? "pending" : stored;
+  const mode: ReplayMode = replayMode({ sessionId, recording, frames });
+  const slides = frames === "pending" ? [] : candidates.filter((c) => frames.includes(c.frameId));
+  const onVideoReady = useCallback(() => setAnswer({ key: clipKey, state: "ok" }), [clipKey]);
+  const onVideoError = useCallback(() => setAnswer({ key: clipKey, state: "missing" }), [clipKey]);
+  return { mode, slides, onVideoReady, onVideoError };
+}
+
+/**
+ * The screen moment as a slideshow of the session's stored, redacted frames, for a session
+ * whose recording is missing. Advances on its own (when `autoPlay`) with its own play/pause.
+ */
+export function FrameSlideshow({
+  sessionId,
+  slides,
+  clip,
+  autoPlay = false,
+}: {
+  sessionId: string;
+  slides: readonly { frameId: string; tMs: number }[];
+  clip: [number, number];
+  autoPlay?: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(autoPlay && slides.length > 1);
+  const count = slides.length;
+  useEffect(() => {
+    if (!playing || count < 2) return;
+    const timer = window.setInterval(() => setIndex((i) => (i + 1) % count), SLIDE_MS);
+    return () => window.clearInterval(timer);
+  }, [playing, count]);
+  const current = slides[Math.min(index, count - 1)];
+  if (!current) return null;
+  return (
+    <figure
+      aria-label={`Session clip ${formatClip(clip)}, stored frames`}
+      className="overflow-hidden rounded-panel border border-rule bg-surface"
+    >
+      <div className="relative aspect-video w-full bg-sunken">
+        {/* biome-ignore lint/performance/noImgElement: frames come from the API host; next/image would need remotePatterns in next.config.ts, which this component does not own */}
+        <img
+          src={frameUrl(sessionId, current.frameId)}
+          alt={`Redacted screen at ${formatMs(current.tMs)}`}
+          className="block size-full object-contain"
+        />
+      </div>
+      <figcaption className="flex items-center gap-1 border-t border-rule px-1.5 py-1">
+        {count > 1 ? (
+          <IconButton
+            size="sm"
+            variant="ghost"
+            label={playing ? "Pause frames" : "Play frames"}
+            onClick={() => setPlaying((p) => !p)}
+          >
+            {playing ? <Pause /> : <Play />}
+          </IconButton>
+        ) : null}
+        <span className="min-w-0 flex-1 px-1.5 text-xs text-ink-muted">
+          {count > 1 ? `Frame ${index + 1} of ${count}` : "Stored frame"} · redacted, no recording
+          for this session
+        </span>
+        <span className="figures shrink-0 pr-1.5 font-mono text-xs text-ink">
+          {formatMs(current.tMs)}
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
+/** Where the replay would be when neither a recording nor stored frames exist. */
+export function NoReplayNote({ clip }: { clip?: [number, number] }) {
+  return (
+    <div
+      role="note"
+      aria-label={clip ? `Session clip ${formatClip(clip)}, no screen replay` : "No screen replay"}
+      className="flex w-full items-start gap-2 rounded-panel border border-rule bg-sunken p-3"
+    >
+      <Film aria-hidden="true" className="mt-0.5 size-4 shrink-0 stroke-[1.5] text-ink-muted" />
+      <p className="text-ui text-ink-muted">{NO_REPLAY_NOTE}</p>
+    </div>
+  );
+}
 
 /**
  * Replays the session recording seeked to `moment.clip` via a media fragment (#t=start,end),
  * with its own transport: play/pause, restart, a scrubber bounded to the clip, the clip clock,
- * and a marker where the quote was said. Rendered only when a session id is known.
+ * and a marker where the quote was said. Without a recording it shows the stored frames around
+ * the moment, and without those an honest note. Rendered only when a session id is known.
  */
 export function ClipPlayer({
   moment,
   sessionId,
   quoteMs,
+  nearby = [],
 }: {
   moment: ScreenMoment;
   sessionId: string;
   /** Session time of the quote the clip backs; drawn as a marker on the scrubber. */
   quoteMs?: number;
+  /** Other moments of the map, whose frames may join the slideshow when there is no recording. */
+  nearby?: readonly ScreenMoment[];
 }) {
+  const replay = useScreenReplay(sessionId, moment, nearby);
   const [startMs, endMs] = moment.clip;
   const src = `${recordingUrl(sessionId)}#t=${startMs / 1000},${endMs / 1000}`;
   const ref = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [nowMs, setNowMs] = useState(startMs);
-  const [failed, setFailed] = useState(false);
+  const failed = replay.mode !== "video";
   const lengthMs = Math.max(1, endMs - startMs);
 
   // A new clip resets the transport.
@@ -35,7 +192,6 @@ export function ClipPlayer({
   useEffect(() => {
     setPlaying(false);
     setNowMs(startMs);
-    setFailed(false);
   }, [src]);
 
   const seek = useCallback(
@@ -53,11 +209,16 @@ export function ClipPlayer({
     if (!v) return;
     if (v.paused) {
       if (v.currentTime * 1000 >= endMs - 50) v.currentTime = startMs / 1000;
-      void v.play().catch(() => setFailed(true));
+      void v.play().catch(() => replay.onVideoError());
     } else {
       v.pause();
     }
-  }, [startMs, endMs]);
+  }, [startMs, endMs, replay.onVideoError]);
+
+  if (replay.mode === "slideshow") {
+    return <FrameSlideshow sessionId={sessionId} slides={replay.slides} clip={moment.clip} />;
+  }
+  if (replay.mode === "quote") return <NoReplayNote clip={moment.clip} />;
 
   const ratio = Math.min(1, Math.max(0, (nowMs - startMs) / lengthMs));
   const quoteRatio =
@@ -80,22 +241,18 @@ export function ClipPlayer({
           aria-label={`Session clip ${formatClip(moment.clip)}`}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onError={() => setFailed(true)}
+          onLoadedMetadata={replay.onVideoReady}
+          onError={replay.onVideoError}
           onTimeUpdate={(e) => {
             const ms = e.currentTarget.currentTime * 1000;
             setNowMs(ms);
             if (ms >= endMs) e.currentTarget.pause();
           }}
         />
-        {failed ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-sunken p-6 text-center">
-            <VideoOff aria-hidden="true" className="size-5 stroke-[1.5] text-ink-faint" />
-            <p className="text-ui font-medium text-ink">The recording could not be loaded</p>
-            <p className="max-w-[40ch] text-xs text-ink-muted">
-              The API has no recording for session <span className="font-mono">{sessionId}</span>,
-              or it is not running.
-            </p>
-          </div>
+        {replay.mode === "probing" ? (
+          <p className="absolute inset-x-0 bottom-0 bg-sunken/90 px-3 py-1.5 text-xs text-ink-muted">
+            No recording for this session; looking for its stored frames.
+          </p>
         ) : null}
       </div>
       <figcaption className="flex items-center gap-1 border-t border-rule px-1.5 py-1">
