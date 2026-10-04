@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useState } from "react";
 
 export type RevealProps = {
   children: ReactNode;
-  /** Seconds to wait after entering the viewport. Use it to sequence siblings, 0.06–0.12 apart. */
+  /** Seconds to wait after entering the viewport. Use it to sequence siblings, 0.04–0.06 apart. */
   delay?: number;
   /** Distance in px the content rises. Keep it small; this is a reveal, not an entrance. */
   rise?: number;
@@ -20,7 +20,7 @@ export type RevealProps = {
  * Content the reader jumped past (anchor link, restored scroll) is shown too, so nothing above
  * the viewport is ever left invisible.
  */
-export function Reveal({ children, delay = 0, rise = 12, className, as = "div" }: RevealProps) {
+export function Reveal({ children, delay = 0, rise = 6, className, as = "div" }: RevealProps) {
   const reduce = useReducedMotion();
   const [node, setNode] = useState<HTMLElement | null>(null);
   const [shown, setShown] = useState(false);
@@ -58,7 +58,7 @@ export function Reveal({ children, delay = 0, rise = 12, className, as = "div" }
       className={className}
       initial={{ opacity: 0, y: rise }}
       animate={shown ? { opacity: 1, y: 0 } : { opacity: 0, y: rise }}
-      transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.2, delay, ease: [0.2, 0, 0, 1] }}
     >
       {children}
     </Component>

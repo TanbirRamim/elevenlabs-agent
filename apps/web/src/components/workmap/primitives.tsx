@@ -12,16 +12,16 @@ import { formatMs, GUARDRAIL_TYPE_LABEL, SOURCE_LABEL, SPEAKER_LABEL } from "./f
 const TYPE_TONE: Record<Guardrail["type"], BadgeTone> = {
   limit: "neutral",
   exception: "muted",
-  stop_and_ask: "signal",
-  never: "stop",
+  stop_and_ask: "guard",
+  never: "danger",
 };
 
 /** Colour of the thin rule on a guardrail card's leading edge, by type. */
 export const GUARDRAIL_EDGE: Record<Guardrail["type"], string> = {
   limit: "bg-rule-strong",
   exception: "bg-rule",
-  stop_and_ask: "bg-signal",
-  never: "bg-stop",
+  stop_and_ask: "bg-guard",
+  never: "bg-danger",
 };
 
 export function GuardrailTypeBadge({ type }: { type: Guardrail["type"] }) {
@@ -35,7 +35,7 @@ export function GuardrailTypeBadge({ type }: { type: Guardrail["type"] }) {
 /** Marks a step where the expert used judgment rather than a fixed rule. */
 export function JudgmentBadge() {
   return (
-    <Badge tone="signal" dot>
+    <Badge tone="guard" dot>
       Judgment call
     </Badge>
   );
@@ -77,11 +77,10 @@ export function QuoteBlock({
     <figure className="min-w-0">
       <blockquote
         className={cx(
-          "font-display font-normal italic text-pretty text-ink",
-          resolved === "lg" &&
-            "text-[1.625rem] leading-[1.25] tracking-[-0.01em] sm:text-[2rem] sm:leading-[1.2]",
-          resolved === "md" && "text-[1.375rem] leading-snug",
-          resolved === "sm" && "text-[1.125rem] leading-snug",
+          "border-l-2 border-rule-strong pl-3 text-pretty text-ink",
+          resolved === "lg" && "text-lg leading-relaxed",
+          resolved === "md" && "text-base leading-relaxed",
+          resolved === "sm" && "text-sm leading-relaxed",
         )}
       >
         “{quote.text}”
@@ -131,7 +130,7 @@ export function Button({
         ? buttonClasses({
             variant: "secondary",
             size: "sm",
-            className: "border-stop/50 text-stop hover:border-stop hover:bg-stop-wash",
+            className: "border-danger/50 text-danger hover:border-danger hover:bg-danger-wash",
           })
         : pressed
           ? buttonClasses({

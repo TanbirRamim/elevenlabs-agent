@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Button, ButtonLink, buttonClasses } from "./Button";
+import { Button, ButtonLink, buttonClasses, IconButton } from "./Button";
 
 afterEach(cleanup);
 
@@ -45,14 +45,44 @@ describe("Button", () => {
     );
     const cls = screen.getByRole("button", { name: "Open map" }).className;
     expect(cls).toContain("border-rule-strong");
-    expect(cls).toContain("min-h-12");
+    expect(cls).toContain("h-10");
     expect(cls).toContain("w-full");
   });
 
   it("defaults to the primary variant at medium size", () => {
     const cls = buttonClasses();
     expect(cls).toContain("bg-ink");
-    expect(cls).toContain("min-h-11");
+    expect(cls).toContain("h-8");
+  });
+
+  it("shows a busy state while loading and blocks clicks", () => {
+    const onClick = vi.fn();
+    render(
+      <Button loading onClick={onClick}>
+        Publish
+      </Button>,
+    );
+    const button = screen.getByRole("button", { name: "Publish" });
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("uses the danger fill for destructive actions", () => {
+    expect(buttonClasses({ variant: "danger" })).toContain("bg-danger-fill");
+  });
+});
+
+describe("IconButton", () => {
+  it("is named by its label, not its icon", () => {
+    render(
+      <IconButton label="Close">
+        <svg aria-hidden="true" />
+      </IconButton>,
+    );
+    const button = screen.getByRole("button", { name: "Close" });
+    expect(button.getAttribute("type")).toBe("button");
   });
 });
 

@@ -45,10 +45,7 @@ export function GuardrailList({
     <section aria-labelledby="guardrails-heading" className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-10">
         <div className="lg:col-span-6">
-          <h2
-            id="guardrails-heading"
-            className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink sm:text-[2.5rem]"
-          >
+          <h2 id="guardrails-heading" className="text-lg leading-tight font-semibold text-ink">
             Guardrails{" "}
             <span className="font-mono text-base tracking-normal text-ink-faint">
               ({guardrails.length})

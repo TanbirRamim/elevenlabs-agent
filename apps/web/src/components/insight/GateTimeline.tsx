@@ -242,7 +242,7 @@ export function GateTimeline(props: GateTimelineProps) {
                 />
               ))}
               {holds.map((h) => bar(0, h, 0, "fill-ink-faint/30", `hold-${h.id}`))}
-              {askingSpans.map((s, i) => bar(0, s, 2, "fill-signal", `ask-${i}`))}
+              {askingSpans.map((s, i) => bar(0, s, 2, "fill-ask", `ask-${i}`))}
               {speechSpans.map((s, i) => bar(1, s, 1.5, "fill-ink-muted", `sp-${i}`))}
               {typingBursts.map((s, i) => bar(2, s, 1.5, "fill-ink-muted", `ty-${i}`))}
               {screenTicks.map((t) => (
@@ -265,7 +265,7 @@ export function GateTimeline(props: GateTimelineProps) {
                   y1={LANE_H / 2}
                   y2={LANES.length * LANE_H}
                   vectorEffect="non-scaling-stroke"
-                  className="stroke-signal"
+                  className="stroke-ask"
                   strokeWidth={1.5}
                 />
               ))}
@@ -402,7 +402,7 @@ function QuestionTip({ q, index }: { q: TimelineQuestion; index: number }) {
           {q.ticketId ? `, ticket ${q.ticketId}` : ""}
         </span>
         {q.slot ? (
-          <Badge tone={q.slot === "guardrail" ? "signal" : "muted"}>{SLOT_LABEL[q.slot]}</Badge>
+          <Badge tone={q.slot === "guardrail" ? "guard" : "muted"}>{SLOT_LABEL[q.slot]}</Badge>
         ) : null}
       </div>
       <p className="mt-1.5 text-[0.9375rem] leading-snug text-ink">“{q.text}”</p>
@@ -476,7 +476,7 @@ function Marker({
           className={cx(
             "inline-flex size-[22px] items-center justify-center rounded-full border font-mono text-[0.6875rem] tabular-nums",
             kind === "asked"
-              ? "border-signal bg-signal text-signal-ink"
+              ? "border-ask bg-ask text-ask-ink"
               : "border-ink-faint bg-canvas text-ink-faint",
           )}
         >
@@ -509,7 +509,7 @@ function Legend() {
   return (
     <ul aria-hidden="true" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
       {item(<span className="h-2 w-3 rounded-[1px] bg-ink-faint/30" />, "Holding a question")}
-      {item(<span className="size-2.5 rounded-full bg-signal" />, "Asked at a pause")}
+      {item(<span className="size-2.5 rounded-full bg-ask" />, "Asked at a pause")}
       {item(
         <span className="h-2 w-3 rounded-[1px] bg-sunken ring-1 ring-rule" />,
         "Off the record",

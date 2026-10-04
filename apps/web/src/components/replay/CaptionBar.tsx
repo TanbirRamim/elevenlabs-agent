@@ -55,10 +55,10 @@ export function CaptionBar({
               aria-hidden="true"
               className={cx(
                 "size-1.5 rounded-full",
-                active ? "bg-signal" : orb === "off-record" ? "bg-ink-faint" : "bg-ink-muted",
+                active ? "bg-ask" : orb === "off-record" ? "bg-ink-faint" : "bg-ink-muted",
               )}
             />
-            <span className={active ? "text-signal-text" : undefined}>{ORB_STATE_LABEL[orb]}</span>
+            <span className={active ? "text-ask-text" : undefined}>{ORB_STATE_LABEL[orb]}</span>
           </p>
           {clock ? (
             <p className="flex items-baseline gap-2 font-mono text-xs text-ink-faint">
@@ -104,7 +104,7 @@ function Line({
         <p
           className={cx(
             "mb-0.5 text-sm",
-            caption.speaker === "shadow" ? "text-signal-text" : "text-ink-muted",
+            caption.speaker === "shadow" ? "text-ask-text" : "text-ink-muted",
           )}
         >
           {name}
@@ -116,9 +116,9 @@ function Line({
           faded
             ? "truncate text-[0.9375rem] text-ink-muted"
             : expert
-              ? "font-display text-[1.375rem] leading-snug text-ink italic sm:text-[1.75rem]"
+              ? "text-base leading-snug text-ink"
               : caption.speaker === "narrator"
-                ? "font-display text-[1.375rem] leading-snug text-ink sm:text-[1.75rem]"
+                ? "text-base leading-snug text-ink"
                 : caption.offRecord
                   ? "text-[1.125rem] leading-snug text-ink-muted sm:text-[1.25rem]"
                   : "text-[1.125rem] leading-snug text-ink sm:text-[1.375rem]",

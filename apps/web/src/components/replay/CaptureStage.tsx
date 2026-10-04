@@ -57,7 +57,7 @@ function GatePanel({ frame }: { frame: CaptureFrame }) {
           aria-hidden="true"
           className={cx(
             "mt-2.5 size-2 shrink-0 rounded-full",
-            open ? "bg-signal" : holding ? "bg-ink-muted" : "bg-rule-strong",
+            open ? "bg-ask" : holding ? "bg-ink-muted" : "bg-rule-strong",
           )}
         />
         {headline}
@@ -124,11 +124,11 @@ function QuestionNote({
     <div className="relative pl-4">
       <span
         aria-hidden="true"
-        className={cx("absolute inset-y-0 left-0 w-0.5", signal ? "bg-signal" : "bg-rule-strong")}
+        className={cx("absolute inset-y-0 left-0 w-0.5", signal ? "bg-ask" : "bg-rule-strong")}
       />
       <p className="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-        <span className={signal ? "text-signal-text" : undefined}>{label}</span>
-        <Badge tone={slot === "guardrail" ? "signal" : "muted"}>
+        <span className={signal ? "text-ask-text" : undefined}>{label}</span>
+        <Badge tone={slot === "guardrail" ? "guard" : "muted"}>
           {slot === "guardrail" ? "Guardrail" : "Reason"}
         </Badge>
       </p>

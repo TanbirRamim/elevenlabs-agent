@@ -58,7 +58,7 @@ export function OrbStateDemo({ className }: { className?: string }) {
                   className={cx(
                     "size-1.5 rounded-full",
                     s === "listening" || s === "speaking"
-                      ? "bg-signal"
+                      ? "bg-ask"
                       : s === "off-record"
                         ? "bg-ink-faint"
                         : "bg-current opacity-60",

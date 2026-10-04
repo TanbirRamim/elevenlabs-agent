@@ -30,7 +30,7 @@ export function TicketQueue({ tickets, selectedId, committed, onSelect }: Ticket
                 className={cx(
                   "flex w-full flex-col items-start gap-2 px-4 py-3.5 text-left text-ink",
                   selected
-                    ? "bg-surface shadow-[inset_4px_0_0_var(--desk-ink)]"
+                    ? "bg-surface shadow-[inset_4px_0_0_var(--sd-ink)]"
                     : "hover:bg-surface/60",
                 )}
               >
@@ -57,7 +57,7 @@ export function TicketQueue({ tickets, selectedId, committed, onSelect }: Ticket
                 <TagList tags={ticket.tags} size="sm" />
                 {done ? (
                   <Badge
-                    tone={done.approvalRequested ? "signal" : "ok"}
+                    tone={done.approvalRequested ? "guard" : "ok"}
                     dot
                     className="text-sm! font-semibold"
                   >

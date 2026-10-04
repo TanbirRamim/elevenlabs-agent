@@ -199,9 +199,7 @@ export function DemoPlayer() {
     <>
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col gap-1 border-b border-rule pt-5 pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-          <h1 className="font-display text-[1.5rem] leading-tight font-normal tracking-[-0.01em] text-ink">
-            Shadow, in 90 seconds
-          </h1>
+          <h1 className="text-base leading-tight font-semibold text-ink">Shadow, in 90 seconds</h1>
           <p className="text-sm text-ink-muted">
             Replay of a recorded session — try it live:{" "}
             <Link
@@ -225,7 +223,7 @@ export function DemoPlayer() {
             <section aria-labelledby="chapter-title" className="lg:col-span-4">
               <h2
                 id="chapter-title"
-                className="flex items-baseline gap-3 font-display text-[2rem] leading-none font-normal tracking-[-0.02em] text-ink sm:text-[2.5rem]"
+                className="flex items-baseline gap-3 text-lg leading-none font-semibold text-ink"
               >
                 <span className="font-mono text-sm tracking-normal text-ink-faint">
                   {String(chapter.number).padStart(2, "0")}
@@ -252,9 +250,9 @@ export function DemoPlayer() {
                   animate={{
                     opacity: 1,
                     y: 0,
-                    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+                    transition: { duration: 0.2, ease: [0.2, 0, 0, 1] },
                   }}
-                  exit={{ opacity: 0, transition: { duration: 0.2, ease: [0.7, 0, 0.84, 0] } }}
+                  exit={{ opacity: 0, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] } }}
                 >
                   {stage}
                 </motion.div>

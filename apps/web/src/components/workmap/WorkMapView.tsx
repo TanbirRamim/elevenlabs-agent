@@ -137,7 +137,7 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
       <main className={PAGE}>
         <h1 className={TITLE}>Work Map</h1>
         <p
-          className="mt-6 max-w-[42rem] rounded-panel border border-stop/40 bg-stop-wash px-4 py-3 text-[0.9375rem] text-stop"
+          className="mt-6 max-w-[42rem] rounded-panel border border-danger/40 bg-danger-wash px-4 py-3 text-[0.9375rem] text-danger"
           role="alert"
         >
           {state.status === "error" ? state.message : "The map could not be shown."}
@@ -273,7 +273,7 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
         {actionError && (
           <p
             role="alert"
-            className="mt-6 rounded-panel border border-stop/40 bg-stop-wash px-4 py-3 text-[0.9375rem] text-stop"
+            className="mt-6 rounded-panel border border-danger/40 bg-danger-wash px-4 py-3 text-[0.9375rem] text-danger"
           >
             {actionError}
           </p>
@@ -387,8 +387,6 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
   );
 }
 
-const PAGE = "mx-auto w-full max-w-6xl px-4 pt-12 pb-24 sm:px-6 sm:pt-16";
-const TITLE =
-  "mt-3 max-w-[22ch] font-display text-[2.5rem] leading-[1.05] font-normal tracking-[-0.025em] text-balance text-ink sm:text-[3.5rem]";
-const SECTION =
-  "font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink sm:text-[2.5rem]";
+const PAGE = "mx-auto w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8";
+const TITLE = "mt-3 max-w-[22ch] text-xl leading-tight font-semibold text-balance text-ink";
+const SECTION = "text-lg leading-tight font-semibold text-ink";

@@ -95,7 +95,7 @@ export function ClipOverlay({
                 </span>
               ) : null}
             </p>
-            <h2 className="mt-1 font-display text-[1.375rem] leading-snug font-normal text-ink">
+            <h2 className="mt-1 text-base leading-snug font-semibold text-ink">
               {moment?.title ?? `Frame ${frameId}`}
             </h2>
           </div>
@@ -123,7 +123,7 @@ export function ClipOverlay({
           )}
           {moment ? (
             <figure>
-              <blockquote className="font-display text-[1.375rem] leading-snug text-pretty text-ink italic sm:text-[1.625rem]">
+              <blockquote className="text-base leading-snug text-pretty text-ink">
                 “{moment.quote}”
               </blockquote>
               <figcaption className="mt-3 font-mono text-xs text-ink-muted">

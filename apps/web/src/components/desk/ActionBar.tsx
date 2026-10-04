@@ -64,14 +64,14 @@ export function ActionBar({
       {phase.kind === "blocked" ? (
         <div
           role="status"
-          className="flex flex-col gap-1.5 rounded-panel border border-signal bg-signal-wash px-5 py-4 shadow-[inset_6px_0_0_var(--desk-signal)] sm:px-6"
+          className="flex flex-col gap-1.5 rounded-panel border border-guard bg-guard-wash px-5 py-4 shadow-[inset_6px_0_0_var(--sd-guard)] sm:px-6"
         >
-          <p className="font-display text-[1.75rem] leading-tight text-ink">Paused by Shadow</p>
+          <p className="text-base leading-tight text-ink">Paused by Shadow</p>
           <p className="text-lg leading-snug text-ink">
             {ACTION_LABELS[phase.outcome]} was not saved. Pick another action to continue.
           </p>
           {phase.verdict.ruleIds.length > 0 ? (
-            <p className="font-mono text-[0.9375rem] text-signal-text">
+            <p className="font-mono text-[0.9375rem] text-guard-text">
               Guardrail rule {phase.verdict.ruleIds.join(", ")}
             </p>
           ) : null}
@@ -138,7 +138,7 @@ export function ActionBar({
       >
         {phase.kind === "checking" ? (
           <span className="flex items-center gap-2.5 font-semibold text-ink">
-            <span aria-hidden="true" className="size-2.5 rounded-full bg-signal" />
+            <span aria-hidden="true" className="size-2.5 rounded-full bg-ask" />
             Checking…
             <span className="font-normal text-ink-muted">
               Shadow is reviewing {ACTION_LABELS[phase.outcome]}
@@ -152,7 +152,7 @@ export function ActionBar({
               Committed: {ACTION_LABELS[committed.outcome]}
             </span>
             {committed.approvalRequested ? (
-              <Badge tone="signal" dot className="px-3! py-1! text-[0.9375rem]! font-semibold">
+              <Badge tone="guard" dot className="px-3! py-1! text-[0.9375rem]! font-semibold">
                 Approval requested
               </Badge>
             ) : null}

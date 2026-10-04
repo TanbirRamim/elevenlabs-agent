@@ -244,10 +244,10 @@ function readPalette(): Palette {
   const css = getComputedStyle(document.documentElement);
   const pick = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
   return {
-    ink: pick("--desk-ink", FALLBACK_PALETTE.ink),
-    signal: pick("--desk-signal", FALLBACK_PALETTE.signal),
-    faint: pick("--desk-ink-faint", FALLBACK_PALETTE.faint),
-    canvas: pick("--desk-canvas", FALLBACK_PALETTE.canvas),
+    ink: pick("--sd-ink", FALLBACK_PALETTE.ink),
+    signal: pick("--sd-brand", FALLBACK_PALETTE.signal),
+    faint: pick("--sd-ink-faint", FALLBACK_PALETTE.faint),
+    canvas: pick("--sd-canvas", FALLBACK_PALETTE.canvas),
   };
 }
 

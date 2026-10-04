@@ -32,11 +32,11 @@ export function OpenQuestionList({ questions, answeredIds, currentId }: OpenQues
             aria-current={current ? "step" : undefined}
             className={cx(
               "relative grid grid-cols-[2rem_1fr] gap-3 border-t border-rule py-4 pr-3 pl-4 first:border-t-0",
-              current && "bg-signal-wash/50",
+              current && "bg-ask-wash/50",
             )}
           >
             {current ? (
-              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-signal" />
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
             ) : null}
             <span className="pt-0.5 font-mono text-xs text-ink-faint tabular-nums">
               {String(i + 1).padStart(2, "0")}
@@ -47,11 +47,11 @@ export function OpenQuestionList({ questions, answeredIds, currentId }: OpenQues
                 <span
                   className={cx(
                     "inline-flex items-center gap-1.5",
-                    answered ? "text-ok" : current ? "text-signal-text" : "text-ink-faint",
+                    answered ? "text-ok" : current ? "text-ask-text" : "text-ink-faint",
                   )}
                 >
                   {current ? (
-                    <span aria-hidden="true" className="size-1.5 rounded-full bg-signal" />
+                    <span aria-hidden="true" className="size-1.5 rounded-full bg-ask" />
                   ) : null}
                   {status}
                 </span>

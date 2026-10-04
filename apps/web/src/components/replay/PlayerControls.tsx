@@ -2,7 +2,7 @@
 
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { cx } from "../ui/cx";
-import { KeyboardKey } from "../ui/KeyboardKey";
+import { KeyboardKey } from "../ui/Kbd";
 import type { Chapter } from "./script";
 
 export interface PlayerControlsProps {

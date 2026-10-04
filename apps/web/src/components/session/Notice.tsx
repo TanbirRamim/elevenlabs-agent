@@ -27,7 +27,7 @@ export function Notice({ tone = "problem", actions, className, children, ...rest
         aria-hidden="true"
         className={cx(
           "absolute inset-y-0 left-0 w-0.5",
-          tone === "problem" ? "bg-stop" : "bg-rule-strong",
+          tone === "problem" ? "bg-danger" : "bg-rule-strong",
         )}
       />
       <div className="flex gap-3">
@@ -35,7 +35,7 @@ export function Notice({ tone = "problem", actions, className, children, ...rest
           aria-hidden="true"
           className={cx(
             "mt-0.5 size-4 shrink-0 stroke-[1.75]",
-            tone === "problem" ? "text-stop" : "text-ink-faint",
+            tone === "problem" ? "text-danger" : "text-ink-faint",
           )}
         />
         <div className="min-w-0 flex-1 text-[0.9375rem] leading-relaxed text-ink">

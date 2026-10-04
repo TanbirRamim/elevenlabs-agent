@@ -59,14 +59,14 @@ export function TutorVoicePanel({
           aria-live="polite"
           className={cx(
             "inline-flex items-center gap-2 font-mono text-[0.8125rem]",
-            live ? "text-signal-text" : status === "error" ? "text-stop" : "text-ink-muted",
+            live ? "text-ask-text" : status === "error" ? "text-danger" : "text-ink-muted",
           )}
         >
           <span
             aria-hidden="true"
             className={cx(
               "size-1.5 rounded-full",
-              live ? "bg-signal" : status === "error" ? "bg-stop" : "bg-ink-faint",
+              live ? "bg-ask" : status === "error" ? "bg-danger" : "bg-ink-faint",
             )}
           />
           {label}
@@ -81,7 +81,7 @@ export function TutorVoicePanel({
           </Button>
         )}
         {error && (
-          <p className="w-full rounded-control border border-stop/40 bg-stop-wash px-3 py-2 text-sm text-stop">
+          <p className="w-full rounded-control border border-danger/40 bg-danger-wash px-3 py-2 text-sm text-danger">
             {error}
           </p>
         )}
@@ -99,7 +99,7 @@ export function TutorVoicePanel({
                 <span
                   className={cx(
                     "mr-1.5 font-mono text-xs",
-                    line.role === "agent" ? "text-signal-text" : "text-ink-faint",
+                    line.role === "agent" ? "text-ask-text" : "text-ink-faint",
                   )}
                 >
                   {line.role === "agent" ? "Shadow" : "You"}

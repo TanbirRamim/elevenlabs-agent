@@ -32,7 +32,7 @@ export function CoverageMeter({ coverage, answered, done, target = 0.9 }: Covera
               Done
             </Badge>
           )}
-          <span className="font-display text-[2.25rem] leading-none tracking-[-0.02em] tabular-nums">
+          <span className="text-lg leading-none font-semibold tabular-nums">
             {pct}
             <span className="text-xl text-ink-faint">%</span>
           </span>
@@ -52,7 +52,7 @@ export function CoverageMeter({ coverage, answered, done, target = 0.9 }: Covera
         <div
           aria-hidden="true"
           className={cx(
-            "absolute inset-x-0 top-1/2 h-0.5 origin-left transition-transform duration-500 ease-arrive",
+            "absolute inset-x-0 top-1/2 h-0.5 origin-left transition-transform duration-200 ease-arrive",
             done ? "bg-ok" : "bg-ink",
           )}
           style={{ transform: `translateY(-50%) scaleX(${pct / 100})` }}

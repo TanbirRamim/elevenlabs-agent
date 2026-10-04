@@ -28,8 +28,8 @@ const POINTS = (() => {
 
 const TONE: Record<OrbState, string> = {
   idle: "text-ink/70",
-  listening: "text-signal",
-  speaking: "text-signal",
+  listening: "text-ask",
+  speaking: "text-ask",
   "off-record": "text-ink-faint",
 };
 
@@ -43,7 +43,7 @@ export function OrbFallback({ state, className }: { state: OrbState; className?:
       viewBox="0 0 100 100"
       role="img"
       aria-label={ORB_STATE_LABEL[state]}
-      className={cx("size-full transition-colors duration-500", TONE[state], className)}
+      className={cx("size-full transition-colors duration-200", TONE[state], className)}
     >
       {POINTS.map((p) => (
         <circle key={p.id} cx={p.x} cy={p.y} r={p.r} fill="currentColor" fillOpacity={p.o} />
