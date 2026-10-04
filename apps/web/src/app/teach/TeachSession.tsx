@@ -1,7 +1,7 @@
 "use client";
 
 import { useConversationClientTool } from "@elevenlabs/react";
-import { evaluate, type RuleRef, rulesFromWorkMap } from "@shadow/guard";
+import { type RuleRef, rulesFromWorkMap } from "@shadow/guard";
 import type {
   DeskEvent,
   GuardVerdict,
@@ -14,6 +14,7 @@ import type {
 import { BookOpen, Map as MapIcon, Radio, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+import { ACTION_LABELS } from "@/components/desk/ActionBar";
 import { DeskCoachProvider, type DeskCoachRender } from "@/components/desk/coach";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { queueItemId } from "@/components/desk/TicketQueue";
@@ -31,6 +32,7 @@ import {
   matchJudgment,
   momentForFrame,
   oncePerKey,
+  pickGuidedStart,
   predictPayload,
   showPredictFor,
 } from "@/components/tutor/logic";
@@ -117,7 +119,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const [offline, setOffline] = useState(false);
   // Hidden until localStorage is read after mount, so a dismissed guide never flashes.
   const [guideDismissed, setGuideDismissed] = useState(true);
-  const [hintTicketId, setHintTicketId] = useState<string | null>(null);
+  const [hint, setHint] = useState<{ ticketId: string; outcome: Outcome } | null>(null);
   const interventionRef = useRef<InterventionState | null>(null);
   interventionRef.current = intervention;
 
@@ -275,14 +277,9 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const fallbackRulesRef = useRef(fallbackRules);
   fallbackRulesRef.current = fallbackRules;
 
-  // The guided first click: the first ticket whose refund a loaded rule would hold.
-  const guidedTicketId = useMemo(
-    () =>
-      tickets.find(
-        (ticket) => evaluate({ ticket, outcome: "refund" }, fallbackRules).decision === "BLOCK",
-      )?.id ?? null,
-    [tickets, fallbackRules],
-  );
+  // The guided first click: the first ticket whose save a loaded rule would hold, for any
+  // map's rule ids (a refund first, then any other outcome a rule forbids).
+  const guided = useMemo(() => pickGuidedStart(tickets, fallbackRules), [tickets, fallbackRules]);
 
   useEffect(() => {
     setGuideDismissed(readGuideDismissed());
@@ -294,29 +291,29 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   }, []);
 
   const startGuide = useCallback(
-    (ticketId: string) => {
+    (ticketId: string, outcome: Outcome) => {
       dismissGuide();
-      setHintTicketId(ticketId);
+      setHint({ ticketId, outcome });
       document.getElementById(queueItemId(ticketId))?.click();
     },
     [dismissGuide],
   );
 
-  // Highlight the Refund action on the guided ticket until the learner saves something.
+  // Highlight the guided action on the guided ticket until the learner saves something.
   useEffect(() => {
-    if (!hintTicketId || openTicketId !== hintTicketId) return;
-    const button = findActionButton("Refund");
+    if (!hint || openTicketId !== hint.ticketId) return;
+    const button = findActionButton(ACTION_LABELS[hint.outcome]);
     if (!button) return;
     button.setAttribute("data-shadow-hint", "");
     return () => button.removeAttribute("data-shadow-hint");
-  }, [hintTicketId, openTicketId]);
+  }, [hint, openTicketId]);
 
   // Teach mode: a BLOCK goes back to DeskSim (it pauses the save) and starts the intervention.
   const onPreSave = useCallback(
     async (action: PendingAction): Promise<GuardVerdict> => {
       // The Singoda AI connector: the one pre-commit call any helpdesk adds (docs/CONNECTOR.md).
       // It fails open with a warning when Singoda AI can't answer in time.
-      setHintTicketId(null);
+      setHint(null);
       const verdict = await shadow.check(action, {
         sessionId,
         fallbackRules: fallbackRulesRef.current,
@@ -531,10 +528,11 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         error={predict.error}
         onChoose={(o) => void choosePrediction(o)}
       />
-    ) : !guideDismissed && guidedTicketId && openTicketId === null ? (
+    ) : !guideDismissed && guided && openTicketId === null ? (
       <GuidedStart
-        ticketId={guidedTicketId}
-        onStart={() => startGuide(guidedTicketId)}
+        ticketId={guided.ticketId}
+        outcome={guided.outcome}
+        onStart={() => startGuide(guided.ticketId, guided.outcome)}
         onDismiss={dismissGuide}
       />
     ) : null;

@@ -277,6 +277,10 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
     .poll(() => voice.contextual.filter((c) => c.startsWith("[WORKMAP]\n")).length)
     .toBe(1);
   expect(voice.contextual.find((c) => c.startsWith("[WORKMAP]"))).toContain("[G4]");
+  // "Stop voice tutor" already shows while connecting; [INTERVENE] is only sent once connected.
+  await expect(
+    page.getByRole("status", { name: /^Singoda AI is (listening|asking)$/ }),
+  ).toBeVisible();
   await openTicket(page, "N1");
   await page.getByRole("button", { name: "Refund", exact: true }).click();
   const paused = page.getByRole("status").filter({ hasText: "Paused by Singoda AI" });

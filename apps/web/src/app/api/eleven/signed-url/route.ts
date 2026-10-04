@@ -13,7 +13,9 @@ const Query = z.object({ agent: z.enum(["interviewer", "tutor"]) });
 export async function GET(req: Request) {
   const serverEnv = getServerEnv();
   if (!serverEnv.success) {
-    return NextResponse.json({ code: "eleven_not_configured" }, { status: 503 });
+    // Names only, never values: tells the operator which binding is missing.
+    const missing = serverEnv.error.issues.map((i) => i.path.join("."));
+    return NextResponse.json({ code: "eleven_not_configured", missing }, { status: 503 });
   }
   const q = Query.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!q.success) return NextResponse.json({ code: "bad_agent" }, { status: 400 });

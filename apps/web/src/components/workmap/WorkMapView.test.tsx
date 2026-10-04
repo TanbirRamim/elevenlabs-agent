@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sampleWorkMap } from "./fixture";
-import { StepDetail } from "./StepDetail";
+import { FrameImage, StepDetail } from "./StepDetail";
 import { WorkMapView } from "./WorkMapView";
 
 afterEach(() => {
@@ -83,6 +83,18 @@ describe("WorkMapView with the sample map", () => {
     await renderFixture("sess_42");
     const video = screen.getByLabelText(/Session clip/);
     expect(video.getAttribute("src")).toContain("/sessions/sess_42/recording#t=57,67");
+    // The poster is the step's redacted frame, addressed by the session it was stored under.
+    const frameId = sampleWorkMap.steps[0]?.moment.frameId ?? "";
+    expect(video.getAttribute("poster")).toMatch(
+      new RegExp(`/sessions/sess_42/frames/${frameId}\\.jpg$`),
+    );
+  });
+
+  it("shows a no-recording state instead of a broken player when the clip fails", async () => {
+    await renderFixture("sess_42");
+    fireEvent.error(screen.getByLabelText(/Session clip/));
+    expect(screen.getByText("The recording could not be loaded")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Play clip" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("disables expert controls in fixture mode", async () => {
@@ -120,20 +132,32 @@ describe("WorkMapView with a published map from the API", () => {
     const step = sampleWorkMap.steps[0];
     if (!step) throw new Error("fixture has no steps");
     const { container } = render(
+      <FrameImage frameId={step.moment.frameId} tMs={step.moment.tMs} sessionId="sess_42" />,
+    );
+    const img = container.querySelector("img");
+    if (!img) throw new Error("expected a frame image");
+    expect(img.getAttribute("src")).toContain(
+      `/sessions/sess_42/frames/${step.moment.frameId}.jpg`,
+    );
+    fireEvent.error(img);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText("The frame could not be loaded from the API.")).toBeTruthy();
+  });
+
+  it("requests no frame image without a session to address it by", () => {
+    const step = sampleWorkMap.steps[0];
+    if (!step) throw new Error("fixture has no steps");
+    const { container } = render(
       <StepDetail
         step={step}
         guardrails={sampleWorkMap.guardrails}
         sessionId={null}
-        framesAvailable
         canEdit={false}
         busy={false}
         onRemove={async () => {}}
       />,
     );
-    const img = container.querySelector("img");
-    if (!img) throw new Error("expected a frame image");
-    fireEvent.error(img);
     expect(container.querySelector("img")).toBeNull();
-    expect(screen.getByText("The frame could not be loaded from the API.")).toBeTruthy();
+    expect(screen.getByText("No frame to show")).toBeTruthy();
   });
 });
