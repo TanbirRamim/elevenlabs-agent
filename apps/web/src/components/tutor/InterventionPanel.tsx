@@ -71,7 +71,7 @@ export function InterventionPanel({
               <p className="mt-0.5 text-ui text-ink-muted">
                 {tutorNotified
                   ? "Shadow is asking you out loud. Answer, then pick the next action."
-                  : "The voice tutor is off, so the coaching stays on screen. Think it through, then pick the next action."}
+                  : "Coaching on screen · voice optional. Think it through, then pick the next action."}
               </p>
             ) : null}
           </div>
