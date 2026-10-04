@@ -1,17 +1,19 @@
-import { ClientMessage, PROTOCOL_VERSION, type ServerMessage } from "@shadow/schema";
+import {
+  ClientMessage,
+  CreateSessionRequest,
+  PROTOCOL_VERSION,
+  type ServerMessage,
+} from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
-import { z } from "zod";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
 import type { Store } from "../store/memory.js";
 
-const CreateSession = z.object({ mode: z.enum(["capture", "teach"]) });
-
 export function registerSessionRoutes(app: FastifyInstance, store: Store): void {
   app.post("/sessions", async (req, reply) => {
-    const body = CreateSession.safeParse(req.body);
+    const body = CreateSessionRequest.safeParse(req.body);
     if (!body.success)
       return reply.code(400).send({ code: "invalid_body", issues: body.error.issues });
-    const s = store.createSession(body.data.mode);
+    const s = store.createSession(body.data.mode, body.data.workMapId);
     return reply.code(201).send({ id: s.id, mode: s.mode });
   });
 
