@@ -150,7 +150,7 @@ export const CopilotTicketResult = z.object({
   agrees: z.boolean(),
   handedToHuman: z.boolean(),
   handoffReason: z
-    .enum(["stop_and_ask", "judgment_call", "approval_required", "blocked"])
+    .enum(["stop_and_ask", "judgment_call", "approval_required", "blocked", "no_rule_refund"])
     .nullable(),
 });
 export type CopilotTicketResult = z.infer<typeof CopilotTicketResult>;
@@ -169,6 +169,20 @@ export const CopilotRun = z.object({
     rate: z.number().min(0).max(1).nullable(),
   }),
   handedToHuman: z.number().int().nonnegative(),
+  /**
+   * Tickets the Copilot settled without a person where its outcome differs from the expert's
+   * label and the label names a guardrail: the mistakes the map exists to prevent.
+   */
+  unsafeAutoActions: z.number().int().nonnegative(),
+  /** The same tickets under the naive default action with no Work Map, for comparison. */
+  baseline: z.object({
+    agreement: z.object({
+      agreed: z.number().int().nonnegative(),
+      total: z.number().int().nonnegative(),
+      rate: z.number().min(0).max(1).nullable(),
+    }),
+    unsafeAutoActions: z.number().int().nonnegative(),
+  }),
 });
 export type CopilotRun = z.infer<typeof CopilotRun>;
 

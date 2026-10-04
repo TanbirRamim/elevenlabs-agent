@@ -24,7 +24,6 @@ import {
   type RecordingState,
 } from "@/components/recording";
 import {
-  describeDeskEvent,
   detectRecordPhrase,
   listeningStateFor,
   questionsInWindow,
@@ -60,6 +59,7 @@ import {
   ShareEndedNotice,
   START_BUTTON_ID,
 } from "./parts";
+import { useForwardTranscript } from "./useForwardTranscript";
 import { usePreflight } from "./usePreflight";
 
 const FRAME_INTERVAL_MS = 1500;
@@ -196,8 +196,9 @@ export function CaptureSession() {
       s.on("candidate_question", (m) => setCandidate(m.question)),
       s.on("insight", ({ type: _type, ...numbers }) => setInsight(numbers)),
       s.on("screen_event", (m) => {
-        // DOM events are already sent to the agent locally; only vision adds new information.
-        if (m.event.source === "vision" && !offRecordRef.current && !pausedRef.current)
+        // Vision-first: the agent learns the screen from what the API saw in the frames (DOM
+        // events arrive here only when the API runs with CAPTURE_SIGNALS=vision+desk).
+        if (!offRecordRef.current && !pausedRef.current)
           voice.sendScreen(m.event.summary, m.event.tMs);
       }),
     ];
@@ -270,48 +271,40 @@ export function CaptureSession() {
   }, [phase, setRecord]);
 
   // Forward new transcript lines to the API and react to spoken record commands.
-  const sentLines = useRef(0);
   /** Segment ids the API has received; the debrief may only cite these. */
   const sentIds = useRef(new Set<string>());
-  useEffect(() => {
-    const lines = voice.transcript;
-    for (let i = sentLines.current; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) continue;
-      if (line.role === "user") {
-        const phrase = detectRecordPhrase(line.text);
-        if (phrase) {
-          setRecord(phrase === "off");
-          continue; // the command itself is not content
-        }
+  useForwardTranscript(voice.transcript, (line) => {
+    if (line.role === "user") {
+      const phrase = detectRecordPhrase(line.text);
+      if (phrase) {
+        setRecord(phrase === "off");
+        return; // the command itself is not content
       }
-      if (holding()) continue; // nothing said off the record or paused leaves the browser
-      stream.current?.send({
-        type: "transcript",
-        segmentId: line.id,
-        tStartMs: line.tMs,
-        tEndMs: line.tMs,
-        speaker: line.role === "user" ? "expert" : "agent",
-        text: line.text,
-      });
-      sentIds.current.add(line.id);
     }
-    sentLines.current = lines.length;
-  }, [voice.transcript, setRecord, holding]);
+    if (holding()) return; // nothing said off the record or paused leaves the browser
+    stream.current?.send({
+      type: "transcript",
+      segmentId: line.id,
+      tStartMs: line.tMs,
+      tEndMs: line.tMs,
+      speaker: line.role === "user" ? "expert" : "agent",
+      text: line.text,
+    });
+    sentIds.current.add(line.id);
+  });
 
   const onDeskEvent = useCallback(
     (event: DeskEvent) => {
       if (holding()) return;
+      // Ground truth for the vision/DOM agreement metric; the screen itself reaches the agent
+      // through vision, as it would for any app shared on screen.
       stream.current?.send({ type: "desk_event", event });
       if (event.type === "input_activity") {
         setLastInputActivityMs(event.tMs);
         voice.markActivity();
-        return;
       }
-      const summary = describeDeskEvent(event);
-      if (summary) voice.sendScreen(summary, event.tMs);
     },
-    [voice.markActivity, voice.sendScreen, holding],
+    [voice.markActivity, holding],
   );
 
   // Capture mode never blocks: the verdict is logged for the map, the expert's action always goes through.
@@ -412,6 +405,9 @@ export function CaptureSession() {
       loop.current = startFrameLoop({
         intervalMs: FRAME_INTERVAL_MS,
         hammingThreshold: HAMMING_THRESHOLD,
+        // A still desk over compressed tab video flickers by a few bits; only a change big
+        // enough to send a frame counts as the screen moving for the Turn Gate.
+        changeThreshold: HAMMING_THRESHOLD,
         clock,
         capture: () => {
           const r = region();

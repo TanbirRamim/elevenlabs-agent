@@ -198,6 +198,32 @@ describe("replay frames", () => {
     expect(chapterAt(script, t.blockedAtMs).id).toBe("teach");
   });
 
+  it("story mode: the first Shadow question is on screen within 8 s of load", () => {
+    const q = must(capture.asked[0], "first question");
+    expect(sessionToPlay(script.segments, q.atMs)).toBeLessThanOrEqual(8_000);
+    expect(captureAt(script, sessionToPlay(script.segments, q.atMs) + 100).asking?.id).toBe(q.id);
+  });
+
+  it("teach predicts on N2 (G6 → Legal) and only intercepts on N1", () => {
+    const t = script.teach;
+    expect(t.predict).toMatchObject({ ticketId: "N2", guardrailId: "G6", chosen: "handoff_legal" });
+    expect(t.predict.result.correct).toBe(true);
+    const g6 = must(
+      sampleWorkMap.guardrails.find((g) => g.id === "G6"),
+      "G6",
+    );
+    expect(t.predict.result.reasonQuote).toBe(g6.evidence.quote.text);
+    const asking = teachAt(script, t.predictAtMs + 100);
+    expect(asking.desk.selectedId).toBe("N2");
+    expect(asking.predict).toEqual({ chosen: null, revealed: false });
+    expect(teachAt(script, t.predictResultAtMs + 100).predict?.revealed).toBe(true);
+    const n1 = teachAt(script, t.openN1AtMs + 100);
+    expect(n1.predict).toBeNull();
+    expect(n1.desk.committed.N2).toBe("handoff_legal");
+    expect(t.openN1AtMs).toBeGreaterThan(t.commitN2AtMs);
+    expect(t.verdict.ruleIds).toEqual(["G4", "G1"]);
+  });
+
   it("reduced motion snaps to whole moments and shows captions whole", () => {
     const moments = momentsOf(script);
     const t = 20_000;

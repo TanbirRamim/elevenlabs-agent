@@ -49,6 +49,8 @@ const run: CopilotRun = {
   ],
   agreement: { agreed: 1, total: 2, rate: 0.5 },
   handedToHuman: 1,
+  unsafeAutoActions: 0,
+  baseline: { agreement: { agreed: 0, total: 2, rate: 0 }, unsafeAutoActions: 1 },
 };
 
 const chargeback: MachineRule = {
@@ -97,8 +99,14 @@ describe("CopilotView", () => {
     expect(screen.getByText(FRAMING)).toBeTruthy();
     expect(await screen.findByText("50%")).toBeTruthy();
     expect(screen.getByText("1 of 2 held-out tickets")).toBeTruthy();
+    expect(screen.getByText("Unsafe auto-actions", { selector: "dt" })).toBeTruthy();
+    expect(screen.getByText("Agreement on tickets Maya never worked")).toBeTruthy();
+    const compare = screen.getByRole("table", { name: /naive default action/ });
+    const baseline = within(compare).getByRole("row", { name: /without the map/ });
+    expect(within(baseline).getByText("1")).toBeTruthy();
+    expect(within(compare).getByRole("row", { name: /With Maya’s map/ })).toBeTruthy();
 
-    const table = screen.getByRole("table");
+    const table = screen.getByRole("table", { name: /held-out tickets/ });
     const blocked = within(table).getByRole("row", { name: /H6/ });
     // Decision and label agree, so the outcome appears in both cells.
     expect(within(blocked).getAllByText("Hand off to Billing disputes")).toHaveLength(2);
@@ -110,8 +118,9 @@ describe("CopilotView", () => {
 
     const differs = within(table).getByRole("row", { name: /H9/ });
     expect(within(differs).getByText("Differs")).toBeTruthy();
-    expect(within(differs).getByText("None applies")).toBeTruthy();
+    expect(within(differs).getByText("No rule yet")).toBeTruthy();
     expect(within(differs).getByText("No, Copilot decides")).toBeTruthy();
+    expect(screen.getByText(/never takes an irreversible money action alone/)).toBeTruthy();
     expect(screen.getByText(/no language-model key is configured/)).toBeTruthy();
   });
 

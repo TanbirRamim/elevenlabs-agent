@@ -104,8 +104,13 @@ export function TeachDock({
         <span aria-hidden="true" className="hidden h-6 w-px bg-rule sm:block" />
 
         <div className="flex items-center gap-1.5">
+          <span className="hidden text-2xs whitespace-nowrap text-ink-faint md:inline">
+            Voice by ElevenLabs Agents
+          </span>
           <ListeningIndicator state={voiceState} compact />
-          <Tooltip content={live ? "Stop the voice tutor" : "Talk to the voice tutor"}>
+          <Tooltip
+            content={live ? "Stop the voice tutor" : "Talk to the voice tutor (ElevenLabs Agents)"}
+          >
             <IconButton
               size="sm"
               label={live ? "Stop voice tutor" : "Start voice tutor"}

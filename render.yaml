@@ -1,0 +1,18 @@
+# Render Blueprint for the Shadow API (free Docker web service). See docs/DEPLOY_RENDER.md.
+services:
+  - type: web
+    name: shadow-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./infra/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: WEB_ORIGIN
+        value: https://shadow-web-meow-4acb.vercel.app
+      - key: DEMO_FALLBACK_RULES
+        value: "0"
+      - key: GUARD_JUDGE_TIMEOUT_MS
+        value: "6000"
+      - key: ANTHROPIC_API_KEY
+        sync: false

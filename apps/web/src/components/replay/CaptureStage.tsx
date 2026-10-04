@@ -2,7 +2,9 @@
 
 import { Check } from "lucide-react";
 import { type ReactNode, useId } from "react";
+import { CapturePill } from "../../app/capture/CapturePill";
 import { DEFAULT_GATE } from "../../lib/turnGate";
+import { VoiceProvider } from "../../lib/voice";
 import { REASON_SENTENCES, reasonSentence } from "../insight/reasons";
 import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
@@ -11,22 +13,55 @@ import { cx } from "../ui/cx";
 import { sampleWorkMap } from "../workmap/fixture";
 import { GuardrailTypeBadge } from "../workmap/primitives";
 import type { CaptureFrame } from "./frame";
-import { ReplayDesk } from "./ReplayDesk";
+import { focusClass, ReplayDesk } from "./ReplayDesk";
 import type { LearnedRef } from "./script";
 
-/** Chapter 1: Maya's desk on the left, the Turn Gate's live view and what Shadow learned on the right. */
+/**
+ * Chapter 1: Maya works the standalone DeskSim app with Shadow's floating dock over it (the real
+ * CapturePill, its question callout included), as /capture looks live. Beside it, what the
+ * product sees underneath: the Turn Gate's live view and what Shadow learned so far.
+ */
 export function CaptureStage({ frame, timeline }: { frame: CaptureFrame; timeline: ReactNode }) {
+  // Story mode: the gate while Shadow holds a question, the app (and its callout) otherwise.
+  const gateFocus = frame.holding !== null && frame.asking === null;
   return (
     <div className="grid gap-4 lg:grid-cols-12">
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-7">
-        <ReplayDesk view={frame.desk} queueLabel="Maya’s queue" />
-        <div className="max-lg:hidden">
+        <ReplayDesk
+          view={frame.desk}
+          className={cx("h-[34rem] sm:h-[36rem]", focusClass(!gateFocus))}
+          dock={
+            // Context only: the pill's mic meter reads it; no voice session is ever started here.
+            <VoiceProvider>
+              <CapturePill
+                stage="recording"
+                recordingState={frame.signals.offRecord ? "off-record" : "recording"}
+                elapsed={() => frame.sessionMs}
+                voiceConnected
+                voiceState={frame.signals.offRecord ? "off" : frame.asking ? "asking" : "listening"}
+                currentQuestion={
+                  frame.asking ? { id: frame.asking.id, text: frame.asking.text } : null
+                }
+                questionsAsked={frame.asked.length}
+                questionBudget={DEFAULT_GATE.maxPer10Min}
+              />
+            </VoiceProvider>
+          }
+        />
+        <div className={cx("max-lg:hidden", focusClass(false))}>
           <Learned refs={frame.learned} />
         </div>
       </div>
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
-        <GatePanel frame={frame} />
-        <div className="min-w-0 overflow-hidden rounded-panel border border-rule bg-surface p-4">
+        <div data-focus={gateFocus ? "true" : undefined} className={focusClass(gateFocus)}>
+          <GatePanel frame={frame} />
+        </div>
+        <div
+          className={cx(
+            "min-w-0 overflow-hidden rounded-panel border border-rule bg-surface p-4",
+            focusClass(gateFocus),
+          )}
+        >
           {timeline}
         </div>
         <div className="lg:hidden">

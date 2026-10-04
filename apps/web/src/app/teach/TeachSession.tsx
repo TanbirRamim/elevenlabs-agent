@@ -1,6 +1,7 @@
 "use client";
 
 import { useConversationClientTool } from "@elevenlabs/react";
+import { evaluate, type RuleRef, rulesFromWorkMap } from "@shadow/guard";
 import type {
   DeskEvent,
   GuardVerdict,
@@ -15,6 +16,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { DeskCoachProvider, type DeskCoachRender } from "@/components/desk/coach";
 import { DeskSim } from "@/components/desk/DeskSim";
+import { queueItemId } from "@/components/desk/TicketQueue";
+import { DESK_ROOT_ID } from "@/components/desk/types";
 import { describeDeskEvent } from "@/components/session/helpers";
 import { ClipOverlay } from "@/components/tutor/ClipOverlay";
 import { InterventionPanel } from "@/components/tutor/InterventionPanel";
@@ -27,6 +30,7 @@ import {
   matchJudgment,
   momentForFrame,
   predictPayload,
+  showPredictFor,
 } from "@/components/tutor/logic";
 import { MasteryReport as MasteryReportView } from "@/components/tutor/MasteryReport";
 import { MasteryReportSlot } from "@/components/tutor/MasteryReportSlot";
@@ -45,9 +49,12 @@ import {
   type LearnerPredictionResponse,
   submitLearnerPrediction,
 } from "@/lib/api";
-import { shadow } from "@/lib/connector";
+import { type ConnectorVerdict, shadow } from "@/lib/connector";
+import { REFERENCE_RULES } from "@/lib/connector/referenceRules";
 import { openSessionStream, type SessionStream } from "@/lib/stream";
 import { type ControlPrefix, useVoice } from "@/lib/voice";
+import { ConnectorChip } from "./ConnectorChip";
+import { GuidedStart } from "./GuidedStart";
 import { TeachDock } from "./TeachDock";
 
 const ReplayClipParams = z.object({ frameId: z.string().min(1) });
@@ -100,6 +107,13 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const [stats, setStats] = useState<SessionStats>(EMPTY_STATS);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [mapNoticeDismissed, setMapNoticeDismissed] = useState(false);
+  /** The last connector verdict per ticket, shown as the chip beside its actions. */
+  const [checks, setChecks] = useState<Record<string, ConnectorVerdict>>({});
+  /** True while the last check could not reach the API and ran in the browser instead. */
+  const [offline, setOffline] = useState(false);
+  // Hidden until localStorage is read after mount, so a dismissed guide never flashes.
+  const [guideDismissed, setGuideDismissed] = useState(true);
+  const [hintTicketId, setHintTicketId] = useState<string | null>(null);
   const interventionRef = useRef<InterventionState | null>(null);
   interventionRef.current = intervention;
 
@@ -220,13 +234,68 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
 
   const warn = useCallback((text: string) => setGuardWarnings((w) => [...w.slice(-2), text]), []);
 
+  // The machine rules the connector falls back on when the API can't answer: the loaded map's,
+  // topped up with the reference rules bundled from seed/ for ids the map has no machine rule
+  // for (judge-only guardrails like "card used without permission" need the API otherwise).
+  const fallbackRules = useMemo<readonly RuleRef[]>(() => {
+    if (!map) return REFERENCE_RULES;
+    const own = rulesFromWorkMap(map);
+    const ids = new Set(own.map((r) => r.id));
+    return [...own, ...REFERENCE_RULES.filter((r) => !ids.has(r.id))];
+  }, [map]);
+  const fallbackRulesRef = useRef(fallbackRules);
+  fallbackRulesRef.current = fallbackRules;
+
+  // The guided first click: the first ticket whose refund a loaded rule would hold.
+  const guidedTicketId = useMemo(
+    () =>
+      tickets.find(
+        (ticket) => evaluate({ ticket, outcome: "refund" }, fallbackRules).decision === "BLOCK",
+      )?.id ?? null,
+    [tickets, fallbackRules],
+  );
+
+  useEffect(() => {
+    setGuideDismissed(readGuideDismissed());
+  }, []);
+
+  const dismissGuide = useCallback(() => {
+    setGuideDismissed(true);
+    writeGuideDismissed();
+  }, []);
+
+  const startGuide = useCallback(
+    (ticketId: string) => {
+      dismissGuide();
+      setHintTicketId(ticketId);
+      document.getElementById(queueItemId(ticketId))?.click();
+    },
+    [dismissGuide],
+  );
+
+  // Highlight the Refund action on the guided ticket until the learner saves something.
+  useEffect(() => {
+    if (!hintTicketId || openTicketId !== hintTicketId) return;
+    const button = findActionButton("Refund");
+    if (!button) return;
+    button.setAttribute("data-shadow-hint", "");
+    return () => button.removeAttribute("data-shadow-hint");
+  }, [hintTicketId, openTicketId]);
+
   // Teach mode: a BLOCK goes back to DeskSim (it pauses the save) and starts the intervention.
   const onPreSave = useCallback(
     async (action: PendingAction): Promise<GuardVerdict> => {
       // The Shadow connector: the one pre-commit call any helpdesk adds (docs/CONNECTOR.md).
       // It fails open with a warning when Shadow can't answer in time.
-      const verdict = await shadow.check(action, { sessionId });
-      if (verdict.warning) warn(verdict.warning);
+      setHintTicketId(null);
+      const verdict = await shadow.check(action, {
+        sessionId,
+        fallbackRules: fallbackRulesRef.current,
+      });
+      setChecks((c) => ({ ...c, [action.ticket.id]: verdict }));
+      setOffline(verdict.via !== "api");
+      // In the browser fallback the offline banner says what ran; fail-open still warns loudly.
+      if (verdict.warning && verdict.via !== "browser") warn(verdict.warning);
       if (verdict.decision === "BLOCK") {
         setStats((st) => ({ ...st, held: st.held + 1 }));
         const built = buildIntervention(mapRef.current, verdict, action.ticket.id, action.outcome);
@@ -307,30 +376,37 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   // Coaching anchored next to the open ticket's actions inside DeskSim (desk/coach.tsx).
   const renderCoach = useCallback<DeskCoachRender>(
     (ticketId, api) => {
+      const check = checks[ticketId];
+      const held = check?.decision === "BLOCK";
       if (intervention && intervention.intervention.payload.ticketId === ticketId) {
         return (
-          <InterventionPanel
-            intervention={intervention.intervention}
-            expertName={expertName}
-            resolvedOutcome={intervention.resolvedOutcome}
-            tutorNotified={intervention.tutorNotified}
-            onReplay={
-              primary
-                ? () =>
-                    setReplay({
-                      frameId: primary.evidence.moment.frameId,
-                      ref: guardrailMoment(primary),
-                    })
-                : null
-            }
-            onChoose={api.choose}
-            busy={api.busy}
-          />
+          <>
+            {check && held ? <ConnectorChip verdict={check} /> : null}
+            <InterventionPanel
+              intervention={intervention.intervention}
+              expertName={expertName}
+              resolvedOutcome={intervention.resolvedOutcome}
+              tutorNotified={intervention.tutorNotified}
+              onReplay={
+                primary
+                  ? () =>
+                      setReplay({
+                        frameId: primary.evidence.moment.frameId,
+                        ref: guardrailMoment(primary),
+                      })
+                  : null
+              }
+              onChoose={api.choose}
+              busy={api.busy}
+            />
+            {check && !held ? <ConnectorChip verdict={check} subtle /> : null}
+          </>
         );
       }
+      if (check) return <ConnectorChip verdict={check} subtle={!held} />;
       return null;
     },
-    [intervention, expertName, primary],
+    [intervention, expertName, primary, checks],
   );
 
   const notices = (
@@ -353,6 +429,17 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
           Teach loads the Work Map and tickets from{" "}
           <span className="font-mono text-xs text-ink">{publicEnv.apiUrl}</span> ({problem}). Start
           it with <code className="font-mono text-xs text-ink">pnpm dev</code> and retry.
+        </Alert>
+      ) : null}
+      {offline ? (
+        <Alert tone="offline" title="Live API offline — running Shadow's rules in the browser">
+          Saves are checked on this page against{" "}
+          {map
+            ? "the Work Map's machine rules plus Shadow's reference rules"
+            : "Shadow's reference rules"}
+          , so a save a rule forbids is still held. Guardrails only the judge can decide are skipped
+          until <span className="font-mono text-xs text-ink">{publicEnv.apiUrl}</span> answers
+          again.
         </Alert>
       ) : null}
       {guardWarnings.map((w, i) => (
@@ -381,10 +468,18 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
     </>
   );
   const hasNotice =
-    (phase === "failed" && problem !== null) || guardWarnings.length > 0 || reportError !== null;
+    (phase === "failed" && problem !== null) ||
+    offline ||
+    guardWarnings.length > 0 ||
+    reportError !== null;
 
   const predictCallout =
-    predict && openTicketId === predict.ticketId && !intervention ? (
+    predict &&
+    showPredictFor(
+      predict.ticketId,
+      openTicketId,
+      intervention?.intervention.payload.ticketId ?? null,
+    ) ? (
       <PredictPanel
         ticketId={predict.ticketId}
         condition={predict.match.guardrail.condition}
@@ -395,6 +490,12 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         result={predict.result}
         error={predict.error}
         onChoose={(o) => void choosePrediction(o)}
+      />
+    ) : !guideDismissed && guidedTicketId && openTicketId === null ? (
+      <GuidedStart
+        ticketId={guidedTicketId}
+        onStart={() => startGuide(guidedTicketId)}
+        onDismiss={dismissGuide}
       />
     ) : null;
 
@@ -546,6 +647,37 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
       />
     </div>
   );
+}
+
+const GUIDE_KEY = "shadow.teach.guide.dismissed.v1";
+
+function readGuideDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(GUIDE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeGuideDismissed(): void {
+  try {
+    window.localStorage.setItem(GUIDE_KEY, "1");
+  } catch {
+    // Storage blocked (private window): the guide simply shows again next visit.
+  }
+}
+
+/** DeskSim's action button with this exact label (DeskSim owns the markup; we only read it). */
+function findActionButton(label: string): HTMLButtonElement | null {
+  const root = document.getElementById(DESK_ROOT_ID);
+  if (!root) return null;
+  for (const b of root.querySelectorAll("button")) {
+    // Skip aria-hidden parts (the keyboard-shortcut hint) the way the accessible name does.
+    const copy = b.cloneNode(true) as HTMLElement;
+    for (const hidden of copy.querySelectorAll("[aria-hidden='true']")) hidden.remove();
+    if (copy.textContent?.trim() === label) return b;
+  }
+  return null;
 }
 
 interface SessionStats {

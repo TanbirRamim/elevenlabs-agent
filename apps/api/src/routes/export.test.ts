@@ -87,6 +87,36 @@ describe("runCopilot", () => {
     expect(run.handedToHuman).toBe(run.tickets.filter((t) => t.handedToHuman).length);
   });
 
+  it("counts unsafe auto-actions and compares them with the no-map default", async () => {
+    const run = await runCopilot(fixtureMap, tickets, { llm: null });
+    const guarded = (t: (typeof run.tickets)[number]) => t.expectedGuardrailIds.length > 0;
+    expect(run.unsafeAutoActions).toBe(
+      run.tickets.filter((t) => !t.handedToHuman && !t.agrees && guarded(t)).length,
+    );
+    const baseAgreed = run.tickets.filter((t) => t.proposed === t.expected).length;
+    expect(run.baseline.agreement).toEqual({
+      agreed: baseAgreed,
+      total: run.tickets.length,
+      rate: baseAgreed / run.tickets.length,
+    });
+    expect(run.baseline.unsafeAutoActions).toBe(
+      run.tickets.filter((t) => t.proposed !== t.expected && guarded(t)).length,
+    );
+    // H4 (lawyer, labelled G5) proposes a reply, not a refund; the sample map has no rule for it.
+    expect(run.unsafeAutoActions).toBe(1);
+    for (const r of run.tickets.filter(
+      (t) => t.decision === "refund" && t.citedGuardrailIds.length === 0,
+    )) {
+      expect(r.handedToHuman).toBe(true);
+      expect(r.handoffReason).toBe("no_rule_refund");
+    }
+    expect(run.tickets.find((t) => t.ticketId === "H1")?.handoffReason).toBe("no_rule_refund");
+    expect(run.tickets.find((t) => t.ticketId === "H4")?.handedToHuman).toBe(false);
+    expect(run.baseline.unsafeAutoActions).toBe(5);
+    // The map never makes things less safe than sending the default blind.
+    expect(run.unsafeAutoActions).toBeLessThanOrEqual(run.baseline.unsafeAutoActions);
+  });
+
   it("runs the same judge as the pre-save guard when a key is set", async () => {
     const decide = vi.fn(async () => ({ decision: "ALLOW" as const, ruleIds: [] }));
     const run = await runCopilot(fixtureMap, tickets, {

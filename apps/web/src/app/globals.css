@@ -307,3 +307,10 @@
     font-variant-numeric: tabular-nums slashed-zero;
   }
 }
+
+/* Teach's guided first click points at one action inside DeskSim (app/teach/TeachSession.tsx).
+   An attribute, not classes: React re-renders the button's className and would drop them. */
+[data-shadow-hint] {
+  outline: 2px solid var(--color-ask);
+  outline-offset: 2px;
+}

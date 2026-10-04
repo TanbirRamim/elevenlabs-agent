@@ -24,7 +24,7 @@ Hack-Nation × ElevenLabs, Challenge 01 "The AI Apprentice" ([brief](docs/challe
 
 ## How Shadow answers the Apprentice Test
 
-**1. When to ask.** A pure function decides when Shadow may speak: 1.5 s of silence, 3 s without typing, 2.5 s of a still screen, a candidate with priority at least 0.6, at most 5 questions per 10 minutes and 90 s apart. The model decides how to phrase a question, never when. Gate: [`turnGate.ts`](apps/web/src/lib/turnGate.ts) (7 tests in [`turnGate.test.ts`](apps/web/src/lib/turnGate.test.ts)), run every 250 ms by [`useTurnGate.ts`](apps/web/src/lib/gate/useTurnGate.ts); the [insight panel](apps/web/src/components/insight/InsightPanel.tsx) shows why the gate is closed.
+**1. When to ask.** A pure function decides when Shadow may speak: 1.5 s of silence, 3 s without typing, 2.5 s of a still screen, a candidate with priority at least 0.6, at most 5 questions per 10 minutes and 30 s apart. The model decides how to phrase a question, never when. Gate: [`turnGate.ts`](apps/web/src/lib/turnGate.ts) (7 tests in [`turnGate.test.ts`](apps/web/src/lib/turnGate.test.ts)), run every 250 ms by [`useTurnGate.ts`](apps/web/src/lib/gate/useTurnGate.ts); the [insight panel](apps/web/src/components/insight/InsightPanel.tsx) shows why the gate is closed.
 
 **2. What to ask.** Every decision opens gaps: guardrail, reason, exception, and an escalation contact for handoffs. Each gap scores `slotWeight × surprise × (1 − screenAnswerable) × recency`, so a question the screen already answers scores 0. Decayed gaps go to the debrief, with probes for fraud, legal and engineering cases the expert never showed. See [`ledger.ts`](apps/api/src/curiosity/ledger.ts), [`engine.ts`](apps/api/src/curiosity/engine.ts), [`probes.ts`](apps/api/src/curiosity/probes.ts) (13 tests).
 
@@ -140,7 +140,7 @@ Every Claude call goes through one function, [`llm/structured.ts`](apps/api/src/
 
 | Route | Effort | Used for |
 | --- | --- | --- |
-| `vision@1` | low | What changed on a redacted frame, and what the screen already answers ([`vision.ts`](apps/api/src/llm/vision.ts)) |
+| `vision@2` | low | What changed on a redacted frame, and what the screen already answers ([`vision.ts`](apps/api/src/llm/vision.ts)) |
 | `curiosity@1` | low | Phrasing the top-ranked gap as one short question ([`engine.ts`](apps/api/src/curiosity/engine.ts)) |
 | `workmap@1` | high | Drafting the Work Map from events, transcript and answers; then verify, one repair pass, and open questions for what still fails ([`build.ts`](apps/api/src/workmap/build.ts)) |
 | `teachback@1` | medium | The spoken teach-back and the one-sentence re-check after a correction ([`debrief.ts`](apps/api/src/routes/debrief.ts)) |
@@ -174,7 +174,7 @@ Without `ANTHROPIC_API_KEY` the debrief routes answer `503 llm_unavailable`, fra
 
 ## Moonshot: people first, then agents
 
-The Work Map that taught the new hire can run as an agent policy. `GET /workmaps/:id/export?format=agent` turns it into a system prompt plus machine rules. [`/copilot`](https://shadow-web-meow-4acb.vercel.app/copilot) runs that policy in shadow mode over the 10 held-out tickets with the same guard as the teach page, and hands blocks, approvals, stop-and-ask rules and judgment calls to a human ([`routes/export.ts`](apps/api/src/routes/export.ts), 7 tests; [`CopilotView.tsx`](apps/web/src/components/copilot/CopilotView.tsx)). On the sample map without a key it agrees with the answer key on 6 of 10 tickets and hands 4 to a human. The order is the point: the agent learns from a person, and people learn first.
+The Work Map that taught the new hire can run as an agent policy. `GET /workmaps/:id/export?format=agent` turns it into a system prompt plus machine rules. [`/copilot`](https://shadow-web-meow-4acb.vercel.app/copilot) runs that policy in shadow mode over the 10 held-out tickets with the same guard as the teach page, and hands blocks, approvals, stop-and-ask rules and judgment calls to a human. Safety policy: it never takes an irreversible money action alone, so a refund with no rule clearing it goes to a person ([`routes/export.ts`](apps/api/src/routes/export.ts), 8 tests; [`CopilotView.tsx`](apps/web/src/components/copilot/CopilotView.tsx)). On the sample map without a key it agrees with the answer key on 6 of 10 tickets, hands 6 to a human and makes 1 unsafe auto-action, against 5 for the default action without the map. The order is the point: the agent learns from a person, and people learn first.
 
 ## Repository
 

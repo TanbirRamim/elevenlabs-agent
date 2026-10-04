@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { sampleWorkMap } from "./fixture";
+import { StepDetail } from "./StepDetail";
 import { WorkMapView } from "./WorkMapView";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 async function renderFixture(sessionId: string | null = null) {
   const utils = render(<WorkMapView id="latest" sessionId={sessionId} forceFixture />);
@@ -86,5 +90,50 @@ describe("WorkMapView with the sample map", () => {
     const publish = screen.getByRole("button", { name: "Publish" });
     expect(publish.hasAttribute("disabled")).toBe(true);
     expect(screen.queryByRole("button", { name: "Remove step" })).toBeNull();
+  });
+});
+
+describe("WorkMapView with a published map from the API", () => {
+  function serve(map: object) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify(map), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
+  }
+  const { sourceSessionId: _drop, ...noSession } = sampleWorkMap;
+
+  it("requests no frame image when the map has no source session", async () => {
+    serve(noSession);
+    const { container } = render(<WorkMapView id="latest" sessionId={null} forceFixture={false} />);
+    const detail = await screen.findByRole("region", { name: "Step detail" });
+    expect(container.querySelector("img")).toBeNull();
+    expect(within(detail).getByText("No frame to show")).toBeTruthy();
+  });
+
+  it("falls back to the placeholder when a frame fails to load", () => {
+    const step = sampleWorkMap.steps[0];
+    if (!step) throw new Error("fixture has no steps");
+    const { container } = render(
+      <StepDetail
+        step={step}
+        guardrails={sampleWorkMap.guardrails}
+        sessionId={null}
+        framesAvailable
+        canEdit={false}
+        busy={false}
+        onRemove={async () => {}}
+      />,
+    );
+    const img = container.querySelector("img");
+    if (!img) throw new Error("expected a frame image");
+    fireEvent.error(img);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText("The frame could not be loaded from the API.")).toBeTruthy();
   });
 });

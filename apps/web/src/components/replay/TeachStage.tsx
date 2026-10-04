@@ -1,37 +1,45 @@
 "use client";
 
 import { useMemo } from "react";
-import { ACTION_LABELS } from "../desk/ActionBar";
+import { TeachDock } from "../../app/teach/TeachDock";
 import { InterventionPanel } from "../tutor/InterventionPanel";
 import { buildIntervention } from "../tutor/logic";
 import { resolveItem } from "../tutor/MasteryReport";
-import { Avatar } from "../ui/Avatar";
-import { Badge } from "../ui/Badge";
+import { PredictPanel } from "../tutor/PredictPanel";
 import { Panel } from "../ui/Card";
+import { cx } from "../ui/cx";
 import { sampleWorkMap } from "../workmap/fixture";
 import type { TeachFrame } from "./frame";
-import { ReplayDesk } from "./ReplayDesk";
+import { focusClass, ReplayDesk } from "./ReplayDesk";
 import type { ReplayScript } from "./script";
 
 /**
- * Chapter 3: Jonas on a ticket Maya never handled. The intervention is the real
- * InterventionPanel, built by the tutor's own `buildIntervention` from the guard's verdict and
- * the sample Work Map, so it cites the same rule and quote the live tutor would.
+ * Chapter 3: Jonas works the standalone DeskSim app with the real TeachDock over it, as /teach
+ * looks live. On N2, a judgment point, Shadow's predict callout (the real PredictPanel) asks
+ * before he acts. On N1 the guard pauses the refund and the real InterventionPanel, built by the
+ * tutor's own `buildIntervention` from the guard's verdict and the sample Work Map, is anchored
+ * under the held action. At Finish the mastery report takes the page over.
  */
 export function TeachStage({ frame, teach }: { frame: TeachFrame; teach: ReplayScript["teach"] }) {
   const intervention = useMemo(
     () => buildIntervention(sampleWorkMap, teach.verdict, teach.ticketId, teach.attempted),
     [teach],
   );
-  return (
-    <div className="grid gap-4 lg:grid-cols-12">
-      <div className="min-w-0 lg:col-span-6">
-        <ReplayDesk view={frame.desk} queueLabel="Jonas’s queue" />
+  if (frame.showMastery) {
+    return (
+      <div className={focusClass(true)}>
+        <MasterySummary teach={teach} />
       </div>
-      <div className="min-w-0 lg:col-span-6">
-        {frame.showMastery ? (
-          <MasterySummary teach={teach} />
-        ) : frame.showIntervention ? (
+    );
+  }
+  const predict = frame.predict;
+  return (
+    <ReplayDesk
+      view={frame.desk}
+      attempt={{ outcome: teach.attempted, verdict: teach.verdict }}
+      className={cx("h-[48rem] sm:h-[46rem]", focusClass(true))}
+      coach={
+        frame.showIntervention ? (
           <InterventionPanel
             intervention={intervention}
             expertName={sampleWorkMap.expertName}
@@ -39,51 +47,49 @@ export function TeachStage({ frame, teach }: { frame: TeachFrame; teach: ReplayS
             tutorNotified
             onReplay={null}
           />
-        ) : (
-          <Predict prediction={frame.prediction} ticketId={teach.ticketId} />
-        )}
-      </div>
-    </div>
+        ) : null
+      }
+      dock={
+        <TeachDock
+          learnerName="Jonas"
+          since={null}
+          saved={frame.saved}
+          total={teach.tickets.length}
+          held={frame.held}
+          voiceState="listening"
+          voice={{
+            status: "connected",
+            mode: "listening",
+            error: null,
+            transcript: [],
+            onStart: noop,
+            onStop: noop,
+          }}
+          expertName={sampleWorkMap.expertName}
+          onFinish={noop}
+          finishing={false}
+          callout={
+            predict ? (
+              <PredictPanel
+                ticketId={teach.predict.ticketId}
+                condition={teach.predict.condition}
+                expertName={sampleWorkMap.expertName}
+                voiceLive
+                pending={false}
+                chosen={predict.chosen}
+                result={predict.revealed ? teach.predict.result : null}
+                error={null}
+                onChoose={noop}
+              />
+            ) : null
+          }
+        />
+      }
+    />
   );
 }
 
-function Predict({
-  prediction,
-  ticketId,
-}: {
-  prediction: TeachFrame["prediction"];
-  ticketId: string;
-}) {
-  return (
-    <section
-      aria-label="Predict the decision"
-      className="overflow-hidden rounded-panel border border-rule bg-surface"
-    >
-      <header className="flex min-h-11 flex-wrap items-center justify-between gap-2 border-b border-rule px-4 py-2">
-        <span className="inline-flex items-center gap-2 text-ui font-semibold text-ask-text">
-          <Avatar name="Shadow" size="xs" shadow />
-          Shadow asks
-        </span>
-        <span className="text-xs text-ink-faint">
-          Ticket <span className="figures font-mono text-ink-muted">{ticketId}</span>, never handled
-          by Maya
-        </span>
-      </header>
-      <div className="flex flex-col gap-3 p-4">
-        <h3 className="text-sm font-semibold text-ink">What would you do here, and why?</h3>
-        <p className="flex min-h-7 flex-wrap items-center gap-2 text-ui text-ink-muted">
-          {prediction ? (
-            <>
-              Jonas predicts <Badge tone="neutral">{ACTION_LABELS[prediction]}</Badge>
-            </>
-          ) : (
-            "Waiting for Jonas to commit to a decision before he acts."
-          )}
-        </p>
-      </div>
-    </section>
-  );
-}
+const noop = () => {};
 
 function MasterySummary({ teach }: { teach: ReplayScript["teach"] }) {
   const { mastery } = teach;

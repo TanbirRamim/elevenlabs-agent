@@ -197,3 +197,20 @@ export function masteryCounts(
   for (const e of entries) counts[e.status] += 1;
   return counts;
 }
+
+/**
+ * Whether the predict callout shows: for the open ticket, unless a held save on that same
+ * ticket is being explained. A held save on another ticket does not hide it, so the learner
+ * still gets the predict step on the next unseen ticket after resolving (or leaving) one.
+ */
+export function showPredictFor(
+  predictTicketId: string | null,
+  openTicketId: string | null,
+  interventionTicketId: string | null,
+): boolean {
+  return (
+    predictTicketId !== null &&
+    predictTicketId === openTicketId &&
+    interventionTicketId !== openTicketId
+  );
+}

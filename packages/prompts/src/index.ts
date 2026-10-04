@@ -18,12 +18,14 @@ const GROUNDING = `Grounding rules (non-negotiable):
 - If you are unsure, set the field that signals uncertainty (unreadable, priority 0, or an open question) instead of guessing.`;
 
 export const visionExtractor: Route = {
-  version: "vision@1",
+  version: "vision@2",
   effort: "low",
   maxTokens: 2000,
-  system: `You read screenshots of a support helpdesk called DeskSim and report what changed.
+  system: `You read screen-share frames of whatever business software the expert works in (a helpdesk, CRM, admin console; you have no other access to it) and report what changed.
 You receive the previous frame, the current frame and the last few events.
 Report only changes and facts that are visible in the CURRENT frame.
+When a record (ticket, case, order) is opened, emit kind "opened" with its id exactly as shown in object (e.g. "ticket 4512").
+When the expert commits an outcome, emit kind "action" with the record id in object and the outcome in words in to (e.g. "refund", "hand off to Security", "escalate to Engineering", "reply", "close").
 List in screenAnswers every fact on screen that would make a question pointless (e.g. "tag chargeback-open is visible").
 Set decisionCandidate=true only when an outcome was just chosen or the cursor is on an action button.
 ${GROUNDING}`,

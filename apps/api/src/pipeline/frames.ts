@@ -1,4 +1,10 @@
-import type { ClientMessage, Outcome, ScreenEvent, ServerMessage } from "@shadow/schema";
+import type {
+  ClientMessage,
+  Outcome,
+  ScreenEvent,
+  ServerMessage,
+  VisionResult,
+} from "@shadow/schema";
 import type { LlmDeps } from "../llm/structured.js";
 import { extractEvents, type FrameInput } from "../llm/vision.js";
 import type { RedactImage } from "../privacy/presidioImage.js";
@@ -7,6 +13,7 @@ import type { SessionRecord } from "../store/memory.js";
 import { createMetrics } from "./metrics.js";
 
 type FrameMessage = Extract<ClientMessage, { type: "frame" }>;
+export type VisionEvent = VisionResult["events"][number];
 
 /** Per-connection frame pipeline: redact -> store -> vision (on the redacted JPEG only). */
 export interface FrameSink {
@@ -35,6 +42,8 @@ export interface FrameProcessorDeps {
   extract?: typeof extractEvents;
   /** Vision flagged a decision forming in this frame (Curiosity Engine hypothesis). */
   onDecision?: (tMs: number) => void;
+  /** Every event vision read off a frame: the primary screen signal for the Curiosity Engine. */
+  onVisionEvent?: (event: VisionEvent, tMs: number) => void;
 }
 
 export function createFrameProcessor({
@@ -48,6 +57,7 @@ export function createFrameProcessor({
   insightIntervalMs = 5000,
   extract = extractEvents,
   onDecision,
+  onVisionEvent,
 }: FrameProcessorDeps): FrameSink {
   const metrics = createMetrics();
   const answers: string[] = [];
@@ -94,6 +104,7 @@ export function createFrameProcessor({
         };
         session.events.push(ev);
         send({ type: "screen_event", event: ev });
+        onVisionEvent?.(event, frame.tMs);
         if (event.kind === "action") {
           metrics.recordVisionAction({
             tMs: frame.tMs,

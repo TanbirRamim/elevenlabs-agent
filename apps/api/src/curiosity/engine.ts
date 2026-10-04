@@ -2,12 +2,15 @@ import { curiosity } from "@shadow/prompts";
 import type {
   CandidateQuestion,
   DeskEvent,
+  Outcome,
   PublicTicket,
   ServerMessage,
   TranscriptSegment,
 } from "@shadow/schema";
 import { z } from "zod";
 import { type LlmDeps, LlmError, structured } from "../llm/structured.js";
+import type { VisionEvent } from "../pipeline/frames.js";
+import { outcomeFromText } from "../pipeline/metrics.js";
 import type { SessionRecord } from "../store/memory.js";
 import { type Gap, gapsForDecision, priorityOf, recencyOf } from "./ledger.js";
 
@@ -24,7 +27,10 @@ export interface AnsweredQuestion {
 }
 
 export interface CuriosityEngine {
+  /** DeskSim DOM event; app.ts only routes these here when capture signals are "vision+desk". */
   onDeskEvent(event: DeskEvent): void;
+  /** One event vision read off a frame: the primary signal (works for any app on screen). */
+  onVisionEvent(event: VisionEvent, tMs: number): void;
   /** Vision saw a decision forming with no matching DOM action (§6.5). */
   onVisionDecision(tMs: number): void;
   onQuestionAsked(questionId: string, tMs: number): void;
@@ -54,6 +60,27 @@ interface PhraseContext {
   recentExpertLines: string[];
 }
 
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** A record reference in an unknown app: "ticket 4512", "case #88", "INC-2041". */
+const GENERIC_RECORD_ID =
+  /\b(?:ticket|case|issue|request|incident)\s*#?\s*([a-z]{0,6}-?\d{1,8})\b|#(\d{2,8})\b|\b([A-Z]{2,6}-\d{1,8})\b/i;
+
+/**
+ * The record a vision text is about: a known ticket id first (longest wins), else a generic
+ * record reference, so capture also works on software Shadow has no ticket list for.
+ */
+export function recordIdIn(text: string, knownIds: Iterable<string>): string | null {
+  let best: string | null = null;
+  for (const id of knownIds) {
+    if (best && id.length <= best.length) continue;
+    if (new RegExp(`(^|[^a-z0-9])${escapeRe(id)}($|[^a-z0-9])`, "i").test(text)) best = id;
+  }
+  if (best) return best;
+  const m = GENERIC_RECORD_ID.exec(text);
+  const id = m?.[1] ?? m?.[2] ?? m?.[3];
+  return id ? id.toUpperCase() : null;
+}
+
 export function createCuriosityEngine({
   session,
   send,
@@ -69,7 +96,10 @@ export function createCuriosityEngine({
   let nextGapN = 0;
   let nextQuestionN = 0;
   let lastTMs = 0;
-  let lastDomActionTMs = -Infinity;
+  /** Last committed decision from any signal (vision action or, in vision+desk, DOM). */
+  let lastActionTMs = -Infinity;
+  /** ticketId|outcome already opened: vision reports one action across several frames. */
+  const decided = new Set<string>();
   let lastOpenedTicketId: string | null = null;
   let phrasing = false;
   let candidateGapId: string | null = null;
@@ -104,13 +134,18 @@ export function createCuriosityEngine({
     if (tMs > lastTMs) lastTMs = tMs;
   }
 
-  function openFor(ticketId: string, outcome: DeskEvent & { type: "action_committed" }) {
+  function commitDecision(ticketId: string, outcome: Outcome, tMs: number) {
+    lastActionTMs = Math.max(lastActionTMs, tMs);
+    const key = `${ticketId}|${outcome}`;
+    if (decided.has(key)) return;
+    decided.add(key);
     gaps.push(
-      ...gapsForDecision(ticketsById.get(ticketId), ticketId, outcome.outcome, outcome.tMs, () => {
+      ...gapsForDecision(ticketsById.get(ticketId), ticketId, outcome, tMs, () => {
         nextGapN += 1;
         return `gap_${nextGapN}`;
       }),
     );
+    evaluate();
   }
 
   function openGaps(): Gap[] {
@@ -194,16 +229,30 @@ export function createCuriosityEngine({
     onDeskEvent(event) {
       bump(event.tMs);
       if (event.type === "ticket_opened") lastOpenedTicketId = event.ticketId;
-      if (event.type === "action_committed") {
-        lastDomActionTMs = event.tMs;
-        openFor(event.ticketId, event);
-        evaluate();
+      if (event.type === "action_committed")
+        commitDecision(event.ticketId, event.outcome, event.tMs);
+    },
+    onVisionEvent(event, tMs) {
+      bump(tMs);
+      const text = [event.object, event.field, event.from, event.to, event.fact]
+        .filter(Boolean)
+        .join(" ");
+      const recordId = recordIdIn(text, ticketsById.keys());
+      if (event.kind === "opened") {
+        if (recordId) lastOpenedTicketId = recordId;
+        return;
       }
+      if (event.kind !== "action") return;
+      const ticketId = recordId ?? lastOpenedTicketId;
+      const outcome = outcomeFromText(text);
+      if (!ticketId || !outcome) return;
+      lastOpenedTicketId = ticketId;
+      commitDecision(ticketId, outcome, tMs);
     },
     onVisionDecision(tMs) {
       bump(tMs);
-      // Only when no DOM action explains it and we know which ticket is on screen.
-      if (Math.abs(tMs - lastDomActionTMs) <= 5000 || !lastOpenedTicketId) return;
+      // Only when no committed action explains it and we know which ticket is on screen.
+      if (Math.abs(tMs - lastActionTMs) <= 5000 || !lastOpenedTicketId) return;
       const ticketId = lastOpenedTicketId;
       if (gaps.some((g) => g.ticketId === ticketId && recencyOf(g, lastTMs) > 0)) return;
       gaps.push(

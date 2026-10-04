@@ -60,6 +60,7 @@ const HANDOFF_LABEL: Record<NonNullable<CopilotTicketResult["handoffReason"]>, s
   judgment_call: "judgment call",
   approval_required: "needs a second approval",
   blocked: "a rule blocks the default",
+  no_rule_refund: "refund with no rule yet",
 };
 
 export const FRAMING =
@@ -260,15 +261,21 @@ function Results({ data }: { data: CopilotData }) {
       <Loop expertName={run.expertName} />
       <StatGroup>
         <Stat
-          label={`Agreement with ${run.expertName}`}
-          value={percent(run.agreement.rate)}
-          note={`${run.agreement.agreed} of ${run.agreement.total} held-out tickets`}
+          label="Unsafe auto-actions"
+          value={run.unsafeAutoActions}
+          unit={`/ ${total}`}
+          note="wrong, alone, where a rule applied"
         />
         <Stat
-          label="Handed to a human"
+          label="Handed to a human when unsure"
           value={run.handedToHuman}
           unit={`/ ${total}`}
           note="blocks, approvals, judgment calls"
+        />
+        <Stat
+          label={`Agreement on tickets ${run.expertName} never worked`}
+          value={percent(run.agreement.rate)}
+          note={`${run.agreement.agreed} of ${run.agreement.total} held-out tickets`}
         />
         <Stat
           label="Decided by the Copilot"
@@ -283,12 +290,59 @@ function Results({ data }: { data: CopilotData }) {
             />
           }
         />
-        <Stat
-          label="Machine rules"
-          value={exported.rules.machine.length}
-          note={`${exported.rules.guardrails.length} guardrails exported`}
-        />
       </StatGroup>
+
+      <Panel title="Default policy without the map vs with the map" meta="same tickets" flush>
+        <Table>
+          <caption className="sr-only">
+            The naive default action compared with the Copilot governed by {run.expertName}’s Work
+            Map
+          </caption>
+          <THead>
+            <tr>
+              <Th className="pl-4">Policy</Th>
+              <Th>Unsafe auto-actions</Th>
+              <Th>Handed to a human</Th>
+              <Th className="pr-4">Agreement</Th>
+            </tr>
+          </THead>
+          <TBody>
+            <Tr>
+              <th scope="row" className="h-11 pl-4 text-left font-normal text-ink">
+                Default policy without the map
+              </th>
+              <Td>
+                <span className="figures">{run.baseline.unsafeAutoActions}</span>
+              </Td>
+              <Td>
+                <span className="figures">0</span>
+              </Td>
+              <Td className="pr-4">
+                <span className="figures">
+                  {percent(run.baseline.agreement.rate)} ({run.baseline.agreement.agreed}/
+                  {run.baseline.agreement.total})
+                </span>
+              </Td>
+            </Tr>
+            <Tr>
+              <th scope="row" className="h-11 pl-4 text-left font-medium text-ink">
+                With {run.expertName}’s map
+              </th>
+              <Td>
+                <span className="figures font-medium">{run.unsafeAutoActions}</span>
+              </Td>
+              <Td>
+                <span className="figures">{run.handedToHuman}</span>
+              </Td>
+              <Td className="pr-4">
+                <span className="figures">
+                  {percent(run.agreement.rate)} ({run.agreement.agreed}/{run.agreement.total})
+                </span>
+              </Td>
+            </Tr>
+          </TBody>
+        </Table>
+      </Panel>
 
       <Panel
         title="Ticket by ticket"
@@ -297,6 +351,10 @@ function Results({ data }: { data: CopilotData }) {
       >
         <div className="flex flex-col gap-2 border-b border-rule px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-ink-muted">
+            <strong className="font-medium text-ink">
+              Safety policy: the Copilot never takes an irreversible money action alone; a refund
+              with no rule clearing it goes to a person.
+            </strong>{" "}
             The Copilot starts from the default action, a refund when the ticket names an amount and
             a reply otherwise, and the Work Map’s rules overrule it.{" "}
             {run.judge === "on"
@@ -500,7 +558,7 @@ function ResultsTable({ rows, expertName }: { rows: CopilotTicketResult[]; exper
                   ))}
                 </span>
               ) : (
-                <span className="text-ink-faint">None applies</span>
+                <span className="text-ink-faint">No rule yet</span>
               )}
             </Td>
             <Td className="py-2">
@@ -517,7 +575,12 @@ function ResultsTable({ rows, expertName }: { rows: CopilotTicketResult[]; exper
               </Badge>
             </Td>
             <Td className="py-2 pr-4">
-              {r.handoffReason ? (
+              {r.handoffReason === "no_rule_refund" ? (
+                <span className="inline-flex items-center gap-1.5 text-ink">
+                  <UserRound aria-hidden="true" className="size-3.5 shrink-0 text-ink-muted" />
+                  Refund with no rule yet → handed to a person
+                </span>
+              ) : r.handoffReason ? (
                 <span className="inline-flex items-center gap-1.5">
                   {r.handoffReason === "judgment_call" ? (
                     <Scale aria-hidden="true" className="size-3.5 shrink-0 text-guard-text" />

@@ -25,3 +25,11 @@ test("nav: Capture link opens the capture page", async ({ page }) => {
   // Capture is the standalone DeskSim app with Shadow's dock, not a page with a heading (#78).
   await expect(page.getByRole("region", { name: "Support inbox" })).toBeVisible();
 });
+
+test("home: proof chips and the primary CTA to Teach", async ({ page }) => {
+  await page.goto("/");
+  const proof = page.getByRole("list", { name: "Proof" });
+  await expect(proof).toContainText("9/9 caught, 0/16 false blocks");
+  await page.getByRole("link", { name: "See it stop a wrong refund" }).click();
+  await expect(page).toHaveURL(/\/teach$/);
+});

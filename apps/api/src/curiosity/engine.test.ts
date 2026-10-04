@@ -168,3 +168,26 @@ describe("curiosity engine", () => {
     engine.stop();
   });
 });
+
+describe("curiosity engine with vision + desk signals", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("the same decision seen by vision and DOM opens one set of gaps", async () => {
+    const { sent, engine } = setup();
+    engine.onDeskEvent({
+      type: "action_committed",
+      tMs: 10_000,
+      ticketId: "T3",
+      outcome: "handoff_billing_disputes",
+    });
+    engine.onVisionEvent(
+      { kind: "action", object: "ticket T3", to: "handoff billing disputes" },
+      11_000,
+    );
+    await flush();
+    expect(engine.openGapCount()).toBe(4); // guardrail, reason, exception, contact
+    expect(candidates(sent)).toHaveLength(1);
+    engine.stop();
+  });
+});
