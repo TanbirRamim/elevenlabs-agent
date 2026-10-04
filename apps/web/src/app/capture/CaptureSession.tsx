@@ -405,6 +405,9 @@ export function CaptureSession() {
       loop.current = startFrameLoop({
         intervalMs: FRAME_INTERVAL_MS,
         hammingThreshold: HAMMING_THRESHOLD,
+        // A still desk over compressed tab video flickers by a few bits; only a change big
+        // enough to send a frame counts as the screen moving for the Turn Gate.
+        changeThreshold: HAMMING_THRESHOLD,
         clock,
         capture: () => {
           const r = region();
