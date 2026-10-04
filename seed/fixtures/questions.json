@@ -1,0 +1,34 @@
+{
+  "T1": {
+    "id": "q_mock_t1",
+    "text": "On T1, why is resending the invoice enough — when would you escalate instead?",
+    "slot": "reason",
+    "priority": 0.55,
+    "aboutTicketId": "T1",
+    "createdAtMs": 0
+  },
+  "T2": {
+    "id": "q_mock_t2",
+    "text": "T2 was charged twice — is there any case where you would not refund a duplicate charge right away?",
+    "slot": "exception",
+    "priority": 0.6,
+    "aboutTicketId": "T2",
+    "createdAtMs": 0
+  },
+  "T3": {
+    "id": "q_mock_t3",
+    "text": "You held the refund on T3 — what is the rule when a chargeback is already open?",
+    "slot": "guardrail",
+    "priority": 0.9,
+    "aboutTicketId": "T3",
+    "createdAtMs": 0
+  },
+  "T4": {
+    "id": "q_mock_t4",
+    "text": "On T4, what makes you route an email-change claim to Security instead of refunding?",
+    "slot": "guardrail",
+    "priority": 0.85,
+    "aboutTicketId": "T4",
+    "createdAtMs": 0
+  }
+}

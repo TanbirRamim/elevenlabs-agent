@@ -6,6 +6,9 @@ import { loadTickets } from "@shadow/guard/fixtures";
 import type { Ticket } from "@shadow/schema";
 import Fastify from "fastify";
 import type { Env } from "./env.js";
+import { loadMockFixtures } from "./mock/fixtures.js";
+import { registerMockRoutes } from "./mock/routes.js";
+import { createMockStreamHooks } from "./mock/stream.js";
 import { registerGuardRoutes } from "./routes/guard.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerTicketRoutes } from "./routes/tickets.js";
@@ -55,6 +58,14 @@ export async function buildApp({
   app.get("/health", async () => ({ ok: true, model: env.SHADOW_MODEL }));
   registerTicketRoutes(app, tickets);
   registerGuardRoutes(app, store, fallbackRules);
-  registerSessionRoutes(app, store);
+  if (env.MOCK_AI === "1") {
+    // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The real
+    // debrief/workmap/mastery routes (HAR-9, HAR-12) will register in the else branch.
+    const fixtures = loadMockFixtures();
+    registerMockRoutes(app, store, fixtures);
+    registerSessionRoutes(app, store, createMockStreamHooks(fixtures));
+  } else {
+    registerSessionRoutes(app, store);
+  }
   return app;
 }

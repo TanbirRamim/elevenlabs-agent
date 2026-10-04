@@ -1,0 +1,27 @@
+{
+  "workMapId": "wm_mock_1",
+  "coverage": 0.6,
+  "openQuestions": [
+    {
+      "id": "q_open_1",
+      "aboutStepId": "S2",
+      "slot": "guardrail",
+      "text": "Is there a refund amount above which you need someone else to sign off?",
+      "priority": 0.8
+    },
+    {
+      "id": "q_open_2",
+      "aboutStepId": "S2",
+      "slot": "exception",
+      "text": "When a known bug caused the charge, do you still refund or escalate to Engineering?",
+      "priority": 0.7
+    },
+    {
+      "id": "q_open_3",
+      "aboutStepId": "S4",
+      "slot": "escalation_contact",
+      "text": "Who exactly picks up a Security handoff, and how do you reach them?",
+      "priority": 0.65
+    }
+  ]
+}

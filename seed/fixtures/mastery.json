@@ -1,0 +1,10 @@
+{
+  "sessionId": "ses_mock",
+  "workMapId": "wm_mock_1",
+  "entries": [
+    { "stepOrGuardrailId": "G6", "status": "independent", "ticketId": "N2" },
+    { "stepOrGuardrailId": "G3", "status": "assisted", "ticketId": "N1" },
+    { "stepOrGuardrailId": "G1", "status": "missed", "ticketId": "N1" }
+  ],
+  "practiceNext": ["G1", "G3"]
+}
