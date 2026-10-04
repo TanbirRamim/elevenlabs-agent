@@ -33,6 +33,8 @@ export interface FrameProcessorDeps {
   insightIntervalMs?: number;
   /** Test seam; defaults to the real vision extractor. */
   extract?: typeof extractEvents;
+  /** Vision flagged a decision forming in this frame (Curiosity Engine hypothesis). */
+  onDecision?: (tMs: number) => void;
 }
 
 export function createFrameProcessor({
@@ -45,6 +47,7 @@ export function createFrameProcessor({
   now = () => Date.now(),
   insightIntervalMs = 5000,
   extract = extractEvents,
+  onDecision,
 }: FrameProcessorDeps): FrameSink {
   const metrics = createMetrics();
   const answers: string[] = [];
@@ -102,6 +105,7 @@ export function createFrameProcessor({
         answers.push(answer);
         if (answers.length > 5) answers.shift();
       }
+      if (result.decisionCandidate) onDecision?.(frame.tMs);
       if (result.events.length > 0) metrics.recordLatency(now() - receivedAt);
     } catch (err) {
       // extractEvents converts LlmError to unreadable; anything else is unexpected.

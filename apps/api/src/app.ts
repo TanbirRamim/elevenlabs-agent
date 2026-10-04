@@ -3,8 +3,9 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import type { RuleRef } from "@shadow/guard";
 import { loadTickets } from "@shadow/guard/fixtures";
-import type { Ticket } from "@shadow/schema";
+import { PublicTicket, type Ticket } from "@shadow/schema";
 import Fastify from "fastify";
+import { createCuriosityEngine } from "./curiosity/engine.js";
 import type { Env } from "./env.js";
 import { createLlm } from "./llm/structured.js";
 import { loadMockFixtures } from "./mock/fixtures.js";
@@ -88,6 +89,7 @@ export async function buildApp({
     });
     // Without a key, frames are stored (redacted) but never shown to a model.
     const llm = env.ANTHROPIC_API_KEY ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL) : null;
+    const ticketsById = new Map(tickets.map((t) => [t.id, PublicTicket.parse(t)]));
     registerSessionRoutes(app, store, {
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,
@@ -96,15 +98,33 @@ export async function buildApp({
       }),
       ...(objectStorage || llm
         ? {
-            frameSink: (session, send) =>
-              createFrameProcessor({
+            pipes: (session, send) => {
+              // Cross-wired per connection: the engine reads the sink's screenAnswers,
+              // the sink feeds decisions and the open-gap count into the insight message.
+              let sinkRef: ReturnType<typeof createFrameProcessor> | undefined;
+              const curiosity = llm
+                ? createCuriosityEngine({
+                    session,
+                    send,
+                    llm,
+                    ticketsById,
+                    screenAnswers: () => sinkRef?.screenAnswers() ?? [],
+                    log: app.log,
+                  })
+                : undefined;
+              const sink = createFrameProcessor({
                 session,
                 send,
                 llm,
                 redactImage,
                 storage: objectStorage,
                 log: app.log,
-              }),
+                ...(curiosity ? { onDecision: (tMs) => curiosity.onVisionDecision(tMs) } : {}),
+              });
+              sinkRef = sink;
+              if (curiosity) sink.setOpenGaps(() => curiosity.openGapCount());
+              return { sink, ...(curiosity ? { curiosity } : {}) };
+            },
           }
         : {}),
     });
