@@ -13,6 +13,25 @@ const OUTCOME_KEYWORDS: Record<Outcome, string[]> = {
   close: ["close", "closed"],
 };
 
+/** Most specific first: "hand off to billing disputes" must not read as a plain refund or reply. */
+const OUTCOME_ORDER: Outcome[] = [
+  "handoff_security",
+  "handoff_legal",
+  "handoff_billing_disputes",
+  "escalate_engineering",
+  "escalate_tier2",
+  "hold_request_info",
+  "refund",
+  "close",
+  "reply",
+];
+
+/** The outcome a vision "action" text names, or null when it names none (§6.3 keywords). */
+export function outcomeFromText(text: string): Outcome | null {
+  const t = text.toLowerCase();
+  return OUTCOME_ORDER.find((o) => OUTCOME_KEYWORDS[o].some((k) => t.includes(k))) ?? null;
+}
+
 export interface DomAction {
   tMs: number;
   ticketId: string;

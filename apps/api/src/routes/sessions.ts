@@ -19,7 +19,17 @@ export interface StreamPipes {
   curiosity?: CuriosityEngine;
 }
 
+/**
+ * Where capture reads the screen from. "vision" (default): only what the model sees in the
+ * redacted frames, so Shadow learns any app from a screen share; DeskSim DOM events are kept
+ * as ground truth for the vision/DOM agreement metric only. "vision+desk": DOM events also
+ * become session events and drive the Curiosity Engine (tests, DeskSim-only demos).
+ */
+export type CaptureSignals = "vision" | "vision+desk";
+
 export interface SessionStreamDeps {
+  /** Default "vision". */
+  signals?: CaptureSignals;
   hooks?: StreamHooks;
   /** Defaults to the fail-safe placeholder redactor; app.ts wires the real one. */
   redactText?: RedactText;
@@ -30,7 +40,7 @@ export interface SessionStreamDeps {
 export function registerSessionRoutes(
   app: FastifyInstance,
   store: Store,
-  { hooks, redactText = unavailableRedactor, pipes }: SessionStreamDeps = {},
+  { hooks, redactText = unavailableRedactor, pipes, signals = "vision" }: SessionStreamDeps = {},
 ): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
@@ -97,6 +107,12 @@ export function registerSessionRoutes(
             return;
           case "desk_event": {
             if (isOffRecord(session, m.event.tMs)) return;
+            // Ground truth for the agreement metric in every mode.
+            if (m.event.type === "action_committed") {
+              sink?.onDomAction(m.event.tMs, m.event.ticketId, m.event.outcome);
+            }
+            hooks?.onDeskEvent(m.event, send, timers);
+            if (signals === "vision") return;
             const ev = {
               id: `ev_${session.events.length + 1}`,
               tMs: m.event.tMs,
@@ -107,11 +123,7 @@ export function registerSessionRoutes(
             };
             session.events.push(ev);
             send({ type: "screen_event", event: ev });
-            if (m.event.type === "action_committed") {
-              sink?.onDomAction(m.event.tMs, m.event.ticketId, m.event.outcome);
-            }
             curiosity?.onDeskEvent(m.event);
-            hooks?.onDeskEvent(m.event, send, timers);
             return;
           }
           case "frame":

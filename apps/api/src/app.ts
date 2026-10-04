@@ -113,6 +113,7 @@ export async function buildApp({
       ...judge,
     });
     registerSessionRoutes(app, store, {
+      signals: env.CAPTURE_SIGNALS,
       hooks: createMockStreamHooks(fixtures),
       redactText: identityRedactor, // fixture text only, no PII
     });
@@ -129,6 +130,7 @@ export async function buildApp({
     if (llm) registerDebriefRoutes(app, store, { llm, ...debriefSeams });
     else registerDebriefUnavailableRoutes(app);
     registerSessionRoutes(app, store, {
+      signals: env.CAPTURE_SIGNALS,
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,
         anonymizerUrl: env.PRESIDIO_ANONYMIZER_URL,
@@ -158,7 +160,12 @@ export async function buildApp({
                 redactImage,
                 storage: objectStorage,
                 log: app.log,
-                ...(curiosity ? { onDecision: (tMs) => curiosity.onVisionDecision(tMs) } : {}),
+                ...(curiosity
+                  ? {
+                      onDecision: (tMs) => curiosity.onVisionDecision(tMs),
+                      onVisionEvent: (event, tMs) => curiosity.onVisionEvent(event, tMs),
+                    }
+                  : {}),
               });
               sinkRef = sink;
               if (curiosity) sink.setOpenGaps(() => curiosity.openGapCount());
