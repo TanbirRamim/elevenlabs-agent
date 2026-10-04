@@ -3,22 +3,31 @@
 import type { Outcome, PublicTicket } from "@shadow/schema";
 import { Inbox } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Kbd } from "../ui";
+import { cx, Kbd } from "../ui";
 import { ACTION_ORDER, ActionBar, type CommitPhase, type CommittedAction } from "./ActionBar";
 import { useDeskCoach } from "./coach";
 import { TicketDetail } from "./TicketDetail";
 import { queueItemId, TicketQueue } from "./TicketQueue";
 import { DESK_ROOT_ID, type DeskSimProps } from "./types";
 
-export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimProps) {
+export function DeskSim({
+  tickets,
+  mode,
+  clock,
+  onDeskEvent,
+  preSave,
+  chrome = "card",
+}: DeskSimProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [phase, setPhase] = useState<CommitPhase>({ kind: "idle" });
   const [committed, setCommitted] = useState<Record<string, CommittedAction>>({});
   const [refundAmount, setRefundAmount] = useState("");
+  const [replyDraft, setReplyDraft] = useState("");
   // Monotonic token: a preSave result only applies if no newer commit/selection happened.
   const requestSeq = useRef(0);
   const lastActivityAt = useRef(Number.NEGATIVE_INFINITY);
   const refundFrom = useRef<string | null>(null);
+  const replyFrom = useRef<string | null>(null);
 
   const selected = tickets.find((t) => t.id === selectedId);
   const coach = useDeskCoach();
@@ -78,6 +87,8 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
     const amount = ticket?.amountEur !== undefined ? String(ticket.amountEur) : "";
     setRefundAmount(amount);
     refundFrom.current = amount || null;
+    setReplyDraft("");
+    replyFrom.current = null;
     onDeskEvent({ type: "ticket_opened", tMs: clock(), ticketId: id });
   }
 
@@ -98,6 +109,25 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
       to,
     });
     refundFrom.current = to;
+  }
+
+  function handleReplyFocus() {
+    replyFrom.current = replyDraft || null;
+  }
+
+  function handleReplyBlur() {
+    if (!selected) return;
+    const to = replyDraft || null;
+    if (to === replyFrom.current) return;
+    onDeskEvent({
+      type: "field_changed",
+      tMs: clock(),
+      ticketId: selected.id,
+      field: "reply_draft",
+      from: replyFrom.current,
+      to,
+    });
+    replyFrom.current = to;
   }
 
   async function commitAction(ticket: PublicTicket, outcome: Outcome) {
@@ -134,20 +164,48 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
     const approvalRequested = verdict.decision === "REQUIRE_APPROVAL";
     setPhase({ kind: "committed", outcome, approvalRequested });
     setCommitted((m) => ({ ...m, [ticket.id]: { outcome, approvalRequested } }));
+    if (outcome === "reply") {
+      setReplyDraft("");
+      replyFrom.current = null;
+    }
   }
 
+  const app = chrome === "app";
   return (
     <section
       id={DESK_ROOT_ID}
       aria-label="Support inbox"
       onClickCapture={markActivity}
       onKeyDownCapture={markActivity}
-      className="@container overflow-hidden rounded-panel border border-rule bg-surface text-ui text-ink"
+      className={cx(
+        "@container bg-surface text-ui text-ink",
+        app ? "flex h-full min-h-0 flex-col" : "overflow-hidden rounded-panel border border-rule",
+      )}
     >
-      <div className="flex h-11 items-center justify-between gap-4 border-b border-rule px-3 @3xl:px-4">
+      <div
+        className={cx(
+          "flex items-center justify-between gap-4 border-b border-rule px-3 @3xl:px-4",
+          app ? "h-12 shrink-0" : "h-11",
+        )}
+      >
         <p className="flex min-w-0 items-center gap-2 font-semibold">
-          <Inbox aria-hidden="true" className="size-4 stroke-[1.75] text-ink-muted" />
-          Support inbox
+          {app ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="inline-flex size-5 items-center justify-center rounded-[5px] bg-ink text-[11px] font-bold text-ink-inverse"
+              >
+                D
+              </span>
+              DeskSim
+              <span className="text-xs font-normal text-ink-faint">Inbox</span>
+            </>
+          ) : (
+            <>
+              <Inbox aria-hidden="true" className="size-4 stroke-[1.75] text-ink-muted" />
+              Support inbox
+            </>
+          )}
           <span className="figures text-xs font-normal text-ink-faint">
             {tickets.length - doneCount} open
             {doneCount > 0 ? ` · ${doneCount} done` : ""}
@@ -163,8 +221,18 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
           </span>
         </p>
       </div>
-      <div className="grid @2xl:grid-cols-[15rem_minmax(0,1fr)] @5xl:grid-cols-[18rem_minmax(0,1fr)]">
-        <div className="border-b border-rule bg-canvas @2xl:border-r @2xl:border-b-0">
+      <div
+        className={cx(
+          "grid @2xl:grid-cols-[15rem_minmax(0,1fr)] @5xl:grid-cols-[18rem_minmax(0,1fr)]",
+          app && "min-h-0 flex-1",
+        )}
+      >
+        <div
+          className={cx(
+            "border-b border-rule bg-canvas @2xl:border-r @2xl:border-b-0",
+            app && "min-h-0 overflow-y-auto",
+          )}
+        >
           <TicketQueue
             tickets={tickets}
             selectedId={selectedId}
@@ -174,8 +242,8 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
           />
         </div>
         {selected ? (
-          <div className="flex min-w-0 flex-col">
-            <TicketDetail ticket={selected} />
+          <div className={cx("flex min-w-0 flex-col", app && "min-h-0 overflow-y-auto")}>
+            <TicketDetail ticket={selected} committed={committed[selected.id]} />
             <ActionBar
               phase={phase}
               committed={committed[selected.id]}
@@ -183,6 +251,10 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
               onRefundAmountChange={setRefundAmount}
               onRefundFocus={handleRefundFocus}
               onRefundBlur={handleRefundBlur}
+              replyDraft={replyDraft}
+              onReplyDraftChange={setReplyDraft}
+              onReplyFocus={handleReplyFocus}
+              onReplyBlur={handleReplyBlur}
               onAction={(outcome) => void commitAction(selected, outcome)}
               coach={coach?.(selected.id, {
                 busy,

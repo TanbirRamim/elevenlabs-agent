@@ -34,23 +34,29 @@ interface ActionBarProps {
   onRefundAmountChange: (value: string) => void;
   onRefundFocus: () => void;
   onRefundBlur: () => void;
+  replyDraft: string;
+  onReplyDraftChange: (value: string) => void;
+  onReplyFocus: () => void;
+  onReplyBlur: () => void;
   onAction: (outcome: Outcome) => void;
   /** Coaching from the host (Teach), anchored under the pause notice. */
   coach?: ReactNode;
 }
 
-const GROUPS: { label: string; outcomes: Outcome[] }[] = [
-  { label: "Resolve", outcomes: ["reply", "refund", "hold_request_info"] },
-  { label: "Escalate", outcomes: ["escalate_tier2", "escalate_engineering"] },
-  {
-    label: "Hand off",
-    outcomes: ["handoff_security", "handoff_legal", "handoff_billing_disputes"],
-  },
-  { label: "Finish", outcomes: ["close"] },
+/** Reply (via the composer) and Refund lead; everything else is a quieter routing decision. */
+const PRIMARY: readonly Outcome[] = ["reply", "refund"];
+const ROUTE: readonly Outcome[] = [
+  "hold_request_info",
+  "escalate_tier2",
+  "escalate_engineering",
+  "handoff_security",
+  "handoff_legal",
+  "handoff_billing_disputes",
+  "close",
 ];
 
 /** The actions in the order the bar shows them; the 1-9 shortcuts follow this order. */
-export const ACTION_ORDER: readonly Outcome[] = GROUPS.flatMap((g) => g.outcomes);
+export const ACTION_ORDER: readonly Outcome[] = [...PRIMARY, ...ROUTE];
 
 /** The shortcut digit for an outcome, as shown on its button. */
 export function shortcutFor(outcome: Outcome): string {
@@ -67,6 +73,10 @@ export function ActionBar({
   onRefundAmountChange,
   onRefundFocus,
   onRefundBlur,
+  replyDraft,
+  onReplyDraftChange,
+  onReplyFocus,
+  onReplyBlur,
   onAction,
   coach,
 }: ActionBarProps) {
@@ -75,6 +85,44 @@ export function ActionBar({
   const suggested = blocked?.verdict.expectedOutcome ?? null;
   const suggestedHintId = useId();
   const hasCoach = coach !== undefined && coach !== null && coach !== false;
+
+  const actionButton = (outcome: Outcome, opts: { ghost?: boolean } = {}) => {
+    const held = blocked?.outcome === outcome;
+    const isSuggested = suggested === outcome && !disabled;
+    const primary = outcome === "reply" || isSuggested;
+    return (
+      <Button
+        key={outcome}
+        variant={primary ? "primary" : opts.ghost ? "ghost" : "secondary"}
+        size={opts.ghost ? "sm" : "md"}
+        disabled={disabled}
+        onClick={() => onAction(outcome)}
+        aria-describedby={isSuggested ? suggestedHintId : undefined}
+        aria-keyshortcuts={shortcutFor(outcome)}
+        icon={held ? <Pause aria-hidden="true" className="fill-current" /> : undefined}
+        trailing={
+          <Kbd
+            aria-hidden="true"
+            className={cx(
+              "ml-1 h-4 min-w-4 text-[10px] shadow-none",
+              primary && "border-ink-inverse/40! bg-transparent! text-ink-inverse!",
+              held && "border-guard/50! bg-transparent! text-guard-text!",
+            )}
+          >
+            {shortcutFor(outcome)}
+          </Kbd>
+        }
+        className={cx(
+          STILL,
+          opts.ghost && "text-ink-muted",
+          held &&
+            "border-guard/60 bg-guard-wash text-guard-text hover:border-guard hover:bg-guard-wash",
+        )}
+      >
+        {ACTION_LABELS[outcome]}
+      </Button>
+    );
+  };
 
   return (
     <section
@@ -125,77 +173,51 @@ export function ActionBar({
           Suggested by the guardrail
         </span>
       ) : null}
-      <div className="flex flex-wrap gap-x-6 gap-y-3">
-        {GROUPS.map((group) => (
-          <fieldset key={group.label} className="m-0 min-w-0 border-0 p-0">
-            <legend className="mb-1.5 p-0 text-2xs font-medium text-ink-faint">
-              {group.label}
-            </legend>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {group.outcomes.map((outcome) => {
-                const held = blocked?.outcome === outcome;
-                const isSuggested = suggested === outcome && !disabled;
-                const button = (
-                  <Button
-                    key={outcome}
-                    variant={isSuggested ? "primary" : "secondary"}
-                    size="md"
-                    disabled={disabled}
-                    onClick={() => onAction(outcome)}
-                    aria-describedby={isSuggested ? suggestedHintId : undefined}
-                    aria-keyshortcuts={shortcutFor(outcome)}
-                    icon={held ? <Pause aria-hidden="true" className="fill-current" /> : undefined}
-                    trailing={
-                      <Kbd
-                        aria-hidden="true"
-                        className={cx(
-                          "ml-1 h-4 min-w-4 text-[10px] shadow-none",
-                          isSuggested && "border-ink-inverse/40! bg-transparent! text-ink-inverse!",
-                          held && "border-guard/50! bg-transparent! text-guard-text!",
-                        )}
-                      >
-                        {shortcutFor(outcome)}
-                      </Kbd>
-                    }
-                    className={cx(
-                      STILL,
-                      held &&
-                        "border-guard/60 bg-guard-wash text-guard-text hover:border-guard hover:bg-guard-wash",
-                    )}
-                  >
-                    {ACTION_LABELS[outcome]}
-                  </Button>
-                );
-                if (outcome !== "refund") return button;
-                return (
-                  <div key={outcome} className="flex items-center gap-1.5">
-                    {button}
-                    <label className="flex items-center">
-                      <span className="sr-only">Refund amount (€)</span>
-                      <span
-                        aria-hidden="true"
-                        className="flex h-8 items-center rounded-l-control border border-r-0 border-rule-strong bg-sunken px-2 text-ink-faint"
-                      >
-                        €
-                      </span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={refundAmount}
-                        disabled={disabled}
-                        onChange={(e) => onRefundAmountChange(e.target.value)}
-                        onFocus={onRefundFocus}
-                        onBlur={onRefundBlur}
-                        className="figures h-8 w-20 rounded-r-control border border-rule-strong bg-surface px-2 text-ui text-ink disabled:opacity-50"
-                      />
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-          </fieldset>
-        ))}
+
+      {/* The composer leads, like a real helpdesk: write the reply, or settle the money. */}
+      <div className="flex flex-col gap-2 rounded-panel border border-rule-strong bg-surface p-2">
+        <textarea
+          aria-label="Reply to the customer"
+          placeholder="Write a reply…"
+          rows={2}
+          value={replyDraft}
+          disabled={disabled}
+          onChange={(e) => onReplyDraftChange(e.target.value)}
+          onFocus={onReplyFocus}
+          onBlur={onReplyBlur}
+          className="w-full resize-none border-0 bg-transparent px-1.5 py-1 text-ui text-ink outline-none placeholder:text-ink-faint disabled:opacity-50"
+        />
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <label className="mr-auto flex items-center">
+            <span className="sr-only">Refund amount (€)</span>
+            <span
+              aria-hidden="true"
+              className="flex h-8 items-center rounded-l-control border border-r-0 border-rule-strong bg-sunken px-2 text-ink-faint"
+            >
+              €
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={refundAmount}
+              disabled={disabled}
+              onChange={(e) => onRefundAmountChange(e.target.value)}
+              onFocus={onRefundFocus}
+              onBlur={onRefundBlur}
+              className="figures h-8 w-20 rounded-r-control border border-rule-strong bg-surface px-2 text-ui text-ink disabled:opacity-50"
+            />
+          </label>
+          {actionButton("refund")}
+          {actionButton("reply")}
+        </div>
       </div>
+
+      <fieldset className="m-0 min-w-0 border-0 p-0">
+        <legend className="mb-1.5 p-0 text-2xs font-medium text-ink-faint">Route ticket</legend>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ROUTE.map((outcome) => actionButton(outcome, { ghost: true }))}
+        </div>
+      </fieldset>
 
       <p
         className="flex min-h-6 flex-wrap items-center gap-2 text-ui empty:hidden"

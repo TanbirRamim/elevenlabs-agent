@@ -1,7 +1,8 @@
 import type { PublicTicket } from "@shadow/schema";
 import { Bug, Crown, Mail, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
-import { Badge, cx } from "../ui";
+import { Badge, cx, StatusPill } from "../ui";
+import type { CommittedAction } from "./ActionBar";
 import { PII_ATTR } from "./types";
 
 const pii = { [PII_ATTR]: "" };
@@ -56,16 +57,28 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
  * thread, and a customer sidebar on wide containers (stacked above the thread when narrow).
  * Name and email are the only personal data and carry `data-pii`, once each.
  */
-export function TicketDetail({ ticket }: { ticket: PublicTicket }) {
+export function TicketDetail({
+  ticket,
+  committed,
+}: {
+  ticket: PublicTicket;
+  /** Set once an action was saved: the ticket header reads Solved instead of Open. */
+  committed?: CommittedAction | undefined;
+}) {
   const c = ticket.customer;
   return (
     <article className="grid min-w-0 @5xl:grid-cols-[minmax(0,1fr)_16rem]">
       <div className="flex min-w-0 flex-col gap-4 px-4 py-4 @3xl:px-6 @3xl:py-5">
         <header className="flex flex-col gap-2">
-          <h2 className="flex flex-wrap items-baseline gap-x-2 text-base leading-6 font-semibold text-balance text-ink">
-            <span className="font-mono text-ui font-normal text-ink-faint">{ticket.id}</span>
-            {ticket.subject}
-          </h2>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h2 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-base leading-6 font-semibold text-balance text-ink">
+              <span className="font-mono text-ui font-normal text-ink-faint">{ticket.id}</span>
+              {ticket.subject}
+            </h2>
+            <StatusPill tone={committed ? "ok" : "neutral"}>
+              {committed ? "Solved" : "Open"}
+            </StatusPill>
+          </div>
           <TagList tags={ticket.tags} />
         </header>
 

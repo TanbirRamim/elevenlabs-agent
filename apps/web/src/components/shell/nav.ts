@@ -94,8 +94,18 @@ export const ALL_NAV: readonly NavItem[] = [...PRODUCT_NAV, ...TOOLS_NAV];
 /** Routes rendered without the app shell (marketing and the full-screen replay). */
 const BARE_ROUTES: readonly string[] = ["/", "/demo"];
 
+/**
+ * Routes with no Shadow chrome at all: the capture page plays a standalone ticketing
+ * product that owns the whole viewport, with Shadow present only as the floating pill.
+ */
+const NAKED_ROUTES: readonly string[] = ["/capture"];
+
 export function isBareRoute(pathname: string): boolean {
   return BARE_ROUTES.includes(normalize(pathname));
+}
+
+export function isNakedRoute(pathname: string): boolean {
+  return NAKED_ROUTES.includes(normalize(pathname));
 }
 
 function normalize(pathname: string): string {

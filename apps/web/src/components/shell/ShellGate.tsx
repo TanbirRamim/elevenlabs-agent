@@ -5,17 +5,20 @@ import type { ReactNode } from "react";
 import { SiteHeader } from "../brand/SiteHeader";
 import { ToastProvider } from "../ui";
 import { AppShell } from "./AppShell";
-import { isBareRoute } from "./nav";
+import { isBareRoute, isNakedRoute } from "./nav";
 
 /**
- * Picks the frame for a route: marketing pages (/, /demo) get the slim site header, every
- * in-app route gets the AppShell. Both share the toast provider.
+ * Picks the frame for a route: marketing pages (/, /demo) get the slim site header, the
+ * capture page gets no chrome at all (it plays a standalone ticketing product with Shadow
+ * floating over it), every other in-app route gets the AppShell. All share the toasts.
  */
 export function ShellGate({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   return (
     <ToastProvider>
-      {isBareRoute(pathname) ? (
+      {isNakedRoute(pathname) ? (
+        <div id="content">{children}</div>
+      ) : isBareRoute(pathname) ? (
         <>
           <SiteHeader />
           <div id="content">{children}</div>

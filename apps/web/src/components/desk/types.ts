@@ -22,6 +22,12 @@ export interface DeskSimProps {
    * implements preSave, so it can start the tutor's intervention from there.
    */
   preSave: (action: PendingAction) => Promise<GuardVerdict>;
+  /**
+   * "card": the bordered panel hosts embed (default). "app": DeskSim fills its container and
+   * wears its own product chrome — the capture page shows it as the standalone ticketing
+   * system the expert works in, with Shadow floating over it.
+   */
+  chrome?: "card" | "app";
 }
 
 /** Element id of DeskSim's root. The capture page crops screen frames to this element. */
