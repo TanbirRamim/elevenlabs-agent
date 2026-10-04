@@ -23,12 +23,17 @@ export async function ingestTranscript(
   }
   if (isOffRecord(session, m.tStartMs)) return; // dropped, never stored
   const text = await redactText(m.text);
-  session.transcript.push({
+  // Redaction latency varies per segment, so a later segment can finish first.
+  // Insert by start time to keep the stored transcript in spoken order.
+  const at = session.transcript.findIndex((s) => s.tStartMs > m.tStartMs);
+  const stored = {
     id: m.segmentId,
     tStartMs: m.tStartMs,
     tEndMs: m.tEndMs,
     speaker: m.speaker,
     text,
     offRecord: false,
-  });
+  };
+  if (at === -1) session.transcript.push(stored);
+  else session.transcript.splice(at, 0, stored);
 }
