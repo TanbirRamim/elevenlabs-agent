@@ -1,3 +1,4 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { z } from "zod";
 
 const AgentIds = z.object({
@@ -16,7 +17,20 @@ export type ServerEnv = z.infer<typeof ServerEnv>;
  * bindings are populated into process.env at request time, not at module load.
  */
 export function getServerEnv() {
-  return ServerEnv.safeParse(process.env);
+  return ServerEnv.safeParse({ ...process.env, ...workerBindings() });
+}
+
+/**
+ * On Cloudflare Workers the secrets live on the request's `env` binding object, which the
+ * OpenNext adapter exposes through `getCloudflareContext()`. Elsewhere there is no context.
+ */
+function workerBindings(): Record<string, unknown> {
+  try {
+    return (getCloudflareContext().env ?? {}) as Record<string, unknown>;
+  } catch {
+    // Not running inside a Worker request (next dev, tests, Vercel).
+    return {};
+  }
 }
 
 /** Inlined at build time; set NEXT_PUBLIC_* before `next build` / `cf:build`. */
