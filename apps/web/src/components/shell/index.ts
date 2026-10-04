@@ -13,5 +13,3 @@ export { Page } from "./Page";
 export { type ShellApi, useShell } from "./ShellContext";
 export { ShellGate } from "./ShellGate";
 export { TopBarActions, TopBarStatus } from "./slots";
-export { THEME_INIT_SCRIPT, type ThemePref } from "./theme";
-export { useTheme } from "./useTheme";

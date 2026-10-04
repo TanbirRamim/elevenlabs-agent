@@ -1,8 +1,8 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { type Command, filterCommands, groupCommands, matchScore } from "./commands";
 import { interpretKey, isEditableTarget, isPaletteShortcut, modKeyLabel } from "./keys";
 import { findNavItem, isBareRoute, isNakedRoute, resolveCrumbs } from "./nav";
-import { parseThemePref, resolveTheme, toggledPref } from "./theme";
 
 const key = (
   k: string,
@@ -66,7 +66,7 @@ describe("commands", () => {
   const list = [
     cmd("a", "Start a capture session", "Actions", ["record"]),
     cmd("b", "Go to Work Maps", "Navigate"),
-    cmd("c", "Switch to dark theme", "Preferences", ["appearance"]),
+    cmd("c", "Show keyboard shortcuts", "Preferences", ["hotkeys"]),
   ];
 
   it("ranks prefix over word start over subsequence", () => {
@@ -78,7 +78,7 @@ describe("commands", () => {
 
   it("filters by label and keywords", () => {
     expect(filterCommands(list, "record").map((c) => c.id)).toEqual(["a"]);
-    expect(filterCommands(list, "appear").map((c) => c.id)).toEqual(["c"]);
+    expect(filterCommands(list, "hotk").map((c) => c.id)).toEqual(["c"]);
     expect(filterCommands(list, "")).toHaveLength(3);
     expect(filterCommands(list, "qqq")).toEqual([]);
   });
@@ -117,18 +117,13 @@ describe("keys", () => {
   });
 });
 
-describe("theme", () => {
-  it("parses stored values defensively", () => {
-    expect(parseThemePref("dark")).toBe("dark");
-    expect(parseThemePref("purple")).toBe("system");
-    expect(parseThemePref(null)).toBe("system");
-  });
+describe("light only", () => {
+  const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
 
-  it("resolves system against the OS and toggles what you see", () => {
-    expect(resolveTheme("system", true)).toBe("dark");
-    expect(resolveTheme("light", true)).toBe("light");
-    expect(toggledPref("system", true)).toBe("light");
-    expect(toggledPref("system", false)).toBe("dark");
-    expect(toggledPref("dark", false)).toBe("light");
+  it("has a single light palette that ignores the OS scheme", () => {
+    expect(css).toMatch(/:root\s*{\s*color-scheme: light;/);
+    expect(css).not.toMatch(/prefers-color-scheme/);
+    expect(css).not.toMatch(/color-scheme: dark/);
+    expect(css).not.toMatch(/:root\[data-theme/);
   });
 });

@@ -16,6 +16,7 @@ import type { DebriefVoice } from "@/components/debrief/useDebrief";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { DESK_ROOT_ID, PII_ATTR } from "@/components/desk/types";
 import type { InsightNumbers } from "@/components/insight/InsightPanel";
+import { pushVisionLine, type VisionLine } from "@/components/insight/visionLines";
 import {
   Countdown,
   formatElapsed,
@@ -107,6 +108,7 @@ export function CaptureSession() {
   const [paused, setPaused] = useState(false);
   const [candidate, setCandidate] = useState<CandidateQuestion | null>(null);
   const [insight, setInsight] = useState<InsightNumbers | null>(null);
+  const [visionLines, setVisionLines] = useState<VisionLine[]>([]);
   const [micMuted, setMicMuted] = useState(false);
   const [lastInputActivityMs, setLastInputActivityMs] = useState<number | null>(null);
   const [lastScreenChangeMs, setLastScreenChangeMs] = useState<number | null>(null);
@@ -195,6 +197,7 @@ export function CaptureSession() {
       s.on("candidate_question", (m) => setCandidate(m.question)),
       s.on("insight", ({ type: _type, ...numbers }) => setInsight(numbers)),
       s.on("screen_event", (m) => {
+        setVisionLines((lines) => pushVisionLine(lines, m.event));
         // Vision-first: the agent learns the screen from what the API saw in the frames (DOM
         // events arrive here only when the API runs with CAPTURE_SIGNALS=vision+desk).
         if (!offRecordRef.current && !pausedRef.current)
@@ -753,6 +756,7 @@ export function CaptureSession() {
             onToggleMic={() => setMicMuted((m) => !m)}
             currentQuestion={current}
             insight={insight}
+            visionLines={visionLines}
             questionsAsked={questionsInWindow(askedAt, nowMs)}
             questionBudget={DEFAULT_GATE.maxPer10Min}
             notice={

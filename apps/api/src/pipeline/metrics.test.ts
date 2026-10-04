@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMetrics, matchesDomAction, p90 } from "./metrics.js";
+import { createMetrics, matchesDomAction, p90, ticketIdFrom } from "./metrics.js";
 
 describe("p90", () => {
   it("returns null with no samples", () => {
@@ -25,6 +25,34 @@ describe("matchesDomAction", () => {
   it("rejects a different ticket or outcome", () => {
     expect(matchesDomAction(dom, { tMs: 10_000, text: "ticket T2 billing dispute" })).toBe(false);
     expect(matchesDomAction(dom, { tMs: 10_000, text: "ticket T3 refunded 240" })).toBe(false);
+  });
+});
+
+describe("matchesDomAction ticket ids", () => {
+  it("does not read ticket T10 as T1", () => {
+    const dom = { tMs: 10_000, ticketId: "T1", outcome: "reply" as const };
+    expect(matchesDomAction(dom, { tMs: 10_000, text: "ticket T10 reply" })).toBe(false);
+    expect(matchesDomAction(dom, { tMs: 10_000, text: "ticket T1 reply" })).toBe(true);
+  });
+  it("judges the outcome the text names, not any keyword in it", () => {
+    // "hand off to billing disputes" mentions a refund, but the outcome is the handoff.
+    const dom = { tMs: 10_000, ticketId: "T3", outcome: "refund" as const };
+    expect(
+      matchesDomAction(dom, {
+        tMs: 10_000,
+        text: "T3 refund request handed off to billing disputes",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("ticketIdFrom", () => {
+  it("normalises the record id vision reads off the screen", () => {
+    expect(ticketIdFrom("ticket T3")).toBe("T3");
+    expect(ticketIdFrom("#t12")).toBe("T12");
+    expect(ticketIdFrom("Ticket T4 – Refund my plan")).toBe("T4");
+    expect(ticketIdFrom("ticket 4471")).toBe("4471");
+    expect(ticketIdFrom("refund amount field")).toBeNull();
   });
 });
 

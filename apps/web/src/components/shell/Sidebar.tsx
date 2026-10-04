@@ -1,6 +1,6 @@
 "use client";
 
-import { Keyboard, Moon, Search, Sun, X } from "lucide-react";
+import { Keyboard, Search, X } from "lucide-react";
 import Link from "next/link";
 import { Wordmark } from "../brand/BrandMark";
 import { Avatar, IconButton, Kbd } from "../ui";
@@ -10,8 +10,6 @@ import { isCurrent, type NavItem, PRODUCT_NAV, TOOLS_NAV } from "./nav";
 export type SidebarProps = {
   pathname: string;
   modKey: string;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
   onOpenPalette: () => void;
   onOpenShortcuts: () => void;
   /** Called after a nav link is followed (closes the mobile sheet). */
@@ -24,8 +22,6 @@ export type SidebarProps = {
 export function Sidebar({
   pathname,
   modKey,
-  theme,
-  onToggleTheme,
   onOpenPalette,
   onOpenShortcuts,
   onNavigate,
@@ -75,13 +71,6 @@ export function Sidebar({
         </div>
         <IconButton label="Keyboard shortcuts" size="sm" onClick={onOpenShortcuts}>
           <Keyboard />
-        </IconButton>
-        <IconButton
-          label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          size="sm"
-          onClick={onToggleTheme}
-        >
-          {theme === "dark" ? <Sun /> : <Moon />}
         </IconButton>
       </div>
     </div>

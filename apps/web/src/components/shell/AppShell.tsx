@@ -12,7 +12,6 @@ import { ShellContext } from "./ShellContext";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
-import { useTheme } from "./useTheme";
 
 const SIDEBAR_KEY = "shadow-sidebar";
 /** Query flag the Capture page reads to open its preflight right away (seam for /capture). */
@@ -26,7 +25,6 @@ export const START_CAPTURE_HREF = "/capture?intent=start";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const { resolved, toggle } = useTheme();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -105,13 +103,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         run: () => router.push("/"),
       },
       {
-        id: "theme.toggle",
-        label: resolved === "dark" ? "Switch to light theme" : "Switch to dark theme",
-        group: "Preferences",
-        keywords: ["theme", "dark", "light", "appearance", "mode"],
-        run: toggle,
-      },
-      {
         id: "help.shortcuts",
         label: "Show keyboard shortcuts",
         group: "Preferences",
@@ -127,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         run: toggleSidebar,
       },
     ],
-    [router, resolved, toggle, toggleSidebar],
+    [router, toggleSidebar],
   );
 
   useEffect(() => {
@@ -192,8 +183,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebarProps = {
     pathname,
     modKey,
-    theme: resolved,
-    onToggleTheme: toggle,
     onOpenPalette: () => setPaletteOpen(true),
     onOpenShortcuts: () => setShortcutsOpen(true),
   };

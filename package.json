@@ -18,6 +18,7 @@
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "eval:guard": "pnpm --filter @shadow/guard eval",
     "eval:tutor": "turbo run build --filter=@shadow/api^... --output-logs=errors-only && tsx --env-file-if-exists=.env eval/tutor.mts",
+    "eval:vision": "turbo run build --filter=@shadow/api^... --output-logs=errors-only && tsx --env-file-if-exists=.env eval/vision.mts",
     "smoke:real": "node scripts/smoke-real.mjs",
     "smoke:prod": "node scripts/prod-smoke.mjs",
     "prepare": "lefthook install || true",
