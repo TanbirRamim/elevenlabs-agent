@@ -20,12 +20,15 @@ import { type BuildDeps, buildWorkMap } from "../workmap/build.js";
 
 const TeachBackText = z.object({ text: z.string() });
 const MAX_ASKED = 8;
+/** §6.7 hard cap: 8 questions or 5 minutes, counted from End task. */
+const MAX_DEBRIEF_MS = 5 * 60_000;
 
 export interface DebriefDeps {
   llm: LlmDeps;
   /** Test seams. */
   buildDeps?: BuildDeps;
   teachBackText?: (map: WorkMap, instruction: string) => Promise<string>;
+  now?: () => number;
 }
 
 function observedOutcomes(session: SessionRecord): Outcome[] {
@@ -52,8 +55,13 @@ function mergeOpenQuestions(map: WorkMap, session: SessionRecord): OpenQuestion[
     .sort((a, b) => b.priority - a.priority);
 }
 
-function doneRule(coverage: number, open: OpenQuestion[], asked: number): boolean {
-  if (asked >= MAX_ASKED) return true;
+function doneRule(
+  coverage: number,
+  open: OpenQuestion[],
+  asked: number,
+  elapsedMs: number,
+): boolean {
+  if (asked >= MAX_ASKED || elapsedMs >= MAX_DEBRIEF_MS) return true;
   return coverage >= 0.9 && !open.some((q) => q.priority >= 0.7) && asked >= 3;
 }
 
@@ -80,9 +88,10 @@ export function registerDebriefUnavailableRoutes(app: FastifyInstance): void {
 export function registerDebriefRoutes(
   app: FastifyInstance,
   store: Store,
-  { llm, buildDeps, teachBackText }: DebriefDeps,
+  { llm, buildDeps, teachBackText, now = Date.now }: DebriefDeps,
 ): void {
   const asked = new Map<string, number>();
+  const startedAt = new Map<string, number>();
   const teachText =
     teachBackText ??
     (async (map: WorkMap, instruction: string) => {
@@ -111,6 +120,7 @@ export function registerDebriefRoutes(
       try {
         const { map, open } = await rebuild(session);
         asked.set(session.id, 0);
+        startedAt.set(session.id, now());
         return EndSessionResponse.parse({
           workMapId: map.id,
           coverage: map.coverage,
@@ -154,7 +164,7 @@ export function registerDebriefRoutes(
           coverage: map.coverage,
           openQuestions: open,
           asked: count,
-          done: doneRule(map.coverage, open, count),
+          done: doneRule(map.coverage, open, count, now() - (startedAt.get(session.id) ?? now())),
         });
       } catch (err) {
         // Undo, so the client's retry records the answer once (not twice).
