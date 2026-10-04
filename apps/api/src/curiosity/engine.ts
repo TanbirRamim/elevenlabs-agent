@@ -122,6 +122,15 @@ export function createCuriosityEngine({
       if (dead) {
         decayed.push(gap);
         gaps.splice(i, 1);
+        // Write through so /sessions/:id/end can ask it in the debrief.
+        session.debriefQueue.push({
+          id: gap.id,
+          slot: gap.slot,
+          text:
+            gap.questionText ??
+            `On ${gap.ticketId}, what is the ${gap.slot.replace("_", " ")} behind the ${gap.outcome} decision?`,
+          priority: 0.7,
+        });
       }
     }
     return gaps.filter((g) => g.answerSegmentIds.length === 0 && g.askedAtMs === undefined);
@@ -221,6 +230,20 @@ export function createCuriosityEngine({
           segment.tStartMs <= gap.askedAtMs + ANSWER_WINDOW_MS
         ) {
           gap.answerSegmentIds.push(segment.id);
+          // Write through so the work map builder sees answers after disconnect.
+          const existing = session.answeredQuestions.find(
+            (a) => a.question === gap.questionText && a.ticketId === gap.ticketId,
+          );
+          if (existing) {
+            existing.answerSegmentIds.push(segment.id);
+          } else {
+            session.answeredQuestions.push({
+              ticketId: gap.ticketId,
+              slot: gap.slot,
+              question: gap.questionText ?? "",
+              answerSegmentIds: [segment.id],
+            });
+          }
         }
       }
       evaluate();

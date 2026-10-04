@@ -1,4 +1,12 @@
-import type { ScreenEvent, TranscriptSegment, WorkMap } from "@shadow/schema";
+import type { OpenQuestion, ScreenEvent, TranscriptSegment, WorkMap } from "@shadow/schema";
+
+/** A curiosity question the expert answered live (persisted here so HTTP routes can see it). */
+export interface AnsweredQuestionRecord {
+  ticketId: string;
+  slot: OpenQuestion["slot"];
+  question: string;
+  answerSegmentIds: string[];
+}
 
 export interface SessionRecord {
   id: string;
@@ -10,6 +18,10 @@ export interface SessionRecord {
   transcript: TranscriptSegment[];
   /** Frames that were redacted and written to storage (HAR-8's evidence verifier checks these). */
   storedFrameIds: string[];
+  /** Written through by the Curiosity Engine; read by /sessions/:id/end. */
+  answeredQuestions: AnsweredQuestionRecord[];
+  /** Gaps that decayed unanswered; the debrief asks them. */
+  debriefQueue: OpenQuestion[];
   offRecord: { on: boolean; spans: [number, number][]; since: number | null };
 }
 
@@ -41,6 +53,8 @@ export function createMemoryStore(): Store {
         events: [],
         transcript: [],
         storedFrameIds: [],
+        answeredQuestions: [],
+        debriefQueue: [],
         offRecord: { on: false, spans: [], since: null },
       };
       sessions.set(rec.id, rec);

@@ -1,10 +1,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { findSeedDir } from "@shadow/guard/fixtures";
-import { CandidateQuestion, EndSessionResponse, MasteryReport, WorkMap } from "@shadow/schema";
+import {
+  CandidateQuestion,
+  EndSessionResponse,
+  MasteryReport,
+  TeachBackResponse,
+  WorkMap,
+} from "@shadow/schema";
 import { z } from "zod";
 
 const QuestionsFixture = z.record(z.string(), CandidateQuestion);
+const TeachBackFixture = TeachBackResponse.extend({ recheckText: z.string().min(1) });
 
 /**
  * Loads and validates every MOCK_AI fixture once, at boot. A fixture that
@@ -17,6 +24,7 @@ export function loadMockFixtures(dir = join(findSeedDir(), "fixtures")) {
     endSession: EndSessionResponse.parse(read("end-session.json")),
     workMap: WorkMap.parse(read("workmap.json")),
     mastery: MasteryReport.parse(read("mastery.json")),
+    teachBack: TeachBackFixture.parse(read("teachback.json")),
   };
 }
 

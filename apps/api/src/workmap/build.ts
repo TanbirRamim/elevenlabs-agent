@@ -1,10 +1,9 @@
 import { workMapBuilder } from "@shadow/prompts";
 import { Guardrail, Id, OpenQuestion, SessionMs, Step, WorkMap } from "@shadow/schema";
 import { z } from "zod";
-import type { AnsweredQuestion } from "../curiosity/engine.js";
 import { type LlmDeps, structured } from "../llm/structured.js";
-import type { SessionRecord } from "../store/memory.js";
-import { type EvidenceContext, type Violation, verifyEvidence } from "./verify.js";
+import type { AnsweredQuestionRecord, SessionRecord } from "../store/memory.js";
+import { type EvidenceContext, verifyEvidence } from "./verify.js";
 
 /**
  * Generation schema: the WorkMap object shape WITHOUT the superRefine and
@@ -53,7 +52,7 @@ function sessionContext(session: SessionRecord): EvidenceContext {
   };
 }
 
-function buildContent(session: SessionRecord, answered: AnsweredQuestion[]): string {
+function buildContent(session: SessionRecord, answered: AnsweredQuestionRecord[]): string {
   return JSON.stringify({
     events: session.events.map((e) => ({
       id: e.id,
@@ -83,7 +82,7 @@ function buildContent(session: SessionRecord, answered: AnsweredQuestion[]): str
 export async function buildWorkMap(
   llm: LlmDeps,
   session: SessionRecord,
-  answered: AnsweredQuestion[],
+  answered: AnsweredQuestionRecord[],
   { generate }: BuildDeps = {},
 ): Promise<BuildResult> {
   const generateFn =
