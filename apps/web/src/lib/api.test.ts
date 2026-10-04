@@ -32,7 +32,14 @@ const ticket: PendingAction["ticket"] = {
 
 function clientWith(impl: FetchLike) {
   const fetchMock = vi.fn(impl);
-  return { client: createApiClient({ baseUrl: "http://api.test/", fetch: fetchMock }), fetchMock };
+  return {
+    client: createApiClient({
+      baseUrl: "http://api.test/",
+      fetch: fetchMock,
+      wait: { timeoutMs: 0 },
+    }),
+    fetchMock,
+  };
 }
 
 describe("api client", () => {
@@ -156,5 +163,36 @@ describe("api client", () => {
       client.answerDebrief("s1", { questionId: "q1", segmentIds: [] }),
     ).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("waking API", () => {
+  it("waits for /health and retries once when the host is still waking", async () => {
+    let t = 0;
+    const calls: string[] = [];
+    let healthy = false;
+    const fetchMock = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.endsWith("/health")) {
+        healthy = true;
+        return new Response("{}", { status: 200 });
+      }
+      if (!healthy) return new Response("waking", { status: 503 });
+      return new Response(JSON.stringify({ tickets: [] }), { status: 200 });
+    });
+    const client = createApiClient({
+      baseUrl: "http://api.test",
+      fetch: fetchMock as FetchLike,
+      wait: {
+        timeoutMs: 60_000,
+        now: () => t,
+        sleep: async (ms) => {
+          t += ms;
+        },
+        fetch: (u) => fetchMock(u),
+      },
+    });
+    await expect(client.getTickets("new_hire")).resolves.toEqual({ tickets: [] });
+    expect(calls.filter((c) => c.endsWith("/health"))).toHaveLength(1);
   });
 });

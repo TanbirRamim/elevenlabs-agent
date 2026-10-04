@@ -25,6 +25,7 @@ import {
 } from "@shadow/schema";
 import { z } from "zod";
 import { publicEnv } from "../env";
+import { WAKE_STATUSES, type WaitOptions, waitForApi } from "./wake";
 
 /**
  * Typed client for every REST route in `packages/schema/src/api.ts`.
@@ -99,6 +100,8 @@ export interface ApiClientOptions {
   baseUrl?: string;
   /** Injectable for tests; defaults to the global `fetch`. */
   fetch?: FetchLike;
+  /** How long to wait for a sleeping API to wake (tests shorten it). */
+  wait?: WaitOptions;
 }
 
 type Method = "GET" | "POST" | "PUT" | "PATCH";
@@ -135,11 +138,27 @@ export function createApiClient(options: ApiClientOptions = {}) {
       body = spec.body.blob;
     }
 
+    const send = () => fetchImpl(`${baseUrl}${path}`, { method, headers, body });
     let res: Response;
     try {
-      res = await fetchImpl(`${baseUrl}${path}`, { method, headers, body });
+      res = await send();
     } catch (cause) {
-      throw new ApiClientError("network", { status: 0, method, path, cause });
+      // A sleeping or redeploying host refuses connections for up to a minute: wait, then retry once.
+      if (!(await waitForApi(baseUrl, options.wait))) {
+        throw new ApiClientError("network", { status: 0, method, path, cause });
+      }
+      try {
+        res = await send();
+      } catch (retryCause) {
+        throw new ApiClientError("network", { status: 0, method, path, cause: retryCause });
+      }
+    }
+    if (WAKE_STATUSES.has(res.status) && (await waitForApi(baseUrl, options.wait))) {
+      try {
+        res = await send();
+      } catch (cause) {
+        throw new ApiClientError("network", { status: 0, method, path, cause });
+      }
     }
 
     if (!res.ok) {
