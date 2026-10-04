@@ -5,6 +5,7 @@ import {
   type ServerMessage,
 } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
+import type { CuriosityEngine } from "../curiosity/engine.js";
 import type { StreamHooks } from "../mock/stream.js";
 import type { FrameSink } from "../pipeline/frames.js";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
@@ -12,18 +13,24 @@ import { type RedactText, unavailableRedactor } from "../privacy/presidio.js";
 import { ingestTranscript } from "../privacy/transcript.js";
 import type { SessionRecord, Store } from "../store/memory.js";
 
+/** Per-connection processors built by app.ts (frame pipeline + curiosity engine). */
+export interface StreamPipes {
+  sink?: FrameSink;
+  curiosity?: CuriosityEngine;
+}
+
 export interface SessionStreamDeps {
   hooks?: StreamHooks;
   /** Defaults to the fail-safe placeholder redactor; app.ts wires the real one. */
   redactText?: RedactText;
-  /** Per-connection frame pipeline factory (redact -> store -> vision). Absent: frames dropped. */
-  frameSink?: (session: SessionRecord, send: (m: ServerMessage) => void) => FrameSink;
+  /** Per-connection pipeline factory. Absent: frames dropped, no questions planned. */
+  pipes?: (session: SessionRecord, send: (m: ServerMessage) => void) => StreamPipes;
 }
 
 export function registerSessionRoutes(
   app: FastifyInstance,
   store: Store,
-  { hooks, redactText = unavailableRedactor, frameSink }: SessionStreamDeps = {},
+  { hooks, redactText = unavailableRedactor, pipes }: SessionStreamDeps = {},
 ): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
@@ -46,11 +53,12 @@ export function registerSessionRoutes(
       }
       // Hook-scheduled sends (mock candidate questions) must not fire after close.
       const timers = new Set<NodeJS.Timeout>();
-      const sink = frameSink?.(session, send);
+      const { sink, curiosity } = pipes?.(session, send) ?? {};
       socket.on("close", () => {
         for (const timer of timers) clearTimeout(timer);
         timers.clear();
         sink?.stop();
+        curiosity?.stop();
       });
 
       socket.on("message", (raw: Buffer) => {
@@ -79,9 +87,13 @@ export function registerSessionRoutes(
             setOffRecord(session, m.on, m.tMs);
             return;
           case "transcript":
-            void ingestTranscript(session, m, redactText).catch((err: unknown) => {
-              req.log.warn({ sessionId: session.id, err }, "transcript ingest failed");
-            });
+            void ingestTranscript(session, m, redactText)
+              .then((stored) => {
+                if (stored) curiosity?.onTranscript(stored);
+              })
+              .catch((err: unknown) => {
+                req.log.warn({ sessionId: session.id, err }, "transcript ingest failed");
+              });
             return;
           case "desk_event": {
             if (isOffRecord(session, m.event.tMs)) return;
@@ -98,6 +110,7 @@ export function registerSessionRoutes(
             if (m.event.type === "action_committed") {
               sink?.onDomAction(m.event.tMs, m.event.ticketId, m.event.outcome);
             }
+            curiosity?.onDeskEvent(m.event);
             hooks?.onDeskEvent(m.event, send, timers);
             return;
           }
@@ -106,6 +119,7 @@ export function registerSessionRoutes(
             sink?.onFrame(m);
             return;
           case "question_asked":
+            curiosity?.onQuestionAsked(m.questionId, m.tMs);
             return;
         }
       });
