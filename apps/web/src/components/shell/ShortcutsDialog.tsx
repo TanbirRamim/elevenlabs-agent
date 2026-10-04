@@ -26,7 +26,17 @@ export function shortcutGroups(modKey: string): Array<{ title: string; rows: Row
     },
     {
       title: "Capture session",
-      rows: [{ label: "Go off or back on the record", keys: ["Alt", "O"] }],
+      rows: [
+        { label: "Go off or back on the record (while recording)", keys: ["Alt", "O"] },
+        { label: "Send a debrief answer", keys: [modKey, "Enter"] },
+      ],
+    },
+    {
+      title: "Helpdesk",
+      rows: [
+        { label: "Previous or next ticket", keys: ["J", "K"] },
+        { label: "Run an action", keys: ["1", "9"] },
+      ],
     },
     {
       title: "Demo replay",

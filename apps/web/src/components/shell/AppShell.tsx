@@ -200,7 +200,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <ShellContext.Provider value={api}>
-      <div className="flex min-h-dvh bg-canvas">
+      <div className="flex min-h-dvh bg-canvas lg:h-dvh lg:overflow-hidden">
         <aside
           aria-label="Sidebar"
           className={cx(
@@ -212,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className={cx("flex min-w-0 flex-1 flex-col lg:p-2", !collapsed && "lg:pl-0")}>
-          <div className="flex min-h-dvh min-w-0 flex-1 flex-col bg-surface lg:h-[calc(100dvh-1rem)] lg:min-h-0 lg:overflow-y-auto lg:rounded-panel lg:border lg:border-rule lg:shadow-raised">
+          <div className="flex min-h-dvh min-w-0 flex-1 flex-col bg-surface lg:h-[calc(100dvh-1rem)] lg:min-h-0 lg:flex-none lg:overflow-y-auto lg:rounded-panel lg:border lg:border-rule lg:shadow-raised">
             <TopBar
               crumbs={resolveCrumbs(pathname)}
               modKey={modKey}
