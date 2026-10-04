@@ -6,6 +6,8 @@
 
 Built for the Hack-Nation × ElevenLabs 7th Global AI Hackathon, Challenge 01 "The AI Apprentice" ([brief](docs/challenge-brief.pdf)).
 
+**Live:** https://shadow-web-meow-4acb.vercel.app (the API runs from a laptop during demos; see [deploying](docs/DEPLOY.md)).
+
 ## The problem
 
 The judgment that makes a senior support lead good is rarely written down: which refunds are fraud, when a ticket belongs to Legal, when to stop and ask. New hires learn it slowly, by watching or by making costly mistakes. Screen recordings show *what* happened, never *why*.
@@ -56,7 +58,7 @@ flowchart LR
 nvm use && corepack enable
 pnpm install
 cp .env.example .env      # ElevenLabs + Anthropic keys
-pnpm infra:up             # Postgres, MinIO, Presidio
+pnpm infra:up             # Postgres, RustFS (S3), Presidio
 pnpm dev                  # web on :3000, API on :4000
 pnpm verify               # lint, typecheck, tests
 pnpm eval:guard           # guardrail catch-rate eval on the seed tickets

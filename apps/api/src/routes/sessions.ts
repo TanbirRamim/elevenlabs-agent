@@ -5,15 +5,10 @@ import {
   type ServerMessage,
 } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
-import type { StreamHooks } from "../mock/stream.js";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
 import type { Store } from "../store/memory.js";
 
-export function registerSessionRoutes(
-  app: FastifyInstance,
-  store: Store,
-  hooks?: StreamHooks,
-): void {
+export function registerSessionRoutes(app: FastifyInstance, store: Store): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
     if (!body.success)
