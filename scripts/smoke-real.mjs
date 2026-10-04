@@ -309,10 +309,12 @@ async function main() {
     desk({ type: "action_committed", ticketId: ticket.id, ...committed });
     await frame(ticket.id, `Committed: ${plan.outcome.replaceAll("_", " ")}`);
     // Give the Curiosity Engine a pause to plan a question, then ask it (Turn Gate open).
+    // Vision-first, the decision is read off the frame (~10 s p90), so wait up to 15 s.
+    const findQ = () =>
+      stream.inbox.candidates.find((c) => c.aboutTicketId === ticket.id && !asked.includes(c.id));
     await sleep(4000);
-    const q = stream.inbox.candidates.find(
-      (c) => c.aboutTicketId === ticket.id && !asked.includes(c.id),
-    );
+    for (let waited = 0; !findQ() && waited < 11_000; waited += 500) await sleep(500);
+    const q = findQ();
     if (q) {
       asked.push(q.id);
       stream.send({ type: "question_asked", questionId: q.id, tMs: clock() });
