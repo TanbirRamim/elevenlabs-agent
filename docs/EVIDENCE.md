@@ -125,7 +125,7 @@ Why the misses:
 
 | Item | Status |
 | --- | --- |
-| ElevenLabs in depth | In code: two ElevenAgents, signed URLs, `sendContextualUpdate`, `sendUserActivity`, `vad_score`, hidden control messages, `skip_turn` in both prompts, client tool `replay_clip`, a Markdown knowledge-base endpoint. Recorded configuration: Claude Sonnet 5.5, Scribe v2 Realtime, Turn V3 ([`agents/README.md`](../agents/README.md)). The deployment issues signed URLs for both agents. A full live voice session was not run for this document. |
+| ElevenLabs in depth | In code: two ElevenAgents, signed URLs, `sendContextualUpdate`, `sendUserActivity`, `vad_score`, hidden control messages, `skip_turn` in both prompts, client tool `replay_clip`, a Markdown knowledge-base endpoint. Recorded configuration: Claude Sonnet 5.5, Scribe v2 Realtime, Turn V3 ([`agents/README.md`](../agents/README.md)). The deployment issues signed URLs for both agents, and a live voice session on the deployed `/voice-check` page connected and held a two-way conversation with the Interviewer (2026-10-04). A full live Capture session with voice is listed below. |
 | Live, not canned | Every model call has a schema and a typed failure path ([`structured.ts`](../apps/api/src/llm/structured.ts)). The guard judge handles wording no machine rule covers (fake-judge tests). Not verified live in this pass. |
 | Measured, not claimed | The insight panel shows gate signals, vision p90 latency, unreadable frames, DOM-vision agreement and open gaps ([`metrics.ts`](../apps/api/src/pipeline/metrics.ts)). The guard eval runs in CI on every PR. |
 | Calm UX | Agent state is always shown: not started, listening quietly, asking, off the record ([`helpers.test.ts`](../apps/web/src/components/session/helpers.test.ts)). |
@@ -133,7 +133,7 @@ Why the misses:
 
 ## Not verified
 
-1. A live voice session with either agent, end to end.
+1. A full live Capture session with voice (a two-way `/voice-check` session is verified; the full capture flow is not yet).
 2. A full Capture → Map → Teach run with a map built by live Claude from a live session, Presidio running.
 3. The guard judge against live Claude (`pnpm --filter @shadow/api test` with `ANTHROPIC_API_KEY`) and `pnpm eval:tutor` with the judge on.
 4. The plan's live targets (vision p90 ≤ 3 s, ≥ 90 % DOM-vision agreement, 3–5 questions in a 10-minute session). The insight panel measures them; no live run is recorded.
