@@ -47,3 +47,25 @@ describe("api", () => {
     expect(res.json().id).toMatch(/^ses_/);
   });
 });
+
+describe("CORS for the web app", () => {
+  it("allows the PUT and PATCH the browser sends (recording upload, Work Map edits)", async () => {
+    const env = loadEnv({ NODE_ENV: "test", WEB_ORIGIN: "https://web.test" });
+    const app = await buildApp({ env });
+    for (const method of ["PUT", "PATCH"]) {
+      const res = await app.inject({
+        method: "OPTIONS",
+        url: "/sessions/ses_1/recording",
+        headers: {
+          origin: "https://web.test",
+          "access-control-request-method": method,
+          "access-control-request-headers": "content-type,x-shadow-session",
+        },
+      });
+      expect(res.statusCode).toBe(204);
+      expect(String(res.headers["access-control-allow-methods"])).toContain(method);
+      expect(String(res.headers["access-control-allow-headers"])).toContain("x-shadow-session");
+    }
+    await app.close();
+  });
+});

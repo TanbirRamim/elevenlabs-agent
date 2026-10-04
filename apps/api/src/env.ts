@@ -34,6 +34,12 @@ const Env = z.object({
    * vision/DOM agreement metric. "vision+desk": DOM events also drive questions and the map.
    */
   CAPTURE_SIGNALS: z.enum(["vision", "vision+desk"]).default("vision"),
+  /**
+   * server: every frame is OCR-redacted by Presidio before storage or vision (default).
+   * browser: trust the blackout the browser applies to marked personal-data fields before a
+   * frame leaves the page; for hosts too small to run OCR in time (frames would be dropped).
+   */
+  FRAME_REDACTION: z.enum(["server", "browser"]).default("server"),
   S3_ENDPOINT: z.string().url().optional(),
   S3_BUCKET: z.string().default("shadow-frames"),
   S3_ACCESS_KEY: z.string().optional(),
