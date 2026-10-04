@@ -15,7 +15,11 @@ import { createMockStreamHooks } from "./mock/stream.js";
 import { createFrameProcessor } from "./pipeline/frames.js";
 import { createPresidioRedactor, identityRedactor } from "./privacy/presidio.js";
 import { createPresidioImageRedactor } from "./privacy/presidioImage.js";
-import { type DebriefDeps, registerDebriefRoutes } from "./routes/debrief.js";
+import {
+  type DebriefDeps,
+  registerDebriefRoutes,
+  registerDebriefUnavailableRoutes,
+} from "./routes/debrief.js";
 import { registerGuardRoutes } from "./routes/guard.js";
 import { registerRecordingRoutes } from "./routes/recording.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
@@ -81,24 +85,25 @@ export async function buildApp({
   app.get("/health", async () => ({ ok: true, model: env.SHADOW_MODEL }));
   // Recording upload/replay works in both modes (RustFS is local, no AI keys involved).
   const objectStorage = storage !== undefined ? storage : await createS3Storage(env, app.log);
+  registerTicketRoutes(app, tickets);
   const llm =
     llmOverride !== undefined
       ? llmOverride
       : env.ANTHROPIC_API_KEY && env.MOCK_AI !== "1"
         ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL)
         : null;
-  registerTicketRoutes(app, tickets);
   registerGuardRoutes(app, store, fallbackRules, {
     llm,
     ...(judgeSeams ? { judge: judgeSeams } : {}),
   });
   registerRecordingRoutes(app, store, objectStorage);
   if (env.MOCK_AI === "1") {
-    // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The real
-    // debrief/workmap/mastery routes (HAR-9, HAR-12) will register in the else branch.
+    // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The Work Map routes are
+    // the real store-backed ones over the fixture map; debrief/mastery are fixture stand-ins.
     // No frameSink either: frames cannot be redacted without Presidio, so none are stored.
     const fixtures = loadMockFixtures();
     registerMockRoutes(app, store, fixtures);
+    registerWorkMapRoutes(app, store, { publishedFallback: fixtures.workMap });
     registerSessionRoutes(app, store, {
       hooks: createMockStreamHooks(fixtures),
       redactText: identityRedactor, // fixture text only, no PII
@@ -112,6 +117,7 @@ export async function buildApp({
     const ticketsById = new Map(tickets.map((t) => [t.id, PublicTicket.parse(t)]));
     registerWorkMapRoutes(app, store);
     if (llm) registerDebriefRoutes(app, store, { llm, ...debriefSeams });
+    else registerDebriefUnavailableRoutes(app);
     registerSessionRoutes(app, store, {
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,

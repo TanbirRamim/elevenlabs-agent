@@ -1,10 +1,19 @@
 "use client";
 
 import type { Guardrail, Step } from "@shadow/schema";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { cx } from "../ui";
 import { ClipPlayer } from "./ClipPlayer";
 import { formatClip, GUARDRAIL_TYPE_LABEL, GUARDRAIL_TYPES } from "./format";
-import { Button, GuardrailTypeBadge, InlineConfirm, QuoteBlock } from "./primitives";
+import {
+  Button,
+  GUARDRAIL_EDGE,
+  GuardrailTypeBadge,
+  InlineConfirm,
+  QuoteBlock,
+  SectionTitle,
+} from "./primitives";
 
 export type GuardrailFilter = "all" | Guardrail["type"];
 
@@ -33,13 +42,24 @@ export function GuardrailList({
   const countFor = (type: Guardrail["type"]) => guardrails.filter((g) => g.type === type).length;
 
   return (
-    <section aria-labelledby="guardrails-heading" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="guardrails-heading" className="text-lg font-semibold">
-          Guardrails{" "}
-          <span className="text-sm font-normal text-neutral-500">({guardrails.length})</span>
-        </h2>
-        <fieldset className="flex flex-wrap gap-1">
+    <section aria-labelledby="guardrails-heading" className="flex flex-col gap-6">
+      <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-10">
+        <div className="lg:col-span-6">
+          <h2
+            id="guardrails-heading"
+            className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink sm:text-[2.5rem]"
+          >
+            Guardrails{" "}
+            <span className="font-mono text-base tracking-normal text-ink-faint">
+              ({guardrails.length})
+            </span>
+          </h2>
+          <p className="mt-3 max-w-[38rem] text-[0.9375rem] leading-relaxed text-ink-muted">
+            The limits, exceptions and hard stops the expert works by. Each one carries the sentence
+            it came from and the screen moment it was said about.
+          </p>
+        </div>
+        <fieldset className="flex flex-wrap gap-2 lg:col-span-6 lg:justify-end">
           <legend className="sr-only">Filter guardrails by type</legend>
           <Button onClick={() => setFilter("all")} pressed={filter === "all"}>
             All
@@ -53,92 +73,127 @@ export function GuardrailList({
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-[0.9375rem] text-ink-muted">
           {guardrails.length === 0
             ? "No guardrails were captured in this session."
             : `No ${GUARDRAIL_TYPE_LABEL[filter as Guardrail["type"]].toLowerCase()} guardrails in this map.`}
         </p>
       ) : (
-        <ul
-          aria-label="Guardrail list"
-          className="divide-y divide-neutral-200 dark:divide-neutral-800"
-        >
+        <ul aria-label="Guardrail list" className="flex flex-col gap-3">
           {visible.map((g) => {
             const expanded = expandedId === g.id;
             const usedBy = steps.filter((s) => s.guardrailIds.includes(g.id));
             return (
-              <li key={g.id} className="py-3" data-guardrail-id={g.id}>
+              <li
+                key={g.id}
+                data-guardrail-id={g.id}
+                className="relative overflow-hidden rounded-panel border border-rule bg-surface"
+              >
+                <span
+                  aria-hidden="true"
+                  className={cx("absolute inset-y-0 left-0 w-0.5", GUARDRAIL_EDGE[g.type])}
+                />
                 <button
                   type="button"
                   aria-expanded={expanded}
                   onClick={() => setExpandedId(expanded ? null : g.id)}
-                  className="flex w-full flex-wrap items-start gap-2 text-left"
+                  className="grid w-full grid-cols-[1fr_auto] items-start gap-x-4 gap-y-2 py-4 pr-4 pl-5 text-left transition-colors duration-150 hover:bg-sunken/50 sm:grid-cols-[9.5rem_1fr_auto]"
                 >
-                  <GuardrailTypeBadge type={g.type} />
-                  <span className="min-w-0 flex-1 text-sm">
-                    <span className="font-medium">{g.condition}</span>
-                    <span className="text-neutral-500"> → </span>
-                    {g.action}
+                  <span className="col-start-1 row-start-1 flex items-center gap-3 sm:flex-col sm:items-start sm:gap-1.5">
+                    <GuardrailTypeBadge type={g.type} />
+                    <span className="font-mono text-xs text-ink-faint">{g.id}</span>
                   </span>
-                  <span className="text-xs text-neutral-500">{expanded ? "Hide" : "Evidence"}</span>
+                  <span className="col-span-2 row-start-2 min-w-0 text-[0.9375rem] leading-relaxed sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                    <span className="block font-medium text-ink">{g.condition}</span>
+                    <span className="mt-0.5 block text-ink-muted">{g.action}</span>
+                  </span>
+                  <span className="col-start-2 row-start-1 inline-flex min-h-10 items-center gap-1.5 self-start text-sm text-ink-muted sm:col-start-3">
+                    {expanded ? "Hide" : "Evidence"}
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={cx(
+                        "size-4 transition-transform duration-150",
+                        expanded && "rotate-180",
+                      )}
+                    />
+                  </span>
                 </button>
 
                 {expanded && (
-                  <div className="mt-3 space-y-3 pl-1">
-                    <QuoteBlock quote={g.evidence.quote} compact />
-                    {sessionId ? (
-                      <ClipPlayer moment={g.evidence.moment} sessionId={sessionId} />
-                    ) : (
-                      <p className="text-xs text-neutral-500">
-                        Moment {formatClip(g.evidence.moment.clip)} · frame{" "}
-                        {g.evidence.moment.frameId}
-                      </p>
-                    )}
-                    {g.machineRule && (
-                      <p className="text-xs text-neutral-500">
-                        Machine rule: {g.machineRule.effect.replace("_", " ").toLowerCase()}
-                        {g.machineRule.expectedOutcome
-                          ? `, expected outcome ${g.machineRule.expectedOutcome.replaceAll("_", " ")}`
-                          : ""}
-                        . Paraphrases are covered by the judge.
-                      </p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                      {usedBy.length === 0 ? (
-                        <span>Not attached to a step.</span>
-                      ) : (
-                        <>
-                          <span>Applied at</span>
-                          {usedBy.map((s) => (
-                            <button
-                              key={s.id}
-                              type="button"
-                              onClick={() => onOpenStep(s.id)}
-                              className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-                            >
-                              step {s.order}
-                            </button>
-                          ))}
-                        </>
-                      )}
+                  <div className="grid gap-6 border-t border-rule py-5 pr-4 pl-5 sm:grid-cols-[9.5rem_1fr] sm:gap-x-4">
+                    <div className="hidden sm:block">
+                      <SectionTitle>Evidence</SectionTitle>
                     </div>
-                    {canEdit &&
-                      (confirmingId === g.id ? (
-                        <InlineConfirm
-                          message={`Remove guardrail “${g.condition}”? Steps that cite it keep their quote.`}
-                          confirmLabel="Remove guardrail"
-                          busy={busy}
-                          onConfirm={async () => {
-                            await onRemove(g.id);
-                            setConfirmingId(null);
-                          }}
-                          onCancel={() => setConfirmingId(null)}
-                        />
+                    <div className="flex min-w-0 flex-col gap-5">
+                      <QuoteBlock quote={g.evidence.quote} size="md" />
+                      {sessionId ? (
+                        <ClipPlayer moment={g.evidence.moment} sessionId={sessionId} />
                       ) : (
-                        <Button tone="danger" onClick={() => setConfirmingId(g.id)} disabled={busy}>
-                          Remove guardrail
-                        </Button>
-                      ))}
+                        <p className="font-mono text-xs text-ink-faint">
+                          Clip {formatClip(g.evidence.moment.clip)}, frame{" "}
+                          {g.evidence.moment.frameId}
+                        </p>
+                      )}
+                      {g.machineRule && (
+                        <p className="text-sm leading-relaxed text-ink-muted">
+                          Machine rule:{" "}
+                          <span className="font-mono text-[0.8125rem] text-ink">
+                            {g.machineRule.effect.replace("_", " ").toLowerCase()}
+                          </span>
+                          {g.machineRule.expectedOutcome ? (
+                            <>
+                              , expected outcome{" "}
+                              <span className="font-mono text-[0.8125rem] text-ink">
+                                {g.machineRule.expectedOutcome.replaceAll("_", " ")}
+                              </span>
+                            </>
+                          ) : null}
+                          . Paraphrases are covered by the judge.
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+                        {usedBy.length === 0 ? (
+                          <span>Not attached to a step.</span>
+                        ) : (
+                          <>
+                            <span>Applied at</span>
+                            {usedBy.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => onOpenStep(s.id)}
+                                className="inline-flex min-h-10 items-center rounded-control border border-rule-strong px-3 text-sm text-ink transition-colors duration-150 hover:border-ink"
+                              >
+                                step {s.order}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                      {canEdit &&
+                        (confirmingId === g.id ? (
+                          <InlineConfirm
+                            message={`Remove guardrail “${g.condition}”? Steps that cite it keep their quote.`}
+                            confirmLabel="Remove guardrail"
+                            busy={busy}
+                            onConfirm={async () => {
+                              await onRemove(g.id);
+                              setConfirmingId(null);
+                            }}
+                            onCancel={() => setConfirmingId(null)}
+                          />
+                        ) : (
+                          <div>
+                            <Button
+                              tone="danger"
+                              onClick={() => setConfirmingId(g.id)}
+                              disabled={busy}
+                            >
+                              Remove guardrail
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                 )}
               </li>

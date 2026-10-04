@@ -57,6 +57,25 @@ function doneRule(coverage: number, open: OpenQuestion[], asked: number): boolea
   return coverage >= 0.9 && !open.some((q) => q.priority >= 0.7) && asked >= 3;
 }
 
+/**
+ * Without ANTHROPIC_API_KEY the debrief cannot run: answer every debrief route with
+ * 503 llm_unavailable instead of a 404 that reads as "this API has no such route".
+ */
+export function registerDebriefUnavailableRoutes(app: FastifyInstance): void {
+  for (const path of [
+    "/sessions/:id/end",
+    "/sessions/:id/debrief/answer",
+    "/sessions/:id/teachback",
+    "/sessions/:id/teachback/confirm",
+  ]) {
+    app.post(path, async (_req, reply) =>
+      reply
+        .code(503)
+        .send({ code: "llm_unavailable", message: "ANTHROPIC_API_KEY is not configured" }),
+    );
+  }
+}
+
 /** POST /sessions/:id/end, debrief/answer, teachback(+confirm). All call Claude. */
 export function registerDebriefRoutes(
   app: FastifyInstance,
@@ -118,12 +137,14 @@ export function registerDebriefRoutes(
       const question = current?.openQuestions.find((q) => q.id === body.data.questionId);
       if (!question) return reply.code(404).send({ code: "unknown_question" });
 
-      session.answeredQuestions.push({
+      const answer = {
         ticketId: "",
         slot: question.slot,
         question: question.text,
         answerSegmentIds: body.data.segmentIds,
-      });
+      };
+      const queueBefore = session.debriefQueue;
+      session.answeredQuestions.push(answer);
       session.debriefQueue = session.debriefQueue.filter((q) => q.id !== question.id);
       try {
         const { map, open } = await rebuild(session);
@@ -136,6 +157,10 @@ export function registerDebriefRoutes(
           done: doneRule(map.coverage, open, count),
         });
       } catch (err) {
+        // Undo, so the client's retry records the answer once (not twice).
+        const at = session.answeredQuestions.indexOf(answer);
+        if (at !== -1) session.answeredQuestions.splice(at, 1);
+        session.debriefQueue = queueBefore;
         req.log.warn({ sessionId: session.id, err: String(err) }, "debrief rebuild failed");
         return reply.code(422).send({ code: "map_unbuildable" });
       }
@@ -150,11 +175,17 @@ export function registerDebriefRoutes(
       if (!session) return reply.code(404).send({ code: "unknown_session" });
       const map = store.getWorkMap(`wm_${session.id.replace(/^ses_/, "")}`);
       if (!map) return reply.code(409).send({ code: "no_workmap" });
-      const text = await teachText(
-        map,
-        "Explain the whole triage process back to the expert for confirmation.",
-      );
-      return TeachBackResponse.parse({ text: text.slice(0, 1200) });
+      try {
+        const text = await teachText(
+          map,
+          "Explain the whole triage process back to the expert for confirmation.",
+        );
+        return TeachBackResponse.parse({ text: text.slice(0, 1200) });
+      } catch (err) {
+        // A model failure is an ApiError the web client can show, not a bare 500.
+        req.log.warn({ sessionId: session.id, err: String(err) }, "teach-back failed");
+        return reply.code(502).send({ code: "llm_failed" });
+      }
     },
   );
 

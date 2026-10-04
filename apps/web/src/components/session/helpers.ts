@@ -1,4 +1,6 @@
 import type { DeskEvent, Outcome } from "@shadow/schema";
+import type { OrbState } from "@/components/voice/orbState";
+import type { VoiceStatus } from "@/lib/voice";
 
 const OUTCOME_LABEL: Record<Outcome, string> = {
   reply: "replied",
@@ -42,4 +44,19 @@ export function detectRecordPhrase(text: string): RecordPhrase {
   if (/\bback on the record\b/.test(t)) return "on";
   if (/\boff the record\b/.test(t)) return "off";
   return null;
+}
+
+/**
+ * What the voice orb shows for the live session. Off the record wins over everything; without a
+ * connected voice session Shadow is quiet; otherwise it is asking while the agent speaks.
+ */
+export function orbStateFor(
+  status: VoiceStatus,
+  mode: "speaking" | "listening",
+  agentSpeaking: boolean,
+  offRecord: boolean,
+): OrbState {
+  if (offRecord) return "off-record";
+  if (status !== "connected") return "idle";
+  return agentSpeaking || mode === "speaking" ? "speaking" : "listening";
 }

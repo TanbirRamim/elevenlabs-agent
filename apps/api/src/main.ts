@@ -9,7 +9,7 @@ const env = loadEnv();
 // Sessions and maps survive an API restart: JSONL on local disk, mirrored to
 // R2/RustFS when S3 is configured (in prod the container disk is wiped on stop).
 const storage = await createS3Storage(env);
-const store = createJsonlStore({
+const store = await createJsonlStore({
   dir: join(findSeedDir(), "..", "infra", "data", "state"),
   storage,
 });
@@ -23,9 +23,11 @@ await app.listen({ port: env.API_PORT, host: "0.0.0.0" });
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {
-    void store
+    // Close the app first so in-flight requests and sockets finish mutating
+    // sessions before the final flush.
+    void app
       .close()
-      .then(() => app.close())
+      .then(() => store.close())
       .then(() => process.exit(0));
   });
 }

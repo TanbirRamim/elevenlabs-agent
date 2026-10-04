@@ -59,6 +59,8 @@ export const WorkMap = z
     offRecordSpans: z.array(z.tuple([SessionMs, SessionMs])),
     coverage: z.number().min(0).max(1),
     teachBackConfirmedAtMs: SessionMs.nullable(),
+    /** The capture session the map was built from (where the tutor finds the expert's recording). */
+    sourceSessionId: Id.optional(),
   })
   .superRefine((map, ctx) => {
     const ids = new Set(map.guardrails.map((g) => g.id));

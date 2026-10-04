@@ -1,4 +1,5 @@
 import type { GuardVerdict, Outcome } from "@shadow/schema";
+import { Badge, Button } from "../ui";
 
 /** 1:1 with Outcome; `satisfies` makes the mapping a typecheck guarantee. */
 export const ACTION_LABELS = {
@@ -34,12 +35,18 @@ interface ActionBarProps {
   onAction: (outcome: Outcome) => void;
 }
 
-const GROUPS: Outcome[][] = [
-  ["reply", "refund", "hold_request_info"],
-  ["escalate_tier2", "escalate_engineering"],
-  ["handoff_security", "handoff_legal", "handoff_billing_disputes"],
-  ["close"],
+const GROUPS: { label: string; outcomes: Outcome[] }[] = [
+  { label: "Resolve", outcomes: ["reply", "refund", "hold_request_info"] },
+  { label: "Escalate", outcomes: ["escalate_tier2", "escalate_engineering"] },
+  {
+    label: "Hand off",
+    outcomes: ["handoff_security", "handoff_legal", "handoff_billing_disputes"],
+  },
+  { label: "Finish", outcomes: ["close"] },
 ];
+
+// DeskSim is read by the vision model, so its controls never animate: no transitions, no press shift.
+const STILL = "transition-none! active:translate-y-0! px-4!";
 
 export function ActionBar({
   phase,
@@ -53,64 +60,106 @@ export function ActionBar({
   const disabled = phase.kind === "checking" || committed !== undefined;
 
   return (
-    <div className="flex flex-col gap-3 border-t-2 border-neutral-300 pt-4">
+    <div className="flex flex-col gap-5">
       {phase.kind === "blocked" ? (
         <div
           role="status"
-          className="rounded border-2 border-red-700 bg-red-50 px-4 py-3 text-lg font-bold text-red-800"
+          className="flex flex-col gap-1.5 rounded-panel border border-signal bg-signal-wash px-5 py-4 shadow-[inset_6px_0_0_var(--desk-signal)] sm:px-6"
         >
-          Paused by Shadow
-          <span className="ml-2 font-normal">
-            — pick another action to continue
-            {phase.verdict.ruleIds.length > 0 ? ` (rule ${phase.verdict.ruleIds.join(", ")})` : ""}
-          </span>
+          <p className="font-display text-[1.75rem] leading-tight text-ink">Paused by Shadow</p>
+          <p className="text-lg leading-snug text-ink">
+            {ACTION_LABELS[phase.outcome]} was not saved. Pick another action to continue.
+          </p>
+          {phase.verdict.ruleIds.length > 0 ? (
+            <p className="font-mono text-[0.9375rem] text-signal-text">
+              Guardrail rule {phase.verdict.ruleIds.join(", ")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="flex flex-wrap gap-x-8 gap-y-5">
         {GROUPS.map((group) => (
-          <div key={group[0]} className="flex flex-wrap items-center gap-2">
-            {group.map((outcome) => (
-              <button
-                key={outcome}
-                type="button"
-                disabled={disabled}
-                onClick={() => onAction(outcome)}
-                className="rounded border-2 border-neutral-800 bg-white px-4 py-2 text-lg font-semibold text-neutral-900 enabled:hover:bg-neutral-100 disabled:border-neutral-300 disabled:text-neutral-400"
-              >
-                {ACTION_LABELS[outcome]}
-              </button>
-            ))}
-            {group.includes("refund") ? (
-              <label className="flex items-center gap-2 text-lg">
-                <span className="font-semibold">Refund amount (€)</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={refundAmount}
-                  disabled={disabled}
-                  onChange={(e) => onRefundAmountChange(e.target.value)}
-                  onFocus={onRefundFocus}
-                  onBlur={onRefundBlur}
-                  className="w-28 rounded border-2 border-neutral-800 px-2 py-1.5 text-lg disabled:border-neutral-300 disabled:text-neutral-400"
-                />
-              </label>
-            ) : null}
-          </div>
+          <fieldset key={group.label} className="m-0 min-w-0 border-0 p-0">
+            <legend className="sr-only">{group.label}</legend>
+            <div className="flex flex-col gap-2">
+              <p aria-hidden="true" className="text-[0.9375rem] leading-6 text-ink-muted">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {group.outcomes.map((outcome) =>
+                  outcome === "refund" ? (
+                    <div key={outcome} className="contents">
+                      <Button
+                        variant="secondary"
+                        size="lg"
+                        disabled={disabled}
+                        onClick={() => onAction(outcome)}
+                        className={`${STILL} text-[1.0625rem]!`}
+                      >
+                        {ACTION_LABELS[outcome]}
+                      </Button>
+                      <label className="flex items-center gap-2 pr-2">
+                        <span className="text-[0.9375rem] text-ink-muted">Refund amount (€)</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={refundAmount}
+                          disabled={disabled}
+                          onChange={(e) => onRefundAmountChange(e.target.value)}
+                          onFocus={onRefundFocus}
+                          onBlur={onRefundBlur}
+                          className="min-h-12 w-28 rounded-control border border-rule-strong bg-surface px-3 text-[1.0625rem] tabular-nums text-ink disabled:opacity-45"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <Button
+                      key={outcome}
+                      variant="secondary"
+                      size="lg"
+                      disabled={disabled}
+                      onClick={() => onAction(outcome)}
+                      className={`${STILL} text-[1.0625rem]!`}
+                    >
+                      {ACTION_LABELS[outcome]}
+                    </Button>
+                  ),
+                )}
+              </div>
+            </div>
+          </fieldset>
         ))}
       </div>
 
-      <p className="min-h-7 text-lg" aria-live="polite">
-        {phase.kind === "checking" ? <span className="font-semibold">Checking…</span> : null}
-        {committed ? (
-          <span className="font-semibold text-green-800">
-            Committed: {ACTION_LABELS[committed.outcome]}
-            {committed.approvalRequested ? (
-              <span className="ml-2 rounded bg-amber-200 px-2 py-0.5 text-base text-amber-900">
-                Approval requested
-              </span>
-            ) : null}
+      <p
+        className="flex min-h-12 flex-wrap items-center gap-3 border-t border-rule pt-4 text-lg empty:min-h-0 empty:border-0 empty:pt-0"
+        aria-live="polite"
+      >
+        {phase.kind === "checking" ? (
+          <span className="flex items-center gap-2.5 font-semibold text-ink">
+            <span aria-hidden="true" className="size-2.5 rounded-full bg-signal" />
+            Checking…
+            <span className="font-normal text-ink-muted">
+              Shadow is reviewing {ACTION_LABELS[phase.outcome]}
+            </span>
           </span>
+        ) : null}
+        {committed ? (
+          <>
+            <span className="flex items-center gap-2.5 font-semibold text-ok">
+              <span aria-hidden="true" className="size-2.5 rounded-full bg-ok" />
+              Committed: {ACTION_LABELS[committed.outcome]}
+            </span>
+            {committed.approvalRequested ? (
+              <Badge tone="signal" dot className="px-3! py-1! text-[0.9375rem]! font-semibold">
+                Approval requested
+              </Badge>
+            ) : null}
+          </>
+        ) : null}
+        {phase.kind === "idle" && !committed ? (
+          <span className="text-ink-faint">No action saved on this ticket yet.</span>
         ) : null}
       </p>
     </div>

@@ -95,10 +95,16 @@ export async function buildWorkMap(
   let draft = await generateFn(content);
   let violations = verifyEvidence(draft, ctx);
   if (violations.length > 0) {
-    draft = await generateFn(
-      `${content}\n\nYour previous map had evidence violations. Fix or remove the affected steps/guardrails; never invent evidence:\n${JSON.stringify(violations)}`,
-    );
-    violations = verifyEvidence(draft, ctx);
+    try {
+      const repaired = await generateFn(
+        `${content}\n\nYour previous map had evidence violations. Fix or remove the affected steps/guardrails; never invent evidence:\n${JSON.stringify(violations)}`,
+      );
+      draft = repaired;
+      violations = verifyEvidence(draft, ctx);
+    } catch {
+      // A failed repair call must not discard the first draft: its verified part is still
+      // usable, and what failed becomes open questions below exactly as after a repair.
+    }
   }
 
   const removed: OpenQuestion[] = [];
@@ -174,6 +180,8 @@ export async function buildWorkMap(
     // The session, not the model, is the authority on what was off the record.
     offRecordSpans: session.offRecord.spans,
     teachBackConfirmedAtMs: null,
+    // Where the tutor finds the expert's recording for clip replay.
+    sourceSessionId: session.id,
   });
   return { map, removed };
 }

@@ -2,10 +2,11 @@
 
 import type { WorkMap } from "@shadow/schema";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Badge, Stat, StatGroup } from "../ui";
 import { formatMs, OPEN_QUESTION_SLOT_LABEL } from "./format";
 import { GuardrailList } from "./GuardrailList";
 import { type LoadResult, loadWorkMap, patchWorkMap, publishWorkMap } from "./load";
-import { Button, InlineConfirm, Pill, SectionTitle } from "./primitives";
+import { Button, InlineConfirm, Pill } from "./primitives";
 import { StepDetail } from "./StepDetail";
 import { StepTimeline } from "./StepTimeline";
 
@@ -121,10 +122,11 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
 
   if (state.status === "loading") {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-2xl font-semibold">Work Map</h1>
-        <p className="mt-2 text-neutral-500" role="status">
-          Loading map {id}…
+      <main className={PAGE}>
+        <p className="font-mono text-xs text-ink-faint">Work Map</p>
+        <h1 className={TITLE}>Work Map</h1>
+        <p className="mt-4 text-[1.0625rem] text-ink-muted" role="status">
+          Loading map <span className="font-mono text-[0.9375rem]">{id}</span>…
         </p>
       </main>
     );
@@ -132,15 +134,18 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
 
   if (state.status === "error" || !map) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-2xl font-semibold">Work Map</h1>
-        <p className="mt-2 text-red-700 dark:text-red-300" role="alert">
+      <main className={PAGE}>
+        <h1 className={TITLE}>Work Map</h1>
+        <p
+          className="mt-6 max-w-[42rem] rounded-panel border border-stop/40 bg-stop-wash px-4 py-3 text-[0.9375rem] text-stop"
+          role="alert"
+        >
           {state.status === "error" ? state.message : "The map could not be shown."}
         </p>
-        <p className="mt-2 text-sm text-neutral-500">
+        <p className="mt-4 max-w-[42rem] text-[0.9375rem] leading-relaxed text-ink-muted">
           Check that the API is running, or open{" "}
           <a
-            className="underline underline-offset-4"
+            className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
             href={`/map/${encodeURIComponent(id)}?fixture=1`}
           >
             the sample map
@@ -154,27 +159,35 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
   const judgmentCount = steps.filter((s) => s.judgmentCall).length;
   const coveragePct = Math.round(map.coverage * 100);
   const openQuestions = [...map.openQuestions].sort((a, b) => b.priority - a.priority);
+  const confirmed = map.teachBackConfirmedAtMs;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <header className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm text-neutral-500">Work Map · version {map.version}</p>
-            <h1 className="text-2xl font-semibold">{map.workflow}</h1>
-            <p className="mt-1 text-neutral-500">
-              How {map.expertName} decides: {steps.length} steps, {judgmentCount} judgment calls,{" "}
-              {map.guardrails.length} guardrails. Every one of them points at a screen moment and
-              the expert's own words.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {isFixture && (
-              <Pill tone="warn">
-                Sample data
-                {state.reason === "unreachable" ? " · API unreachable" : ""}
-              </Pill>
-            )}
+    <main className={PAGE}>
+      <header className="grid gap-8 lg:grid-cols-12 lg:gap-10">
+        <div className="lg:col-span-8">
+          <p className="font-mono text-xs text-ink-faint">Work Map, version {map.version}</p>
+          <h1 className={TITLE}>{map.workflow}</h1>
+          <p className="mt-5 max-w-[34rem] text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
+            How {map.expertName} decides: {steps.length} steps, {judgmentCount} judgment calls,{" "}
+            {map.guardrails.length} guardrails. Every one of them points at a screen moment and the
+            expert's own words.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 lg:col-span-4 lg:items-end lg:pt-6">
+          {isFixture && (
+            <div className="flex max-w-[22rem] flex-col gap-1.5 rounded-panel border border-rule-strong bg-surface px-4 py-3 lg:items-end lg:text-right">
+              <span className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink">
+                <span aria-hidden="true" className="size-2 rounded-full bg-ink-muted" />
+                <span>Sample data</span>
+              </span>
+              <span className="text-sm leading-snug text-ink-muted">
+                {state.reason === "unreachable"
+                  ? "The API is unreachable, so this is the sample map, not a recorded session."
+                  : "This is the sample map, not a recorded session."}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {publishState === "published" ? (
               <Pill tone="good">Published</Pill>
             ) : publishState === "confirming" ? (
@@ -197,75 +210,88 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
             )}
           </div>
         </div>
+      </header>
 
-        <dl className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded border border-neutral-200 p-3 dark:border-neutral-800">
-            <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Coverage
-            </dt>
-            <dd className="mt-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl font-semibold tabular-nums">{coveragePct}%</span>
-                <span className="text-xs text-neutral-500">of the expected judgment covered</span>
-              </div>
-              <div
-                role="progressbar"
-                aria-valuenow={coveragePct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Coverage"
-                className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
-              >
-                <div
-                  className="h-full rounded-full bg-neutral-900 dark:bg-neutral-100"
-                  style={{ width: `${coveragePct}%` }}
-                />
-              </div>
-            </dd>
-          </div>
-          <div className="rounded border border-neutral-200 p-3 dark:border-neutral-800">
-            <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Teach-back
-            </dt>
-            <dd className="mt-1">
-              {map.teachBackConfirmedAtMs === null ? (
-                <Pill tone="warn">Not yet confirmed by {map.expertName}</Pill>
-              ) : (
-                <Pill tone="good">Confirmed at {formatMs(map.teachBackConfirmedAtMs)}</Pill>
-              )}
-            </dd>
-          </div>
-          <div className="rounded border border-neutral-200 p-3 dark:border-neutral-800">
-            <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Off the record
-            </dt>
-            <dd className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
-              {map.offRecordSpans.length === 0
-                ? "Nothing was taken off the record."
-                : `${map.offRecordSpans.length} span${map.offRecordSpans.length === 1 ? "" : "s"} (${map.offRecordSpans
-                    .map(([s, e]) => `${formatMs(s)}–${formatMs(e)}`)
-                    .join(", ")}). Nothing from it is cited.`}
-            </dd>
-          </div>
-        </dl>
+      <div className="mt-12 border-t border-rule pt-10">
+        <StatGroup>
+          <Stat
+            value={`${coveragePct}%`}
+            label={
+              <>
+                <span className="block">of the expected judgment covered</span>
+                <span
+                  role="progressbar"
+                  aria-valuenow={coveragePct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Coverage"
+                  className="mt-3 block h-1 w-full max-w-[14rem] overflow-hidden rounded-pill bg-rule"
+                >
+                  <span
+                    className="block h-full rounded-pill bg-ink"
+                    style={{ width: `${coveragePct}%` }}
+                  />
+                </span>
+              </>
+            }
+          />
+          <Stat
+            value={judgmentCount}
+            label={`judgment calls across ${steps.length} steps`}
+            note={`${map.guardrails.length} guardrails`}
+          />
+          <Stat
+            value={confirmed === null ? "Open" : "Confirmed"}
+            label={`Teach-back with ${map.expertName}`}
+            note={
+              confirmed === null
+                ? `Not yet confirmed by ${map.expertName}`
+                : `Confirmed at ${formatMs(confirmed)}`
+            }
+          />
+        </StatGroup>
+        <p className="mt-8 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[0.9375rem] text-ink-muted">
+          <span className="text-ink">Off the record</span>
+          {map.offRecordSpans.length === 0 ? (
+            <span>Nothing was taken off the record.</span>
+          ) : (
+            <span>
+              {map.offRecordSpans.length} span{map.offRecordSpans.length === 1 ? "" : "s"} (
+              {map.offRecordSpans.map(([s, e], i) => (
+                <span key={`${s}-${e}`}>
+                  {i > 0 ? ", " : ""}
+                  <span className="font-mono text-[0.8125rem] text-ink">
+                    {formatMs(s)}–{formatMs(e)}
+                  </span>
+                </span>
+              ))}
+              ). Nothing from it is cited.
+            </span>
+          )}
+        </p>
 
         {actionError && (
           <p
             role="alert"
-            className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+            className="mt-6 rounded-panel border border-stop/40 bg-stop-wash px-4 py-3 text-[0.9375rem] text-stop"
           >
             {actionError}
           </p>
         )}
-      </header>
+      </div>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <section aria-labelledby="steps-heading">
-          <h2 id="steps-heading" className="mb-3 text-lg font-semibold">
+      <div className="mt-14 grid gap-12 border-t border-rule pt-10 lg:grid-cols-12 lg:gap-10">
+        <section aria-labelledby="steps-heading" className="lg:col-span-5">
+          <h2 id="steps-heading" className={SECTION}>
             Steps
           </h2>
+          <p className="mt-3 mb-6 max-w-[36ch] text-[0.9375rem] leading-relaxed text-ink-muted">
+            In the order {map.expertName} worked. Select one to see its evidence.
+          </p>
           {steps.length === 0 ? (
-            <p className="text-sm text-neutral-500">Every step has been removed from this map.</p>
+            <p className="text-[0.9375rem] text-ink-muted">
+              Every step has been removed from this map.
+            </p>
           ) : (
             <StepTimeline
               steps={steps}
@@ -277,7 +303,7 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
 
         <section
           aria-label="Step detail"
-          className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800"
+          className="self-start rounded-panel border border-rule bg-surface p-5 sm:p-8 lg:sticky lg:top-6 lg:col-span-7"
         >
           {selectedStep ? (
             <StepDetail
@@ -291,12 +317,12 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
               onRemove={removeStep}
             />
           ) : (
-            <p className="text-sm text-neutral-500">Select a step to see its evidence.</p>
+            <p className="text-[0.9375rem] text-ink-muted">Select a step to see its evidence.</p>
           )}
         </section>
       </div>
 
-      <div className="mt-12">
+      <div className="mt-16 border-t border-rule pt-10">
         <GuardrailList
           guardrails={map.guardrails}
           steps={steps}
@@ -314,36 +340,43 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
       </div>
 
       {openQuestions.length > 0 && (
-        <section aria-labelledby="open-questions-heading" className="mt-12">
-          <h2 id="open-questions-heading" className="text-lg font-semibold">
-            Open questions{" "}
-            <span className="text-sm font-normal text-neutral-500">({openQuestions.length})</span>
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Gaps the debrief did not close. Nothing here is in the map until the expert answers it.
-          </p>
-          <ul className="mt-3 space-y-2">
+        <section
+          aria-labelledby="open-questions-heading"
+          className="mt-16 grid gap-6 border-t border-rule pt-10 lg:grid-cols-12 lg:gap-10"
+        >
+          <div className="lg:col-span-5">
+            <h2 id="open-questions-heading" className={SECTION}>
+              Open questions{" "}
+              <span className="font-mono text-base tracking-normal text-ink-faint">
+                ({openQuestions.length})
+              </span>
+            </h2>
+            <p className="mt-3 max-w-[36ch] text-[0.9375rem] leading-relaxed text-ink-muted">
+              Gaps the debrief did not close. Nothing here is in the map until the expert answers
+              it.
+            </p>
+          </div>
+          <ul className="flex flex-col divide-y divide-rule border-y border-rule lg:col-span-7">
             {openQuestions.map((q) => {
               const about = q.aboutStepId ? steps.find((s) => s.id === q.aboutStepId) : undefined;
               return (
-                <li
-                  key={q.id}
-                  className="rounded border border-neutral-200 p-3 dark:border-neutral-800"
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                    <SectionTitle>{OPEN_QUESTION_SLOT_LABEL[q.slot]}</SectionTitle>
-                    <span>priority {Math.round(q.priority * 100)}%</span>
+                <li key={q.id} className="py-4">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <Badge tone="muted">{OPEN_QUESTION_SLOT_LABEL[q.slot]}</Badge>
+                    <span className="font-mono text-xs text-ink-faint">
+                      priority {Math.round(q.priority * 100)}%
+                    </span>
                     {about && (
                       <button
                         type="button"
                         onClick={() => setSelectedStepId(about.id)}
-                        className="underline underline-offset-4"
+                        className="inline-flex min-h-10 items-center text-sm text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
                       >
                         about step {about.order}
                       </button>
                     )}
                   </div>
-                  <p className="mt-1 text-sm">{q.text}</p>
+                  <p className="mt-2 text-[1.0625rem] leading-relaxed text-ink">{q.text}</p>
                 </li>
               );
             })}
@@ -353,3 +386,9 @@ export function WorkMapView({ id, sessionId, forceFixture }: WorkMapViewProps) {
     </main>
   );
 }
+
+const PAGE = "mx-auto w-full max-w-6xl px-4 pt-12 pb-24 sm:px-6 sm:pt-16";
+const TITLE =
+  "mt-3 max-w-[22ch] font-display text-[2.5rem] leading-[1.05] font-normal tracking-[-0.025em] text-balance text-ink sm:text-[3.5rem]";
+const SECTION =
+  "font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink sm:text-[2.5rem]";

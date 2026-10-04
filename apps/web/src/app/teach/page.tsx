@@ -14,12 +14,16 @@ function first(value: string | string[] | undefined): string | null {
 export default async function TeachPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const query = await searchParams;
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6">
-      <h1 className="mb-1 text-xl font-semibold">Teach</h1>
-      <p className="mb-4 text-sm text-neutral-500">
-        Work new tickets on your own. Shadow checks every save against the expert's Work Map and
-        stops you before a risky one.
-      </p>
+    <main className="mx-auto w-full max-w-6xl px-4 pt-10 pb-24 sm:px-6 sm:pt-14">
+      <header className="mb-10 max-w-[40rem]">
+        <h1 className="font-display text-[2.5rem] leading-[1.05] font-normal tracking-[-0.025em] text-ink sm:text-[3.25rem]">
+          Teach
+        </h1>
+        <p className="mt-4 max-w-[34rem] text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
+          Work new tickets on your own. Shadow checks every save against the expert's Work Map and
+          stops you before a risky one.
+        </p>
+      </header>
       <VoiceProvider>
         <TeachSession
           workMapId={first(query.workMap)}

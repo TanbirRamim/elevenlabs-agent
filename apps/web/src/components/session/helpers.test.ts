@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeDeskEvent, detectRecordPhrase } from "./helpers";
+import { describeDeskEvent, detectRecordPhrase, orbStateFor } from "./helpers";
 
 describe("describeDeskEvent", () => {
   it("describes the events the agent should hear about", () => {
@@ -53,5 +53,24 @@ describe("detectRecordPhrase", () => {
 
   it("prefers 'back on the record' when both appear in one line", () => {
     expect(detectRecordPhrase("sorry, not off the record, back on the record")).toBe("on");
+  });
+});
+
+describe("orbStateFor", () => {
+  it("is quiet until the voice session is connected", () => {
+    expect(orbStateFor("disconnected", "listening", false, false)).toBe("idle");
+    expect(orbStateFor("connecting", "speaking", true, false)).toBe("idle");
+    expect(orbStateFor("error", "listening", false, false)).toBe("idle");
+  });
+
+  it("listens while connected and asks while the agent speaks", () => {
+    expect(orbStateFor("connected", "listening", false, false)).toBe("listening");
+    expect(orbStateFor("connected", "speaking", false, false)).toBe("speaking");
+    expect(orbStateFor("connected", "listening", true, false)).toBe("speaking");
+  });
+
+  it("shows off the record over every other state", () => {
+    expect(orbStateFor("connected", "speaking", true, true)).toBe("off-record");
+    expect(orbStateFor("disconnected", "listening", false, true)).toBe("off-record");
   });
 });

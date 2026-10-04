@@ -1,6 +1,7 @@
 "use client";
 
 import type { MasteryReport } from "@shadow/schema";
+import { Stat, StatGroup } from "@/components/ui";
 import { masteryCounts } from "./logic";
 
 /**
@@ -12,15 +13,25 @@ export function MasteryReportSlot({ report }: { report: MasteryReport }) {
   return (
     <section
       aria-label="Mastery report"
-      className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+      className="rounded-panel border border-rule bg-surface px-5 py-6 sm:px-8"
     >
-      <h2 className="text-base font-semibold">Mastery</h2>
-      <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-        {counts.independent} independent · {counts.assisted} assisted · {counts.missed} missed
-      </p>
+      <h2 className="font-display text-[1.75rem] leading-tight font-normal tracking-[-0.015em] text-ink">
+        Mastery
+      </h2>
+      <StatGroup className="mt-6 grid-cols-3 gap-6 sm:gap-8">
+        <Stat value={counts.independent} label="independent" />
+        <Stat value={counts.assisted} label="assisted" />
+        <Stat value={counts.missed} label="missed" />
+      </StatGroup>
       {report.practiceNext.length > 0 && (
-        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-          Practice next: {report.practiceNext.join(", ")}
+        <p className="mt-6 border-t border-rule pt-4 text-[0.9375rem] text-ink-muted">
+          Practice next:{" "}
+          {report.practiceNext.map((id, i) => (
+            <span key={id}>
+              {i > 0 ? ", " : ""}
+              <span className="font-mono text-[0.8125rem] text-ink">{id}</span>
+            </span>
+          ))}
         </p>
       )}
     </section>
