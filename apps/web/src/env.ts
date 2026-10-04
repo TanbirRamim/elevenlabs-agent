@@ -1,10 +1,15 @@
 import { z } from "zod";
 
-const ServerEnv = z.object({
-  ELEVENLABS_API_KEY: z.string().min(1),
+const AgentIds = z.object({
   ELEVENLABS_INTERVIEWER_AGENT_ID: z.string().min(1),
   ELEVENLABS_TUTOR_AGENT_ID: z.string().min(1),
 });
+
+const ServerEnv = AgentIds.extend({
+  /** Optional: with a key the browser gets a signed URL; without one it connects by agent id. */
+  ELEVENLABS_API_KEY: z.string().min(1).optional(),
+});
+export type ServerEnv = z.infer<typeof ServerEnv>;
 
 /**
  * Server-only env for route handlers, read per request: on Cloudflare Workers the

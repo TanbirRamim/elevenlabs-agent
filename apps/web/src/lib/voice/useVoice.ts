@@ -2,7 +2,7 @@
 
 import { useConversation } from "@elevenlabs/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { z } from "zod";
+import { VoiceAccess } from "./access";
 import { type Coalescer, createCoalescer } from "./coalesce";
 import {
   type ControlPrefix,
@@ -55,7 +55,6 @@ export interface Voice {
   onUserSpeech(cb: (tMs: number) => void): () => void;
 }
 
-const SignedUrlResponse = z.object({ signedUrl: z.string().url() });
 const SCREEN_COALESCE_MS = 2000;
 /** VAD score (0..1) above which we treat the user as speaking. */
 const VAD_SPEECH_THRESHOLD = 0.5;
@@ -126,19 +125,20 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
       const code = (await res.json().catch(() => ({ code: "unknown" }))) as { code?: string };
       setError(
         code.code === "eleven_not_configured"
-          ? "ElevenLabs is not configured on the server (missing API key or agent id)."
+          ? "ElevenLabs is not configured on the server (missing agent id)."
           : `Could not get a voice session (${res.status}).`,
       );
       return;
     }
-    const { signedUrl } = SignedUrlResponse.parse(await res.json());
+    const access = VoiceAccess.parse(await res.json());
     startedAt.current = Date.now();
     setTranscript([]);
-    startSession({
-      signedUrl,
-      connectionType: "websocket",
-      ...(dynamicVariables ? { dynamicVariables } : {}),
-    });
+    const variables = dynamicVariables ? { dynamicVariables } : {};
+    startSession(
+      "signedUrl" in access
+        ? { signedUrl: access.signedUrl, connectionType: "websocket", ...variables }
+        : { agentId: access.agentId, connectionType: "websocket", ...variables },
+    );
   }, [agent, dynamicVariables, startSession]);
 
   const stop = useCallback(() => {
