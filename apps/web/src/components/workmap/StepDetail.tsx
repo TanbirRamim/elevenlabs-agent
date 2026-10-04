@@ -146,7 +146,11 @@ export function StepDetail({
             <FrameImage frameId={step.moment.frameId} tMs={step.moment.tMs} sessionId={null} />
             <p className="text-xs text-ink-muted">
               Clip <span className="figures font-mono">{formatClip(step.moment.clip)}</span> plays
-              here once the map comes from a recorded session.
+              here when the map has a session recording (open it with{" "}
+              <code className="rounded-[4px] bg-sunken px-1 font-mono text-2xs">
+                ?session=&lt;id&gt;
+              </code>
+              ).
             </p>
           </div>
         )}
