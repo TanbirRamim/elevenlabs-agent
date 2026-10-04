@@ -1,4 +1,6 @@
-# Deploying the API to a Hugging Face Space (free, always on)
+# Deploying the API to a Hugging Face Space (optional)
+
+> Hugging Face Docker Spaces are now paid, so this path is optional. The free path is Render: `docs/DEPLOY_RENDER.md`.
 
 The laptop and Cloudflare quick tunnel setup in `docs/DEPLOY.md` stops working whenever the laptop sleeps. This guide moves the whole backend (the API plus Presidio) into **one Docker image** on a free Hugging Face Space. The web app stays on Vercel.
 
