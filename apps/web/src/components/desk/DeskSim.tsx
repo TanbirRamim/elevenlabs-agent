@@ -130,7 +130,7 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
           </div>
         ) : (
           <div className="flex min-h-64 flex-col justify-center gap-2 px-6 py-10 @3xl:px-10">
-            <p className="font-display text-[1.75rem] leading-tight text-ink">No ticket open</p>
+            <p className="text-base leading-tight text-ink">No ticket open</p>
             <p className="text-lg text-ink-muted">Select a ticket to begin ({mode} mode).</p>
           </div>
         )}

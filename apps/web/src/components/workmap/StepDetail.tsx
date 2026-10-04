@@ -87,7 +87,7 @@ export function StepDetail({
           <span className="font-mono text-xs text-ink-faint">Step {step.order}</span>
           {step.judgmentCall && <JudgmentBadge />}
         </div>
-        <h2 className="mt-3 font-display text-[1.75rem] leading-[1.15] font-normal tracking-[-0.015em] text-balance text-ink sm:text-[2.25rem]">
+        <h2 className="mt-3 text-base leading-tight font-semibold text-balance text-ink">
           {step.title}
         </h2>
         <p className="mt-4 max-w-[42rem] border-l border-rule-strong pl-4 text-[1.0625rem] leading-relaxed text-ink-muted">

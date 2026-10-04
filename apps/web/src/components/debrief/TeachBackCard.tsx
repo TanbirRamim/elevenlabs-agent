@@ -46,7 +46,7 @@ export function TeachBackCard(props: TeachBackCardProps) {
             Shadow is putting together what it learned…
           </p>
         ) : (
-          <blockquote className="max-w-[40ch] font-display text-[1.375rem] leading-snug text-pretty text-ink sm:text-[1.5rem]">
+          <blockquote className="max-w-[40ch] text-base leading-snug text-pretty text-ink">
             {text}
           </blockquote>
         )}

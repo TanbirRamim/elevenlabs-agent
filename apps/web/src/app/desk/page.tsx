@@ -3,6 +3,8 @@
 import { type DeskEvent, type GuardVerdict, TicketsResponse } from "@shadow/schema";
 import { useEffect, useRef, useState } from "react";
 import { DeskSim } from "@/components/desk/DeskSim";
+import { Page } from "@/components/shell/Page";
+import { Alert, Badge, EmptyState, PageHeader, Panel, Skeleton } from "@/components/ui";
 import { publicEnv } from "@/env";
 
 type LoadState =
@@ -46,25 +48,26 @@ export default function DeskPage() {
     setEvents((prev) => [{ seq: ++seqRef.current, event }, ...prev].slice(0, 100));
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="font-display text-[2.25rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink sm:text-[2.75rem]">
-        DeskSim preview
-      </h1>
-      <p className="mt-3 max-w-[34rem] text-[1.0625rem] leading-relaxed text-ink-muted">
-        The sandbox helpdesk on its own. In a session, Capture and Teach embed it; here every action
-        is allowed and every desk event is listed below.
-      </p>
+    <Page width="wide">
+      <PageHeader
+        title="Desk preview"
+        description="The sandbox helpdesk on its own. Capture and Teach embed it in a session; here every action is allowed and every desk event is logged below."
+        meta={<Badge tone="muted">Tool</Badge>}
+      />
 
-      <div className="mt-8">
+      <div className="mt-6">
         {state.kind === "loading" ? (
-          <p className="text-lg text-ink-muted">Loading tickets…</p>
+          <div role="status" aria-busy="true" className="flex flex-col gap-3">
+            <span className="sr-only">Loading tickets</span>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
         ) : null}
         {state.kind === "error" ? (
-          <p className="rounded-panel border border-stop/40 bg-stop-wash px-5 py-4 text-lg text-ink">
-            <span className="font-semibold text-stop">API unreachable</span> at{" "}
-            <span className="font-mono text-base">{publicEnv.apiUrl}</span> ({state.message}). Run{" "}
-            <code className="font-mono text-base">pnpm dev</code> and reload.
-          </p>
+          <Alert tone="offline" title="The API is unreachable">
+            Tried <span className="font-mono text-xs">{publicEnv.apiUrl}</span> ({state.message}).
+            Run <code className="font-mono text-xs">pnpm dev</code> and reload.
+          </Alert>
         ) : null}
         {state.kind === "ready" ? (
           <DeskSim
@@ -77,27 +80,35 @@ export default function DeskPage() {
         ) : null}
       </div>
 
-      <section className="mt-12 border-t border-rule pt-8" aria-labelledby="event-log">
-        <h2 id="event-log" className="font-display text-[1.75rem] leading-tight text-ink">
-          Event log <span className="font-mono text-base text-ink-faint">{events.length}</span>
-        </h2>
+      <Panel
+        id="event-log"
+        className="mt-8"
+        title="Event log"
+        meta={`${events.length} events`}
+        flush
+      >
         {events.length === 0 ? (
-          <p className="mt-3 text-ink-muted">Open a ticket to see events here.</p>
+          <div className="px-4">
+            <EmptyState
+              title="No events yet"
+              description="Open a ticket to see desk events here."
+            />
+          </div>
         ) : (
-          <ol className="mt-4 flex max-h-96 flex-col divide-y divide-rule overflow-y-auto rounded-panel border border-rule bg-surface font-mono text-sm">
+          <ol className="flex max-h-96 flex-col divide-y divide-rule overflow-y-auto font-mono text-xs">
             {events.map(({ seq, event }) => (
               <li
                 key={seq}
                 className="grid gap-x-4 gap-y-1 px-4 py-2 sm:grid-cols-[6rem_9rem_minmax(0,1fr)]"
               >
-                <span className="text-ink-faint tabular-nums">{event.tMs} ms</span>
-                <span className="font-semibold text-ink">{event.type}</span>
+                <span className="figures text-ink-faint">{event.tMs} ms</span>
+                <span className="font-medium text-ink">{event.type}</span>
                 <span className="break-all text-ink-muted">{JSON.stringify(event)}</span>
               </li>
             ))}
           </ol>
         )}
-      </section>
-    </main>
+      </Panel>
+    </Page>
   );
 }

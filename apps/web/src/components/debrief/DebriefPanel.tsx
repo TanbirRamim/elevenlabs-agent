@@ -40,9 +40,7 @@ export function DebriefPanel({ onFinished, ...options }: DebriefPanelProps) {
   return (
     <div className="flex flex-col gap-8">
       <header className="max-w-[40rem]">
-        <h2 className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink">
-          Debrief
-        </h2>
+        <h2 className="text-lg leading-tight font-semibold text-ink">Debrief</h2>
         <p className="mt-2 text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
           {phaseHint(view)}
           {!voice.connected && view.phase !== "idle" && view.phase !== "confirmed" && (

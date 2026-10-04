@@ -57,10 +57,10 @@ function Predict({
       aria-label="Predict the decision"
       className="relative overflow-hidden rounded-panel border border-rule bg-surface px-5 py-5 sm:px-6"
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-signal" />
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-        <span className="inline-flex items-center gap-2 text-signal-text">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-signal" />
+        <span className="inline-flex items-center gap-2 text-ask-text">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-ask" />
           Shadow asks
         </span>
         <span>
@@ -68,7 +68,7 @@ function Predict({
           handled by Maya
         </span>
       </p>
-      <h3 className="mt-2 font-display text-[1.5rem] leading-snug font-normal tracking-[-0.01em] text-ink">
+      <h3 className="mt-2 text-base leading-snug font-semibold text-ink">
         What would you do here, and why?
       </h3>
       <p className="mt-3 flex min-h-8 flex-wrap items-center gap-2 text-[0.9375rem] text-ink-muted">
@@ -100,7 +100,7 @@ function MasterySummary({ teach }: { teach: ReplayScript["teach"] }) {
       className="rounded-panel border border-rule bg-surface"
     >
       <div className="border-b border-rule px-5 py-4 sm:px-6">
-        <h3 id="mastery-title" className="font-display text-[1.75rem] leading-tight text-ink">
+        <h3 id="mastery-title" className="text-base leading-tight text-ink">
           Mastery report
         </h3>
         <p className="mt-1 text-[0.9375rem] text-ink-muted">
@@ -113,7 +113,7 @@ function MasterySummary({ teach }: { teach: ReplayScript["teach"] }) {
           return (
             <div key={g.status} className="flex flex-col gap-1 px-5 py-4 sm:px-6">
               <dt className="order-2 text-sm text-ink-muted">{g.title}</dt>
-              <dd className="order-1 font-display text-[2.5rem] leading-none tabular-nums text-ink">
+              <dd className="order-1 text-xl leading-none font-semibold tabular-nums text-ink">
                 {entries.length}
               </dd>
               <dd className="order-3 font-mono text-xs text-ink-faint">
@@ -128,9 +128,7 @@ function MasterySummary({ teach }: { teach: ReplayScript["teach"] }) {
         {practice.map((item) => (
           <figure key={item.id} className="mt-2">
             <p className="text-[0.9375rem] leading-snug text-ink">{practiceTitle(item.id)}</p>
-            <blockquote className="mt-2 font-display text-[1.25rem] leading-snug text-ink italic">
-              “{item.quote}”
-            </blockquote>
+            <blockquote className="mt-2 text-base leading-snug text-ink">“{item.quote}”</blockquote>
             <figcaption className="mt-1 font-mono text-xs text-ink-faint">
               Maya, {item.id}
             </figcaption>

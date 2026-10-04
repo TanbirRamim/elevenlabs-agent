@@ -1,47 +1,71 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 
 /**
- * `signal` is reserved for "Shadow is listening or asking" and guardrail moments.
- * Do not use it for emphasis. See docs/DESIGN.md.
+ * Tones are meanings, not decoration (docs/DESIGN.md, "Colour by meaning"):
+ * - `ask`: Shadow is listening or asking (brand colour)
+ * - `rec`: recording is live
+ * - `guard`: a guardrail held or blocked an action
+ * - `ok`: success, verified, confirmed
+ * - `danger`: an error or a destructive action
+ * - `neutral` / `muted`: everything else
  */
-export type BadgeTone = "neutral" | "signal" | "ok" | "stop" | "muted";
+export type BadgeTone = "neutral" | "muted" | "ask" | "rec" | "guard" | "ok" | "danger";
 
 const TONES: Record<BadgeTone, string> = {
-  neutral: "border-rule-strong text-ink",
-  muted: "border-rule text-ink-muted",
-  signal: "border-transparent bg-signal-wash text-signal-text",
+  neutral: "border-rule-strong bg-surface text-ink",
+  muted: "border-rule bg-sunken text-ink-muted",
+  ask: "border-transparent bg-ask-wash text-ask-text",
+  rec: "border-transparent bg-rec-wash text-rec-text",
+  guard: "border-transparent bg-guard-wash text-guard-text",
   ok: "border-transparent bg-ok-wash text-ok",
-  stop: "border-transparent bg-stop-wash text-stop",
+  danger: "border-transparent bg-danger-wash text-danger",
 };
 
-const DOTS: Record<BadgeTone, string> = {
+export const DOT_TONES: Record<BadgeTone, string> = {
   neutral: "bg-ink-muted",
   muted: "bg-ink-faint",
-  signal: "bg-signal",
-  ok: "bg-ok",
-  stop: "bg-stop",
+  ask: "bg-ask",
+  rec: "bg-rec",
+  guard: "bg-guard",
+  ok: "bg-ok-fill",
+  danger: "bg-danger-fill",
 };
 
 export type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
   tone?: BadgeTone;
   /** A leading status dot. Decorative: the text must carry the meaning. */
   dot?: boolean;
+  /** Leading icon (lucide, 12px). */
+  icon?: ReactNode;
 };
 
-export function Badge({ tone = "neutral", dot = false, className, children, ...rest }: BadgeProps) {
+/** A compact label: 20px tall, 12px text. For counts, kinds and states. */
+export function Badge({
+  tone = "neutral",
+  dot = false,
+  icon,
+  className,
+  children,
+  ...rest
+}: BadgeProps) {
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-[0.8125rem] leading-5 font-medium",
+        "inline-flex h-5 shrink-0 items-center gap-1 rounded-control border px-1.5 text-xs leading-none font-medium whitespace-nowrap",
+        "[&_svg]:size-3 [&_svg]:stroke-2",
         TONES[tone],
         className,
       )}
       {...rest}
     >
       {dot ? (
-        <span aria-hidden="true" className={cx("size-1.5 shrink-0 rounded-full", DOTS[tone])} />
+        <span
+          aria-hidden="true"
+          className={cx("size-1.5 shrink-0 rounded-full", DOT_TONES[tone])}
+        />
       ) : null}
+      {icon}
       {children}
     </span>
   );
@@ -49,3 +73,39 @@ export function Badge({ tone = "neutral", dot = false, className, children, ...r
 
 /** Alias for places that read better as a chip (filters, tags). Same component. */
 export const Chip = Badge;
+
+export type StatusPillProps = HTMLAttributes<HTMLSpanElement> & {
+  tone?: BadgeTone;
+  /** Pulse the dot. Only for a state that is live right now (recording, listening). */
+  live?: boolean;
+};
+
+/** A rounded status: dot + words. The words carry the state; the dot only reinforces it. */
+export function StatusPill({
+  tone = "neutral",
+  live = false,
+  className,
+  children,
+  ...rest
+}: StatusPillProps) {
+  return (
+    <span
+      className={cx(
+        "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border px-2.5 text-xs font-medium whitespace-nowrap",
+        TONES[tone],
+        className,
+      )}
+      {...rest}
+    >
+      <span
+        aria-hidden="true"
+        className={cx(
+          "size-1.5 shrink-0 rounded-full",
+          DOT_TONES[tone],
+          live && "animate-rec-pulse",
+        )}
+      />
+      {children}
+    </span>
+  );
+}

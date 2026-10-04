@@ -1,6 +1,19 @@
 "use client";
 
+import { Mic, Square } from "lucide-react";
 import { useState } from "react";
+import { Page } from "@/components/shell/Page";
+import {
+  Alert,
+  Badge,
+  Button,
+  EmptyState,
+  Field,
+  PageHeader,
+  Panel,
+  Select,
+  StatusPill,
+} from "@/components/ui";
 import { useVoice, type VoiceAgent, VoiceProvider } from "@/lib/voice";
 
 /**
@@ -24,110 +37,126 @@ function VoiceCheck() {
   const live = voice.status === "connected";
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">Voice check</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Starts a conversation with one agent. Control messages are hidden from the transcript by
-        design.
-      </p>
+    <Page width="narrow">
+      <PageHeader
+        title="Voice check"
+        description="Starts a conversation with one agent. Control messages are hidden from the transcript by design."
+        meta={<Badge tone="muted">Tool</Badge>}
+      />
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <select
-          className="rounded-md border border-neutral-300 bg-transparent px-2 py-1 dark:border-neutral-700"
-          value={agent}
-          disabled={live}
-          onChange={(e) => setAgent(e.target.value as VoiceAgent)}
-        >
-          <option value="interviewer">Interviewer</option>
-          <option value="tutor">Tutor</option>
-        </select>
-        {live ? (
-          <button
-            type="button"
-            className="rounded-md bg-neutral-900 px-3 py-1 text-white dark:bg-white dark:text-black"
-            onClick={voice.stop}
-          >
-            Stop
-          </button>
+      <Panel
+        className="mt-6"
+        title="Session"
+        actions={<StatusChip status={voice.status} mode={voice.mode} />}
+        footer={
+          <>
+            <span>Send while connected:</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!live}
+              onClick={() => voice.sendScreen("ticket T3 opened; tag chargeback-open visible")}
+            >
+              Send screen context
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!live}
+              onClick={() =>
+                voice.sendControl("[ASK]", "You held the refund on T3 instead of paying it. Why?")
+              }
+            >
+              Send [ASK]
+            </Button>
+            <Button size="sm" variant="ghost" disabled={!live} onClick={voice.markActivity}>
+              Mark activity
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-48">
+            <Field label="Agent">
+              {(a11y) => (
+                <Select
+                  {...a11y}
+                  value={agent}
+                  disabled={live}
+                  onChange={(e) => setAgent(e.target.value as VoiceAgent)}
+                >
+                  <option value="interviewer">Interviewer</option>
+                  <option value="tutor">Tutor</option>
+                </Select>
+              )}
+            </Field>
+          </div>
+          {live ? (
+            <Button variant="secondary" icon={<Square />} onClick={voice.stop}>
+              Stop
+            </Button>
+          ) : (
+            <Button
+              icon={<Mic />}
+              loading={voice.status === "connecting"}
+              onClick={() => void voice.start()}
+            >
+              {voice.status === "connecting" ? "Connecting…" : "Start"}
+            </Button>
+          )}
+        </div>
+        {voice.error ? (
+          <Alert tone="danger" title="Voice error" className="mt-4">
+            {voice.error}
+          </Alert>
+        ) : null}
+      </Panel>
+
+      <Panel
+        className="mt-4"
+        title="Transcript"
+        meta={`Last user speech ${
+          voice.lastUserSpeechMs === null ? "–" : `${(voice.lastUserSpeechMs / 1000).toFixed(1)} s`
+        }`}
+      >
+        {voice.transcript.length === 0 ? (
+          <EmptyState
+            title="Nothing said yet"
+            description="Start a session and speak; both sides of the conversation appear here."
+          />
         ) : (
-          <button
-            type="button"
-            className="rounded-md bg-neutral-900 px-3 py-1 text-white dark:bg-white dark:text-black"
-            disabled={voice.status === "connecting"}
-            onClick={() => void voice.start()}
-          >
-            {voice.status === "connecting" ? "Connecting…" : "Start"}
-          </button>
+          <ol className="flex flex-col gap-2">
+            {voice.transcript.map((line) => (
+              <li key={line.id} className="grid grid-cols-[3.5rem_4rem_1fr] gap-2 text-ui">
+                <span className="figures font-mono text-xs leading-5 text-ink-faint">
+                  {(line.tMs / 1000).toFixed(1)}s
+                </span>
+                <span
+                  className={
+                    line.role === "agent" ? "font-medium text-ask-text" : "font-medium text-ink"
+                  }
+                >
+                  {line.role === "agent" ? "Shadow" : "You"}
+                </span>
+                <span className="text-ink">{line.text}</span>
+              </li>
+            ))}
+          </ol>
         )}
-        <StatusChip status={voice.status} mode={voice.mode} />
-      </div>
-
-      {voice.error && (
-        <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
-          {voice.error}
-        </p>
-      )}
-
-      <div className="mt-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="rounded-md border border-neutral-300 px-3 py-1 text-sm dark:border-neutral-700"
-          disabled={!live}
-          onClick={() => voice.sendScreen("ticket T3 opened; tag chargeback-open visible")}
-        >
-          Send screen context
-        </button>
-        <button
-          type="button"
-          className="rounded-md border border-neutral-300 px-3 py-1 text-sm dark:border-neutral-700"
-          disabled={!live}
-          onClick={() =>
-            voice.sendControl("[ASK]", "You held the refund on T3 instead of paying it. Why?")
-          }
-        >
-          Send [ASK]
-        </button>
-        <button
-          type="button"
-          className="rounded-md border border-neutral-300 px-3 py-1 text-sm dark:border-neutral-700"
-          disabled={!live}
-          onClick={voice.markActivity}
-        >
-          Mark activity
-        </button>
-      </div>
-
-      <section className="mt-8">
-        <h2 className="text-sm font-medium text-neutral-500">
-          Transcript · last user speech{" "}
-          {voice.lastUserSpeechMs === null
-            ? "–"
-            : `${(voice.lastUserSpeechMs / 1000).toFixed(1)} s`}
-        </h2>
-        <ol className="mt-2 space-y-2">
-          {voice.transcript.map((line) => (
-            <li key={line.id} className="text-sm">
-              <span className="mr-2 font-mono text-xs text-neutral-400">
-                {(line.tMs / 1000).toFixed(1)}s
-              </span>
-              <span className={line.role === "agent" ? "text-sky-700 dark:text-sky-300" : ""}>
-                {line.role === "agent" ? "Shadow" : "You"}:
-              </span>{" "}
-              {line.text}
-            </li>
-          ))}
-        </ol>
-      </section>
-    </main>
+      </Panel>
+    </Page>
   );
 }
 
 function StatusChip({ status, mode }: { status: string; mode: string }) {
-  const label =
-    status === "connected" ? (mode === "speaking" ? "Shadow is speaking" : "Listening") : status;
-  return (
-    <span className="rounded-full border border-neutral-300 px-2 py-0.5 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
-      {label}
-    </span>
-  );
+  if (status === "connected") {
+    return (
+      <StatusPill tone="ask" live>
+        {mode === "speaking" ? "Shadow is speaking" : "Listening"}
+      </StatusPill>
+    );
+  }
+  if (status === "error") return <StatusPill tone="danger">Error</StatusPill>;
+  if (status === "connecting") return <StatusPill tone="muted">Connecting</StatusPill>;
+  return <StatusPill tone="muted">Not connected</StatusPill>;
 }

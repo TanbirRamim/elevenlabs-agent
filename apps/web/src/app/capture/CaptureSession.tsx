@@ -434,7 +434,7 @@ export function CaptureSession() {
           // record, turns dashed so the paused state reads on the desk itself too.
           <div
             className={cx(
-              "overflow-x-auto rounded-panel border p-2 transition-colors duration-300",
+              "overflow-x-auto rounded-panel border p-2 transition-colors duration-200",
               offRecord ? "border-dashed border-ink-faint" : "border-rule bg-sunken",
             )}
           >

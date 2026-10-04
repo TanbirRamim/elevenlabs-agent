@@ -92,7 +92,7 @@ export function SidePanel(props: SidePanelProps) {
                 at most {questionBudget} per 10 minutes
               </span>
             </dt>
-            <dd className="font-display text-[2.25rem] leading-none tracking-[-0.02em] tabular-nums">
+            <dd className="text-lg leading-none font-semibold tabular-nums">
               {questionsAsked}
               <span className="text-xl text-ink-faint">/{questionBudget}</span>
             </dd>
@@ -131,18 +131,18 @@ function TranscriptLine({ line }: { line: VoiceLine }) {
   return (
     <li className="relative grid grid-cols-[3rem_1fr] gap-3 border-t border-rule px-5 py-3 first:border-t-0">
       {agent ? (
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-signal" />
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
       ) : null}
       <span className="pt-0.5 font-mono text-xs text-ink-faint tabular-nums">{mmss(line.tMs)}</span>
       <div className="min-w-0">
-        <p className={cx("mb-0.5 text-sm", agent ? "text-signal-text" : "text-ink-muted")}>
+        <p className={cx("mb-0.5 text-sm", agent ? "text-ask-text" : "text-ink-muted")}>
           {agent ? "Shadow" : "You"}
         </p>
         <p
           className={
             agent
               ? "text-[0.9375rem] leading-snug text-ink"
-              : "font-display text-[1.0625rem] leading-snug text-ink italic"
+              : "text-[1.0625rem] leading-snug text-ink"
           }
         >
           {line.text}
@@ -184,9 +184,9 @@ function agentState(
 ): { label: string; tone: BadgeTone; offRecord: boolean } {
   // Off the record must read the same everywhere, so it wins over the connection state.
   if (offRecord) return { label: "Off the record", tone: "neutral", offRecord: true };
-  if (status === "error") return { label: "Voice error", tone: "stop", offRecord: false };
+  if (status === "error") return { label: "Voice error", tone: "danger", offRecord: false };
   if (status === "connecting") return { label: "Connecting…", tone: "muted", offRecord: false };
   if (status !== "connected") return { label: "Not started", tone: "muted", offRecord: false };
-  if (mode === "speaking") return { label: "Asking", tone: "signal", offRecord: false };
-  return { label: "Listening quietly", tone: "signal", offRecord: false };
+  if (mode === "speaking") return { label: "Asking", tone: "ask", offRecord: false };
+  return { label: "Listening quietly", tone: "ask", offRecord: false };
 }

@@ -15,10 +15,8 @@ export function MasteryReportSlot({ report }: { report: MasteryReport }) {
       aria-label="Mastery report"
       className="rounded-panel border border-rule bg-surface px-5 py-6 sm:px-8"
     >
-      <h2 className="font-display text-[1.75rem] leading-tight font-normal tracking-[-0.015em] text-ink">
-        Mastery
-      </h2>
-      <StatGroup className="mt-6 grid-cols-3 gap-6 sm:gap-8">
+      <h2 className="text-base leading-tight font-semibold text-ink">Mastery</h2>
+      <StatGroup className="mt-6 grid-cols-3">
         <Stat value={counts.independent} label="independent" />
         <Stat value={counts.assisted} label="assisted" />
         <Stat value={counts.missed} label="missed" />

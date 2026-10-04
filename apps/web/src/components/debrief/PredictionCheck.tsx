@@ -46,11 +46,11 @@ export function PredictionCheck({
                 aria-current={current ? "step" : undefined}
                 className={cx(
                   "relative border-t border-rule py-4 pr-3 pl-4 first:border-t-0",
-                  current && "bg-signal-wash/50",
+                  current && "bg-ask-wash/50",
                 )}
               >
                 {current ? (
-                  <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-signal" />
+                  <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
                 ) : null}
                 <p className="font-mono text-xs text-ink-faint">
                   Prediction {i + 1} of {variants.length}
@@ -75,7 +75,7 @@ export function PredictionCheck({
                   </MarkButton>
                   <MarkButton
                     pressed={mark === "wrong"}
-                    tone="stop"
+                    tone="danger"
                     disabled={readOnly}
                     onClick={() => onMark(v.id, "wrong")}
                   >
@@ -100,7 +100,7 @@ function MarkButton({
   children,
 }: {
   pressed: boolean;
-  tone: "ok" | "stop";
+  tone: "ok" | "danger";
   disabled: boolean;
   onClick: () => void;
   children: ReactNode;
@@ -116,7 +116,7 @@ function MarkButton({
         pressed
           ? tone === "ok"
             ? "border-transparent bg-ok-wash text-ok"
-            : "border-transparent bg-stop-wash text-stop"
+            : "border-transparent bg-danger-wash text-danger"
           : "border-rule-strong text-ink hover:border-ink disabled:text-ink-faint disabled:hover:border-rule-strong",
       )}
     >

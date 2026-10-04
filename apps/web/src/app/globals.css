@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 /*
- * Shadow design tokens. Rules and rationale: docs/DESIGN.md.
+ * Shadow design tokens, v2. Rules and rationale: docs/DESIGN.md.
  *
- * Raw values live on :root as --desk-* custom properties and switch with the colour scheme.
- * `@theme inline` maps them to Tailwind utilities (bg-canvas, text-ink, border-rule, …) so a
- * utility always resolves to the current scheme without a `dark:` prefix.
+ * Raw values live on :root as --sd-* custom properties and switch with the colour scheme.
+ * `@theme inline` maps them to Tailwind utilities (bg-canvas, text-ink, border-rule, bg-rec, …),
+ * so a utility always resolves to the current scheme without a `dark:` prefix.
  *
- * Scheme: follows the OS by default; `data-theme="light" | "dark"` on <html> forces one.
+ * Scheme: follows the OS by default; `data-theme="light" | "dark"` on <html> forces one
+ * (set by the theme toggle, persisted in localStorage, applied before paint in app/layout.tsx).
  */
 
 /* `dark:` keeps its default media behaviour and also honours a forced data-theme. */
@@ -23,150 +24,286 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  /* Light: ink on newsprint */
-  --desk-canvas: #f2f1ec;
-  --desk-surface: #fbfaf7;
-  --desk-sunken: #e9e7e0;
-  --desk-rule: #d6d3ca;
-  --desk-rule-strong: #b9b5a9;
-  --desk-ink: #13202b;
-  --desk-ink-muted: #4e5862;
-  --desk-ink-faint: #5f6870;
+  /* Neutrals (zinc-like). Every text pair is AA (4.5:1) on canvas, surface and sunken. */
+  --sd-canvas: #f7f7f8; /* app frame, sidebar, page background */
+  --sd-surface: #ffffff; /* content panel, cards, inputs */
+  --sd-raised: #ffffff; /* popovers, dialogs, menus (with shadow-overlay) */
+  --sd-sunken: #f4f4f5; /* wells, table headers, code */
+  --sd-hover: #f0f0f2; /* row and ghost-button hover */
+  --sd-selected: #ebebee; /* selected row, current nav item (ink or ink-muted text on it) */
+  --sd-rule: #e6e6e9; /* hairlines, card borders */
+  --sd-rule-strong: #d4d4d8; /* control borders */
+  --sd-ink: #18181b; /* primary text, primary button fill */
+  --sd-ink-muted: #52525b; /* secondary text */
+  --sd-ink-faint: #6b6b74; /* metadata, placeholders, timestamps */
+  --sd-ink-inverse: #ffffff; /* text on ink */
 
-  /* The one signal: Shadow is listening or asking, and guardrail moments. Nothing else. */
-  --desk-signal: #e9a93c;
-  --desk-signal-ink: #13202b;
-  --desk-signal-text: #8f5300;
-  --desk-signal-wash: #f6e3bd;
+  /* Brand: Shadow blue. Means "Shadow" (the mark, Shadow listening or asking) and the focus ring. */
+  --sd-brand: #3b5bdb;
+  --sd-brand-ink: #ffffff;
+  --sd-brand-text: #3b5bdb;
+  --sd-brand-wash: #eef2ff;
 
-  /* Status tones, muted on purpose: they label, they don't decorate. */
-  --desk-ok: #2f6b57;
-  --desk-ok-wash: #dcebe3;
-  --desk-stop: #a33a2b;
-  --desk-stop-wash: #f3dcd6;
+  /* Semantic colours. Each has exactly one meaning; see DESIGN.md "Colour by meaning". */
+  --sd-rec: #e03131; /* recording is live */
+  --sd-rec-text: #c92a2a;
+  --sd-rec-wash: #fff0f0;
+  --sd-guard: #f08c00; /* a guardrail held or blocked an action */
+  --sd-guard-ink: #1a1205;
+  --sd-guard-text: #a14b00;
+  --sd-guard-wash: #fff4e5;
+  --sd-ok: #1f7a4d; /* success, verified, confirmed */
+  --sd-ok-fill: #2f9e66;
+  --sd-ok-wash: #e8f6ee;
+  --sd-danger: #b42318; /* errors and destructive actions */
+  --sd-danger-fill: #d92d20;
+  --sd-danger-wash: #fef0ef;
 
-  --desk-focus: #13202b;
-  --desk-elevation: 0 1px 0 rgb(19 32 43 / 0.04), 0 8px 24px -12px rgb(19 32 43 / 0.18);
+  --sd-focus: #3b5bdb;
+  --sd-shadow-raised: 0 1px 2px rgb(24 24 27 / 0.05);
+  --sd-shadow-overlay:
+    0 0 0 1px rgb(24 24 27 / 0.06), 0 4px 8px -2px rgb(24 24 27 / 0.06),
+    0 16px 32px -8px rgb(24 24 27 / 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    /* Dark: the operations desk at night */
-    --desk-canvas: #0d1720;
-    --desk-surface: #13202b;
-    --desk-sunken: #0a121a;
-    --desk-rule: #263847;
-    --desk-rule-strong: #3a4f61;
-    --desk-ink: #ece5d6;
-    --desk-ink-muted: #a39e92;
-    --desk-ink-faint: #7f8a93;
-
-    --desk-signal: #f0b44c;
-    --desk-signal-ink: #1a1205;
-    --desk-signal-text: #f0b44c;
-    --desk-signal-wash: #2e2410;
-
-    --desk-ok: #7fb8a4;
-    --desk-ok-wash: #142a24;
-    --desk-stop: #e26d5a;
-    --desk-stop-wash: #2d1714;
-
-    --desk-focus: #f0b44c;
-    --desk-elevation: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+    --sd-canvas: #0c0c0e;
+    --sd-surface: #131316;
+    --sd-raised: #1a1a1e;
+    --sd-sunken: #0f0f11;
+    --sd-hover: #1c1c20;
+    --sd-selected: #232328;
+    --sd-rule: #24242a;
+    --sd-rule-strong: #34343b;
+    --sd-ink: #ededef;
+    --sd-ink-muted: #a1a1aa;
+    --sd-ink-faint: #8b8b94;
+    --sd-ink-inverse: #18181b;
+    --sd-brand: #3b5bdb;
+    --sd-brand-ink: #ffffff;
+    --sd-brand-text: #8ea2ff;
+    --sd-brand-wash: #191d33;
+    --sd-rec: #f03e3e;
+    --sd-rec-text: #ff8787;
+    --sd-rec-wash: #2c1517;
+    --sd-guard: #f5a524;
+    --sd-guard-ink: #1a1205;
+    --sd-guard-text: #f5a524;
+    --sd-guard-wash: #2a1f0d;
+    --sd-ok: #5fcf97;
+    --sd-ok-fill: #2f9e66;
+    --sd-ok-wash: #10251a;
+    --sd-danger: #ff8a80;
+    --sd-danger-fill: #d92d20;
+    --sd-danger-wash: #2d1513;
+    --sd-focus: #8ea2ff;
+    --sd-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
+    --sd-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.07), 0 16px 32px -8px rgb(0 0 0 / 0.6);
   }
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --desk-canvas: #0d1720;
-  --desk-surface: #13202b;
-  --desk-sunken: #0a121a;
-  --desk-rule: #263847;
-  --desk-rule-strong: #3a4f61;
-  --desk-ink: #ece5d6;
-  --desk-ink-muted: #a39e92;
-  --desk-ink-faint: #7f8a93;
-  --desk-signal: #f0b44c;
-  --desk-signal-ink: #1a1205;
-  --desk-signal-text: #f0b44c;
-  --desk-signal-wash: #2e2410;
-  --desk-ok: #7fb8a4;
-  --desk-ok-wash: #142a24;
-  --desk-stop: #e26d5a;
-  --desk-stop-wash: #2d1714;
-  --desk-focus: #f0b44c;
-  --desk-elevation: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  --sd-canvas: #0c0c0e;
+  --sd-surface: #131316;
+  --sd-raised: #1a1a1e;
+  --sd-sunken: #0f0f11;
+  --sd-hover: #1c1c20;
+  --sd-selected: #232328;
+  --sd-rule: #24242a;
+  --sd-rule-strong: #34343b;
+  --sd-ink: #ededef;
+  --sd-ink-muted: #a1a1aa;
+  --sd-ink-faint: #8b8b94;
+  --sd-ink-inverse: #18181b;
+  --sd-brand: #3b5bdb;
+  --sd-brand-ink: #ffffff;
+  --sd-brand-text: #8ea2ff;
+  --sd-brand-wash: #191d33;
+  --sd-rec: #f03e3e;
+  --sd-rec-text: #ff8787;
+  --sd-rec-wash: #2c1517;
+  --sd-guard: #f5a524;
+  --sd-guard-ink: #1a1205;
+  --sd-guard-text: #f5a524;
+  --sd-guard-wash: #2a1f0d;
+  --sd-ok: #5fcf97;
+  --sd-ok-fill: #2f9e66;
+  --sd-ok-wash: #10251a;
+  --sd-danger: #ff8a80;
+  --sd-danger-fill: #d92d20;
+  --sd-danger-wash: #2d1513;
+  --sd-focus: #8ea2ff;
+  --sd-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sd-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.07), 0 16px 32px -8px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
-  --color-canvas: var(--desk-canvas);
-  --color-surface: var(--desk-surface);
-  --color-sunken: var(--desk-sunken);
-  --color-rule: var(--desk-rule);
-  --color-rule-strong: var(--desk-rule-strong);
-  --color-ink: var(--desk-ink);
-  --color-ink-muted: var(--desk-ink-muted);
-  --color-ink-faint: var(--desk-ink-faint);
-  --color-signal: var(--desk-signal);
-  --color-signal-ink: var(--desk-signal-ink);
-  --color-signal-text: var(--desk-signal-text);
-  --color-signal-wash: var(--desk-signal-wash);
-  --color-ok: var(--desk-ok);
-  --color-ok-wash: var(--desk-ok-wash);
-  --color-stop: var(--desk-stop);
-  --color-stop-wash: var(--desk-stop-wash);
-  --color-focus: var(--desk-focus);
+  --color-canvas: var(--sd-canvas);
+  --color-surface: var(--sd-surface);
+  --color-raised: var(--sd-raised);
+  --color-sunken: var(--sd-sunken);
+  --color-hover: var(--sd-hover);
+  --color-selected: var(--sd-selected);
+  --color-rule: var(--sd-rule);
+  --color-rule-strong: var(--sd-rule-strong);
+  --color-ink: var(--sd-ink);
+  --color-ink-muted: var(--sd-ink-muted);
+  --color-ink-faint: var(--sd-ink-faint);
+  --color-ink-inverse: var(--sd-ink-inverse);
 
-  /* Fonts are wired in app/layout.tsx via next/font. */
-  --font-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
-  --font-sans: var(--font-atkinson), "Segoe UI", system-ui, sans-serif;
-  --font-mono: var(--font-atkinson-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --color-brand: var(--sd-brand);
+  --color-brand-ink: var(--sd-brand-ink);
+  --color-brand-text: var(--sd-brand-text);
+  --color-brand-wash: var(--sd-brand-wash);
 
-  /* Radius by role, not one radius for everything. */
+  /* "Shadow is listening or asking" is Shadow's own voice, so it is the brand colour. */
+  --color-ask: var(--sd-brand);
+  --color-ask-ink: var(--sd-brand-ink);
+  --color-ask-text: var(--sd-brand-text);
+  --color-ask-wash: var(--sd-brand-wash);
+
+  --color-rec: var(--sd-rec);
+  --color-rec-text: var(--sd-rec-text);
+  --color-rec-wash: var(--sd-rec-wash);
+  --color-guard: var(--sd-guard);
+  --color-guard-ink: var(--sd-guard-ink);
+  --color-guard-text: var(--sd-guard-text);
+  --color-guard-wash: var(--sd-guard-wash);
+  --color-ok: var(--sd-ok);
+  --color-ok-fill: var(--sd-ok-fill);
+  --color-ok-wash: var(--sd-ok-wash);
+  --color-danger: var(--sd-danger);
+  --color-danger-fill: var(--sd-danger-fill);
+  --color-danger-wash: var(--sd-danger-wash);
+  --color-focus: var(--sd-focus);
+
+  /* Fonts are wired in app/layout.tsx via next/font: one sans for everything, one mono for evidence. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* 13px is the default size inside the app (sidebar, tables, controls). */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-ui: 0.8125rem;
+  --text-ui--line-height: 1.25rem;
+
+  /* Radius by role: controls 6px, panels 8px, overlays 12px. */
   --radius-control: 0.375rem;
-  --radius-panel: 0.75rem;
+  --radius-panel: 0.5rem;
+  --radius-overlay: 0.75rem;
   --radius-pill: 999px;
 
-  --shadow-raised: var(--desk-elevation);
+  --shadow-raised: var(--sd-shadow-raised);
+  --shadow-overlay: var(--sd-shadow-overlay);
 
-  /* Motion tokens: enter is slower than exit; nothing loops unless it shows live state. */
-  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-leave: cubic-bezier(0.7, 0, 0.84, 0);
+  /* Motion: 100 / 150 / 200ms only. Enter decelerates, exit accelerates. */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-arrive: cubic-bezier(0.2, 0, 0, 1);
+  --ease-leave: cubic-bezier(0.4, 0, 1, 1);
+
+  --animate-rec-pulse: sd-rec-pulse 1.6s ease-in-out infinite;
+  --animate-shimmer: sd-shimmer 1.4s ease-in-out infinite;
+  --animate-fade-in: sd-fade-in 150ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-pop-in: sd-pop-in 150ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-slide-in-left: sd-slide-in-left 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes sd-rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes sd-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes sd-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sd-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+@keyframes sd-slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
 }
 
 @layer base {
   html {
-    background-color: var(--desk-canvas);
-    color: var(--desk-ink);
+    background-color: var(--sd-canvas);
+    color: var(--sd-ink);
     -webkit-text-size-adjust: 100%;
-    text-rendering: optimizeLegibility;
   }
 
   body {
-    background-color: var(--desk-canvas);
-    color: var(--desk-ink);
+    background-color: var(--sd-canvas);
+    color: var(--sd-ink);
     font-family: var(--font-sans);
-    font-feature-settings: "kern";
+    font-feature-settings: "calt", "cv11";
   }
 
   ::selection {
-    background-color: var(--desk-signal-wash);
-    color: var(--desk-ink);
+    background-color: var(--sd-brand-wash);
+    color: var(--sd-ink);
   }
 
-  /* One focus treatment everywhere: a 2px ring offset from the element. */
+  /* One focus treatment everywhere: a 2px brand ring, 2px off the element. */
   :focus-visible {
-    outline: 2px solid var(--desk-focus);
-    outline-offset: 3px;
-    border-radius: 2px;
+    outline: 2px solid var(--sd-focus);
+    outline-offset: 2px;
   }
 
-  /* Reduced motion is handled per component (Reveal, VoiceOrb), so meaning survives it. */
+  dialog::backdrop {
+    background: rgb(9 9 11 / 0.48);
+  }
+
+  /* Reduced motion: no loops, no travel. State still changes; it just does not animate. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion override must beat component utilities */
+      animation-duration: 0.01ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion override must beat component utilities */
+      animation-iteration-count: 1 !important;
+      /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion override must beat component utilities */
+      transition-duration: 0.01ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion override must beat component utilities */
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Tabular, slashed-zero figures for timers, counts and ids. */
+  .figures {
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
 }

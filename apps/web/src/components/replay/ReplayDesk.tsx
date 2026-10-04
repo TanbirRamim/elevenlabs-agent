@@ -107,7 +107,7 @@ function TicketBody({ ticket, view }: { ticket: PublicTicket; view: DeskView }) 
             className={cx(
               "rounded-pill border px-2 py-px font-mono text-xs",
               tag.includes("chargeback")
-                ? "border-transparent bg-stop-wash text-stop"
+                ? "border-transparent bg-danger-wash text-danger"
                 : "border-rule text-ink-muted",
             )}
           >
@@ -145,7 +145,7 @@ function TicketBody({ ticket, view }: { ticket: PublicTicket; view: DeskView }) 
                 pressed || done
                   ? "border-ink bg-ink text-canvas"
                   : blocked
-                    ? "border-signal text-ink"
+                    ? "border-guard text-ink"
                     : "border-rule-strong text-ink-muted",
                 committed && !done && "opacity-45",
               )}
@@ -166,9 +166,9 @@ function DeskStatus({ view, committed }: { view: DeskView; committed: Outcome | 
     return (
       <p
         role="status"
-        className="relative overflow-hidden rounded-control bg-signal-wash py-2.5 pr-3 pl-4 text-[0.9375rem] text-ink"
+        className="relative overflow-hidden rounded-control bg-guard-wash py-2.5 pr-3 pl-4 text-[0.9375rem] text-ink"
       >
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-signal" />
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-guard" />
         <span className="font-medium">Paused by Shadow</span>
         <span className="text-ink-muted">
           {" "}

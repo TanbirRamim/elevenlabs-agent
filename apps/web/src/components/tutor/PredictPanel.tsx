@@ -32,10 +32,10 @@ export function PredictPanel({
       aria-label="Predict the decision"
       className="relative overflow-hidden rounded-panel border border-rule bg-surface px-5 py-5 sm:px-6"
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-signal" />
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-        <span className="inline-flex items-center gap-2 text-signal-text">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-signal" />
+        <span className="inline-flex items-center gap-2 text-ask-text">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-ask" />
           Shadow asks
         </span>
         <span>
@@ -43,7 +43,7 @@ export function PredictPanel({
           <span className="font-mono text-[0.8125rem] text-ink">{ticketId}</span>
         </span>
       </p>
-      <h2 className="mt-2 font-display text-[1.5rem] leading-snug font-normal tracking-[-0.01em] text-ink">
+      <h2 className="mt-2 text-base leading-snug font-semibold text-ink">
         What would you do here, and why?
       </h2>
       <p className="mt-1.5 max-w-[42rem] text-[0.9375rem] leading-relaxed text-ink-muted">
@@ -60,7 +60,7 @@ export function PredictPanel({
               {ACTION_LABELS[result.expectedOutcome]}
             </Badge>
           </p>
-          <blockquote className="mt-3 font-display text-[1.25rem] leading-snug text-pretty text-ink italic">
+          <blockquote className="mt-3 text-base leading-snug text-pretty text-ink">
             “{result.reasonQuote}”
           </blockquote>
         </div>
@@ -82,7 +82,7 @@ export function PredictPanel({
           </div>
         </fieldset>
       )}
-      {error && <p className="mt-3 text-sm text-stop">{error}</p>}
+      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
     </section>
   );
 }

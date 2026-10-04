@@ -9,7 +9,7 @@ export function AgentsStage() {
   return (
     <div className="grid gap-10 lg:grid-cols-12 lg:gap-10">
       <div className="lg:col-span-6">
-        <h3 className="max-w-[14ch] font-display text-[2.75rem] leading-[1.02] font-normal tracking-[-0.025em] text-balance text-ink sm:text-[4rem]">
+        <h3 className="max-w-[14ch] text-xl leading-tight font-semibold text-balance text-ink">
           People first, then agents.
         </h3>
         <p className="mt-6 max-w-[34rem] text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
@@ -52,7 +52,7 @@ export function AgentsStage() {
                     {r.effect.toLowerCase().replace("_", " ")}
                     {r.expectedOutcome ? `, route to ${ACTION_LABELS[r.expectedOutcome]}` : ""}
                   </p>
-                  <p className="mt-1.5 font-display text-[1.0625rem] leading-snug text-ink-muted italic">
+                  <p className="mt-1.5 text-[1.0625rem] leading-snug text-ink-muted">
                     “{g.evidence.quote.text}”
                   </p>
                 </div>

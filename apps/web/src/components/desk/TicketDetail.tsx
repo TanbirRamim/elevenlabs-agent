@@ -31,7 +31,7 @@ export function TagList({ tags, size = "md" }: { tags: string[]; size?: "sm" | "
         return (
           <li key={tag}>
             <Badge
-              tone={risk ? "stop" : "neutral"}
+              tone={risk ? "danger" : "neutral"}
               dot={risk}
               className={cx(
                 size === "md" ? "px-3! py-1! text-[0.9375rem]!" : "text-sm!",
@@ -52,7 +52,7 @@ export function TicketDetail({ ticket }: { ticket: PublicTicket }) {
   return (
     <article className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <h2 className="font-display text-[1.75rem] leading-[1.15] font-normal tracking-[-0.01em] text-balance text-ink sm:text-[2rem]">
+        <h2 className="text-base leading-tight font-semibold text-balance text-ink">
           <span className="mr-3 align-[0.2em] font-mono text-base tracking-normal text-ink-faint">
             {ticket.id}
           </span>
@@ -89,7 +89,7 @@ export function TicketDetail({ ticket }: { ticket: PublicTicket }) {
           <div className="flex flex-col gap-1">
             <dt className="text-sm text-ink-muted">Amount</dt>
             {ticket.amountEur !== undefined ? (
-              <dd className="font-display text-[2.5rem] leading-none tabular-nums text-ink">
+              <dd className="text-xl leading-none font-semibold tabular-nums text-ink">
                 {formatEur(ticket.amountEur)}
               </dd>
             ) : (

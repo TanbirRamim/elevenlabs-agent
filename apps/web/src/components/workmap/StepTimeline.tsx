@@ -33,7 +33,7 @@ export function StepTimeline({
                 selected
                   ? "border-ink bg-ink text-canvas"
                   : step.judgmentCall
-                    ? "border-signal bg-signal-wash text-signal-text"
+                    ? "border-ink-muted bg-sunken text-ink"
                     : "border-rule-strong bg-canvas text-ink-muted",
               )}
             >

@@ -10,6 +10,7 @@ export type SectionHeadingProps = {
   className?: string;
 };
 
+/** Marketing-page section heading (landing, demo): 24–30px semibold sans. Not for in-app pages. */
 export function SectionHeading({
   title,
   description,
@@ -18,17 +19,15 @@ export function SectionHeading({
   className,
 }: SectionHeadingProps) {
   return (
-    <div className={cx("max-w-[38rem]", className)}>
+    <div className={cx("max-w-[36rem]", className)}>
       <Heading
         id={id}
-        className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-balance text-ink sm:text-[2.5rem]"
+        className="text-2xl leading-tight font-semibold tracking-[-0.02em] text-balance text-ink sm:text-[1.75rem]"
       >
         {title}
       </Heading>
       {description ? (
-        <p className="mt-4 text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
-          {description}
-        </p>
+        <p className="mt-3 text-base leading-relaxed text-pretty text-ink-muted">{description}</p>
       ) : null}
     </div>
   );

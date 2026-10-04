@@ -304,7 +304,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
           )}
         </div>
         {problem && (
-          <p className="rounded-panel border border-stop/40 bg-stop-wash px-4 py-3 text-[0.9375rem] text-stop">
+          <p className="rounded-panel border border-danger/40 bg-danger-wash px-4 py-3 text-[0.9375rem] text-danger">
             {problem}
           </p>
         )}

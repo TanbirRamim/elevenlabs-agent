@@ -41,11 +41,11 @@ export function InterventionPanel({
     >
       <span
         aria-hidden="true"
-        className={cx("absolute inset-y-0 left-0 w-1", resolved ? "bg-ok" : "bg-signal")}
+        className={cx("absolute inset-y-0 left-0 w-1", resolved ? "bg-ok" : "bg-guard")}
       />
       <div className="px-5 pt-5 pb-6 sm:px-8 sm:pt-6 sm:pb-8">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-ink-muted">
-          <Badge tone={resolved ? "ok" : "signal"} dot>
+          <Badge tone={resolved ? "ok" : "guard"} dot>
             {resolved ? "Resolved" : "Guardrail"}
           </Badge>
           <span>
@@ -54,7 +54,7 @@ export function InterventionPanel({
           </span>
         </div>
 
-        <h2 className="mt-4 max-w-[24ch] font-display text-[1.875rem] leading-[1.1] font-normal tracking-[-0.02em] text-balance text-ink sm:text-[2.5rem]">
+        <h2 className="mt-4 max-w-[24ch] text-lg leading-tight font-semibold text-balance text-ink">
           {expertName} would stop here. Why do you think?
         </h2>
 
@@ -84,7 +84,7 @@ export function InterventionPanel({
           <div className="flex flex-col gap-1.5">
             <dt className="text-sm text-ink-muted">You chose</dt>
             <dd>
-              <Badge tone="stop">{ACTION_LABELS[payload.attemptedOutcome]}</Badge>
+              <Badge tone="danger">{ACTION_LABELS[payload.attemptedOutcome]}</Badge>
             </dd>
           </div>
           {payload.expectedOutcome && (

@@ -63,7 +63,7 @@ export function MapStage({ frame }: { frame: MapFrame }) {
                         g.status === "answered"
                           ? "border-ok bg-ok-wash text-ok"
                           : g.status === "asking"
-                            ? "border-signal bg-signal-wash"
+                            ? "border-ask bg-ask-wash"
                             : "border-rule-strong",
                       )}
                     >
@@ -73,7 +73,7 @@ export function MapStage({ frame }: { frame: MapFrame }) {
                   </span>
                   <span className="shrink-0 text-sm">
                     {g.status === "asking" ? (
-                      <span className="text-signal-text">Asking</span>
+                      <span className="text-ask-text">Asking</span>
                     ) : g.status === "answered" ? (
                       <span className="text-ok">Answered</span>
                     ) : (
