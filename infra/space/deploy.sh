@@ -7,6 +7,8 @@
 # The bundle is a small, text-only subset of the committed repo (what infra/space/Dockerfile
 # COPYs) with that Dockerfile and infra/space/README.md (the Space card) at its root.
 # It is taken from HEAD with `git archive`, so uncommitted files and .env never leave the machine.
+# Recordings in seed/boot/recordings (*.webm) are binary: Hugging Face only accepts them through
+# Git LFS, so --push needs `git lfs` installed when any are committed.
 # Pushing asks for a username and password: use your Hugging Face username and a token
 # with write access (https://huggingface.co/settings/tokens).
 set -euo pipefail
@@ -31,6 +33,14 @@ echo "Bundle for $commit: $out"
 if [ -n "$space" ]; then
   cd "$out"
   git init -q -b main
+  if [ -n "$(find seed/boot -name '*.webm' 2>/dev/null)" ]; then
+    git lfs version >/dev/null 2>&1 || {
+      echo "seed/boot has .webm recordings: install Git LFS (https://git-lfs.com) and retry" >&2
+      exit 1
+    }
+    git lfs install --local >/dev/null
+    git lfs track "*.webm" >/dev/null
+  fi
   git add -A
   git -c user.name="${GIT_AUTHOR_NAME:-shadow-deploy}" -c user.email="${GIT_AUTHOR_EMAIL:-deploy@localhost}" \
     commit -q -m "Deploy Shadow API from $commit"
