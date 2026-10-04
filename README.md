@@ -1,14 +1,16 @@
-# Shadow
+# Singoda AI
 
 [![CI](https://github.com/TanbirRamim/elevenlabs-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/TanbirRamim/elevenlabs-agent/actions/workflows/ci.yml)
 
-**Shadow learns why a senior support lead makes each decision, and stops a new hire from making the wrong one before it is saved.**
+**Singoda AI learns why a senior support lead makes each decision, and stops a new hire from making the wrong one before it is saved.**
 
 Hack-Nation × ElevenLabs, Challenge 01 "The AI Apprentice" ([brief](docs/challenge-brief.pdf)).
 
-- Live app: https://shadow-web-meow-4acb.vercel.app (the API runs from a laptop during demos, see [deploying](docs/DEPLOY.md))
-- 90-second replay: [/demo](https://shadow-web-meow-4acb.vercel.app/demo)
-- Sample Work Map: [/map/latest?fixture=1](https://shadow-web-meow-4acb.vercel.app/map/latest?fixture=1)
+- Live app: https://shadow-web.tanbirramim420.workers.dev (Cloudflare Workers, auto-deployed from `main`)
+- Live API: https://shadow-api-8hvl.onrender.com (Render free tier, kept awake by [`keep-api-awake.yml`](.github/workflows/keep-api-awake.yml); see [deploying](docs/DEPLOY.md))
+- Repository and package names still say `shadow`; the product is Singoda AI.
+- 90-second replay: [/demo](https://shadow-web.tanbirramim420.workers.dev/demo)
+- Sample Work Map: [/map/latest?fixture=1](https://shadow-web.tanbirramim420.workers.dev/map/latest?fixture=1)
 - Requirement-by-requirement proof: [docs/EVIDENCE.md](docs/EVIDENCE.md)
 
 ## Capture → Map → Teach
@@ -20,17 +22,17 @@ Hack-Nation × ElevenLabs, Challenge 01 "The AI Apprentice" ([brief](docs/challe
 
 ## Watch it work (90 s)
 
-[/demo](https://shadow-web-meow-4acb.vercel.app/demo) plays the whole story in four chapters. It is a replay, and it says so on screen. It is not hand-animated: the replay steps through a scripted session and asks a question only where the real Turn Gate (`decide()` in [`lib/turnGate.ts`](apps/web/src/lib/turnGate.ts)) opens. Tickets come from [`seed/tickets.json`](seed/tickets.json) and the expert's words from the sample Work Map ([`replay/script.ts`](apps/web/src/components/replay/script.ts), 17 tests in [`script.test.ts`](apps/web/src/components/replay/script.test.ts)).
+[/demo](https://shadow-web.tanbirramim420.workers.dev/demo) plays the whole story in four chapters. It is a replay, and it says so on screen. It is not hand-animated: the replay steps through a scripted session and asks a question only where the real Turn Gate (`decide()` in [`lib/turnGate.ts`](apps/web/src/lib/turnGate.ts)) opens. Tickets come from [`seed/tickets.json`](seed/tickets.json) and the expert's words from the sample Work Map ([`replay/script.ts`](apps/web/src/components/replay/script.ts), 17 tests in [`script.test.ts`](apps/web/src/components/replay/script.test.ts)).
 
-## How Shadow answers the Apprentice Test
+## How Singoda AI answers the Apprentice Test
 
-**1. When to ask.** A pure function decides when Shadow may speak: 1.5 s of silence, 3 s without typing, 2.5 s of a still screen, a candidate with priority at least 0.6, at most 5 questions per 10 minutes and 30 s apart. The model decides how to phrase a question, never when. Gate: [`turnGate.ts`](apps/web/src/lib/turnGate.ts) (7 tests in [`turnGate.test.ts`](apps/web/src/lib/turnGate.test.ts)), run every 250 ms by [`useTurnGate.ts`](apps/web/src/lib/gate/useTurnGate.ts); the [insight panel](apps/web/src/components/insight/InsightPanel.tsx) shows why the gate is closed.
+**1. When to ask.** A pure function decides when Singoda AI may speak: 1.5 s of silence, 3 s without typing, 2.5 s of a still screen, a candidate with priority at least 0.6, at most 5 questions per 10 minutes and 30 s apart. The model decides how to phrase a question, never when. Gate: [`turnGate.ts`](apps/web/src/lib/turnGate.ts) (7 tests in [`turnGate.test.ts`](apps/web/src/lib/turnGate.test.ts)), run every 250 ms by [`useTurnGate.ts`](apps/web/src/lib/gate/useTurnGate.ts); the [insight panel](apps/web/src/components/insight/InsightPanel.tsx) shows why the gate is closed.
 
 **2. What to ask.** Every decision opens gaps: guardrail, reason, exception, and an escalation contact for handoffs. Each gap scores `slotWeight × surprise × (1 − screenAnswerable) × recency`, so a question the screen already answers scores 0. Decayed gaps go to the debrief, with probes for fraud, legal and engineering cases the expert never showed. See [`ledger.ts`](apps/api/src/curiosity/ledger.ts), [`engine.ts`](apps/api/src/curiosity/engine.ts), [`probes.ts`](apps/api/src/curiosity/probes.ts) (13 tests).
 
-**3. When it has understood.** The debrief stops when coverage is at least 0.9, no open question has priority 0.7 or more, and at least three questions were answered (hard cap: 8). Each answer rebuilds and re-verifies the map. Shadow then reads back a teach-back; the expert confirms or corrects it (at most two rounds). Last, Shadow predicts two variant cases derived from the map's rules. API: [`routes/debrief.ts`](apps/api/src/routes/debrief.ts) (8 tests); browser state machine: [`debrief/machine.ts`](apps/web/src/components/debrief/machine.ts) (20 tests).
+**3. When it has understood.** The debrief stops when coverage is at least 0.9, no open question has priority 0.7 or more, and at least three questions were answered (hard cap: 8). Each answer rebuilds and re-verifies the map. Singoda AI then reads back a teach-back; the expert confirms or corrects it (at most two rounds). Last, Singoda AI predicts two variant cases derived from the map's rules. API: [`routes/debrief.ts`](apps/api/src/routes/debrief.ts) (8 tests); browser state machine: [`debrief/machine.ts`](apps/web/src/components/debrief/machine.ts) (20 tests).
 
-**4. Whether the new hire learned.** The new hire works tickets Shadow never saw the expert handle. Predictions and guard verdicts are recorded per session. The mastery report is computed from them, not stored: each step or guardrail is independent, assisted or missed, with what to practise next. See [`mastery/compute.ts`](apps/api/src/mastery/compute.ts) (9 tests, including the scripted N1/N2 session) and [`MasteryReport.tsx`](apps/web/src/components/tutor/MasteryReport.tsx).
+**4. Whether the new hire learned.** The new hire works tickets Singoda AI never saw the expert handle. Predictions and guard verdicts are recorded per session. The mastery report is computed from them, not stored: each step or guardrail is independent, assisted or missed, with what to practise next. See [`mastery/compute.ts`](apps/api/src/mastery/compute.ts) (9 tests, including the scripted N1/N2 session) and [`MasteryReport.tsx`](apps/web/src/components/tutor/MasteryReport.tsx).
 
 **5. Trust.** Off the record by button, `Alt+O` or voice; nothing from that span is stored. The transcript and screen frames are redacted with Presidio before they are stored and before Claude sees them. The expert can delete any step or guardrail before publishing. Details below.
 
@@ -47,7 +49,7 @@ What the code does:
 - **Customer PII stays out of the judge prompt.** The guard judge receives the case (plan, VIP flag, account age, ticket, action), not the customer's name or email (test "sends the judge the case, not the customer's name or email" in [`judge.test.ts`](apps/api/src/llm/judge.test.ts)).
 - **Keys stay on servers.** The ElevenLabs API key signs a short-lived conversation URL in [`signed-url/route.ts`](apps/web/src/app/api/eleven/signed-url/route.ts) and never reaches the browser. A secret scan runs in the pre-commit hook and in CI.
 
-Live speech goes to the ElevenLabs agent, as in any voice call. Presidio redaction covers the transcript and frames Shadow stores and every Claude call built from them. The guard judge sees ticket content, but not the customer's name or email.
+Live speech goes to the ElevenLabs agent, as in any voice call. Presidio redaction covers the transcript and frames Singoda AI stores and every Claude call built from them. The guard judge sees ticket content, but not the customer's name or email.
 
 ## Engineering
 
@@ -61,6 +63,8 @@ Measured on `main` at commit `9897f32` on 2026-10-04:
 | Tutor eval (`pnpm eval:tutor seed/fixtures/workmap.json`, judge off: no key in this environment) | N1 caught, **0/12** false blocks, **5/7** caught overall, held-out **3/5** (target 80 %, so the command exits 1). Both misses are cases the sample map has no guardrail for; see [EVIDENCE](docs/EVIDENCE.md#tutor-eval-on-the-sample-map). |
 | CI ([`ci.yml`](.github/workflows/ci.yml)) | 3 jobs: `verify` (secret scan, lint, typecheck, tests, guard eval, build), `cloudflare-build`, `ownership` (PRs only) |
 | Merged pull requests | 39 |
+| Production smoke (`pnpm smoke:prod` against the live Cloudflare web app, 2026-10-04) | **13/13 pass**: signed URLs for both agents, capture preflight ready, teach holds N1 with G4,G1 in about 3.3 s and predicts on N2, map quotes, copilot safety stats. Runs every 30 min in [`prod-smoke.yml`](.github/workflows/prod-smoke.yml). |
+| Live Claude pipeline (`node scripts/smoke-real.mjs --api https://shadow-api-8hvl.onrender.com`, 2026-10-04) | **all pass**: capture with 29 vision events, 5 candidate questions, 3 asked; `/end` built the map; 8 debrief answers (p50 27 ms); teach-back confirmed; evidence verified (4 steps, 11 guardrails, 0 failed evidence); N1 refund BLOCK; mastery; copilot with the judge on. |
 
 - **Contracts.** Every shape that crosses a boundary is a Zod schema in [`packages/schema`](packages/schema/src/index.ts), shared by web and API. WebSocket messages are validated on both ends ([`protocol.ts`](packages/schema/src/protocol.ts)); the web client validates every request and response ([`api.ts`](apps/web/src/lib/api.ts)).
 - **Ownership CI.** [`ownership.json`](ownership.json) maps every path to an owner; [`check-ownership.mjs`](scripts/check-ownership.mjs) fails a PR that edits another owner's files without a `shared-change` label.
@@ -174,7 +178,7 @@ Without `ANTHROPIC_API_KEY` the debrief routes answer `503 llm_unavailable`, fra
 
 ## Moonshot: people first, then agents
 
-The Work Map that taught the new hire can run as an agent policy. `GET /workmaps/:id/export?format=agent` turns it into a system prompt plus machine rules. [`/copilot`](https://shadow-web-meow-4acb.vercel.app/copilot) runs that policy in shadow mode over the 10 held-out tickets with the same guard as the teach page, and hands blocks, approvals, stop-and-ask rules and judgment calls to a human. Safety policy: it never takes an irreversible money action alone, so a refund with no rule clearing it goes to a person ([`routes/export.ts`](apps/api/src/routes/export.ts), 8 tests; [`CopilotView.tsx`](apps/web/src/components/copilot/CopilotView.tsx)). On the sample map without a key it agrees with the answer key on 6 of 10 tickets, hands 6 to a human and makes 1 unsafe auto-action, against 5 for the default action without the map. The order is the point: the agent learns from a person, and people learn first.
+The Work Map that taught the new hire can run as an agent policy. `GET /workmaps/:id/export?format=agent` turns it into a system prompt plus machine rules. [`/copilot`](https://shadow-web.tanbirramim420.workers.dev/copilot) runs that policy in shadow mode over the 10 held-out tickets with the same guard as the teach page, and hands blocks, approvals, stop-and-ask rules and judgment calls to a human. Safety policy: it never takes an irreversible money action alone, so a refund with no rule clearing it goes to a person ([`routes/export.ts`](apps/api/src/routes/export.ts), 8 tests; [`CopilotView.tsx`](apps/web/src/components/copilot/CopilotView.tsx)). On the sample map without a key it agrees with the answer key on 6 of 10 tickets, hands 6 to a human and makes 1 unsafe auto-action, against 5 for the default action without the map. The order is the point: the agent learns from a person, and people learn first.
 
 ## Repository
 

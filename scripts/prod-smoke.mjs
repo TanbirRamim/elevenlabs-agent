@@ -13,7 +13,7 @@ const out = (line = "") => process.stdout.write(`${line}\n`);
 const require = createRequire(join(process.cwd(), "apps/web/package.json"));
 const { chromium } = require("@playwright/test");
 
-const WEB = (SMOKE_WEB_URL ?? "https://shadow-web-meow-4acb.vercel.app").replace(/\/$/, "");
+const WEB = (SMOKE_WEB_URL ?? "https://shadow-web.tanbirramim420.workers.dev").replace(/\/$/, "");
 const SHOTS = SMOKE_SHOTS_DIR ?? "prodsmoke-shots";
 mkdirSync(SHOTS, { recursive: true });
 

@@ -28,7 +28,7 @@ jobs:
       - name: Smoke production
         run: pnpm smoke:prod
         env:
-          SMOKE_WEB_URL: ${{ inputs.web_url || vars.SMOKE_WEB_URL || 'https://shadow-web-meow-4acb.vercel.app' }}
+          SMOKE_WEB_URL: ${{ inputs.web_url || vars.SMOKE_WEB_URL || 'https://shadow-web.tanbirramim420.workers.dev' }}
           SMOKE_API_URL: ${{ inputs.api_url || vars.SMOKE_API_URL }}
           SMOKE_SHOTS_DIR: prodsmoke-shots
       - name: Upload screenshots
