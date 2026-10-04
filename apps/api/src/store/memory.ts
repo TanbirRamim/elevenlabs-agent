@@ -20,12 +20,16 @@ export interface SessionRecord {
 export interface Store {
   createSession(mode: SessionRecord["mode"], workMapId?: string): SessionRecord;
   getSession(id: string): SessionRecord | undefined;
+  /** Draft maps (built at session end, edited during debrief) — distinct from the published one. */
+  saveWorkMap(map: WorkMap): void;
+  getWorkMap(id: string): WorkMap | undefined;
   publishWorkMap(map: WorkMap): void;
   getPublishedWorkMap(): WorkMap | undefined;
 }
 
 export function createMemoryStore(): Store {
   const sessions = new Map<string, SessionRecord>();
+  const drafts = new Map<string, WorkMap>();
   let published: WorkMap | undefined;
   return {
     createSession(mode, workMapId) {
@@ -43,6 +47,10 @@ export function createMemoryStore(): Store {
       return rec;
     },
     getSession: (id) => sessions.get(id),
+    saveWorkMap(map) {
+      drafts.set(map.id, map);
+    },
+    getWorkMap: (id) => drafts.get(id),
     publishWorkMap(map) {
       published = map;
     },
