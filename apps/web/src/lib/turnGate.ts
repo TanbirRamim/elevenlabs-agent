@@ -27,7 +27,10 @@ export const DEFAULT_GATE: GateConfig = {
   silenceMs: 1500,
   inputIdleMs: 3000,
   screenIdleMs: 2500,
-  minGapMs: 90_000,
+  // 30 s, not 90: the demo works four tickets in about 2:30 and must reach 3+ questions; with
+  // a 90 s gap and a 20 s candidate TTL, a ticket's question went stale before the gap opened.
+  // The budget below still caps a session at 5 questions per 10 minutes.
+  minGapMs: 30_000,
   maxPer10Min: 5,
   minPriority: 0.6,
   candidateTtlMs: 20_000,
