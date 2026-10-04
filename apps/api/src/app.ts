@@ -9,10 +9,15 @@ import type { Env } from "./env.js";
 import { loadMockFixtures } from "./mock/fixtures.js";
 import { registerMockRoutes } from "./mock/routes.js";
 import { createMockStreamHooks } from "./mock/stream.js";
+import { createFramePipeline } from "./privacy/frames.js";
 import { createPresidioRedactor, identityRedactor } from "./privacy/presidio.js";
+import { createPresidioImageRedactor } from "./privacy/presidioImage.js";
 import { registerGuardRoutes } from "./routes/guard.js";
+import { registerRecordingRoutes } from "./routes/recording.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerTicketRoutes } from "./routes/tickets.js";
+import { createS3Storage } from "./storage/s3.js";
+import type { ObjectStorage } from "./storage/types.js";
 import { createMemoryStore, type Store } from "./store/memory.js";
 
 export interface AppDeps {
@@ -20,6 +25,8 @@ export interface AppDeps {
   store?: Store;
   fallbackRules?: RuleRef[];
   tickets?: Ticket[];
+  /** Test override: inject a fake ObjectStorage, or null to simulate no storage. */
+  storage?: ObjectStorage | null;
   /** Test override for the global per-IP limit (default 300/min). */
   rateLimitMax?: number;
 }
@@ -29,6 +36,7 @@ export async function buildApp({
   store = createMemoryStore(),
   fallbackRules = [],
   tickets = loadTickets(),
+  storage,
   rateLimitMax = 300,
 }: AppDeps) {
   const app = Fastify({
@@ -57,11 +65,15 @@ export async function buildApp({
   });
 
   app.get("/health", async () => ({ ok: true, model: env.SHADOW_MODEL }));
+  // Recording upload/replay works in both modes (RustFS is local, no AI keys involved).
+  const objectStorage = storage !== undefined ? storage : await createS3Storage(env, app.log);
   registerTicketRoutes(app, tickets);
   registerGuardRoutes(app, store, fallbackRules);
+  registerRecordingRoutes(app, store, objectStorage);
   if (env.MOCK_AI === "1") {
     // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The real
     // debrief/workmap/mastery routes (HAR-9, HAR-12) will register in the else branch.
+    // No storeFrame either: frames cannot be redacted without Presidio, so none are stored.
     const fixtures = loadMockFixtures();
     registerMockRoutes(app, store, fixtures);
     registerSessionRoutes(app, store, {
@@ -69,12 +81,19 @@ export async function buildApp({
       redactText: identityRedactor, // fixture text only, no PII
     });
   } else {
+    const redactImage = createPresidioImageRedactor({
+      url: env.PRESIDIO_IMAGE_REDACTOR_URL,
+      log: app.log,
+    });
     registerSessionRoutes(app, store, {
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,
         anonymizerUrl: env.PRESIDIO_ANONYMIZER_URL,
         log: app.log,
       }),
+      ...(objectStorage
+        ? { storeFrame: createFramePipeline(redactImage, objectStorage, app.log) }
+        : {}),
     });
   }
   return app;
