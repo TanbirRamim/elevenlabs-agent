@@ -15,6 +15,14 @@ export {
   startRecorder,
 } from "./recorder";
 export {
+  fitRect,
+  type RedactedRegion,
+  type RedactedStream,
+  type RedactedStreamOptions,
+  startRedactedStream,
+  toOutput,
+} from "./redactedStream";
+export {
   type CaptureOptions,
   captureFrame,
   type Scale,

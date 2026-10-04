@@ -19,9 +19,12 @@ import {
   pickScreen,
   piiRects,
   type Recorder,
+  type RedactedRegion,
+  type RedactedStream,
   scaleRect,
   startFrameLoop,
   startRecorder,
+  startRedactedStream,
   videoToViewportScale,
 } from "@/lib/capture";
 import { useTurnGate } from "@/lib/gate/useTurnGate";
@@ -57,6 +60,7 @@ export function CaptureSession() {
   const stream = useRef<SessionStream | null>(null);
   const loop = useRef<FrameLoop | null>(null);
   const recorder = useRef<Recorder | null>(null);
+  const redacted = useRef<RedactedStream | null>(null);
   const media = useRef<MediaStream | null>(null);
   const video = useRef<HTMLVideoElement | null>(null);
   const offRecordRef = useRef(false);
@@ -219,22 +223,34 @@ export function CaptureSession() {
       v.srcObject = screen;
       await v.play();
       startedAt.current = Date.now();
-      recorder.current = startRecorder(screen);
+      // One region for frames and recording: DeskSim only, PII blacked out.
+      const region = (): RedactedRegion | null => {
+        const root = document.getElementById(DESK_ROOT_ID);
+        const scale = videoToViewportScale(v);
+        if (!root || !scale) return null;
+        const box = root.getBoundingClientRect();
+        return {
+          crop: scaleRect({ x: box.x, y: box.y, w: box.width, h: box.height }, scale),
+          blackout: piiRects(root, `[${PII_ATTR}]`).map((r) => scaleRect(r, scale)),
+        };
+      };
+      // The raw tab is never recorded; only the redacted canvas is.
+      redacted.current = startRedactedStream(v, { width: 1280, height: 720, getRegion: region });
+      recorder.current = redacted.current ? startRecorder(redacted.current.stream) : null;
       loop.current = startFrameLoop({
         intervalMs: FRAME_INTERVAL_MS,
         hammingThreshold: HAMMING_THRESHOLD,
         clock,
         capture: () => {
-          const root = document.getElementById(DESK_ROOT_ID);
-          const scale = videoToViewportScale(v);
-          if (!root || !scale) return null;
-          const box = root.getBoundingClientRect();
-          return captureFrame(v, {
-            cropToRect: scaleRect({ x: box.x, y: box.y, w: box.width, h: box.height }, scale),
-            blackout: piiRects(root, `[${PII_ATTR}]`).map((r) => scaleRect(r, scale)),
-            maxWidth: 1280,
-            quality: 0.7,
-          });
+          const r = region();
+          return r
+            ? captureFrame(v, {
+                cropToRect: r.crop,
+                blackout: r.blackout,
+                maxWidth: 1280,
+                quality: 0.7,
+              })
+            : null;
         },
         onScreenChange: (tMs) => setLastScreenChangeMs(tMs),
         onFrame: (f) =>
@@ -268,11 +284,17 @@ export function CaptureSession() {
     recorder.current = null;
     if (rec && sessionId) {
       try {
-        await uploadRecording(sessionId, await rec.stop());
+        const blob = await rec.stop();
+        redacted.current?.stop();
+        redacted.current = null;
+        await uploadRecording(sessionId, blob);
       } catch (err) {
         setProblem(`The recording could not be uploaded: ${describeError(err)}`);
       }
     }
+    // Idempotent: also covers "no recorder" and "no session" paths.
+    redacted.current?.stop();
+    redacted.current = null;
   }, [sessionId, voice.stop]);
   endRef.current = end;
 
