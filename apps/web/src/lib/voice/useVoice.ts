@@ -42,11 +42,14 @@ export interface Voice {
   lastUserSpeechMs: number | null;
   start(): Promise<void>;
   stop(): void;
-  /** Hidden instruction to the agent, e.g. sendControl("[ASK]", "Why Security on T4?"). Triggers a reply. */
-  sendControl(prefix: ControlPrefix, payload: string | object): void;
-  /** Screen context; coalesced to one update per 2 s, newest wins. Never triggers a reply. */
+  /**
+   * Hidden instruction to the agent, e.g. sendControl("[ASK]", "Why Security on T4?"). Triggers a
+   * reply. Returns false (and sends nothing) when no voice session is connected.
+   */
+  sendControl(prefix: ControlPrefix, payload: string | object): boolean;
+  /** Screen context; coalesced to one update per 2 s, newest wins. Never triggers a reply. Dropped while disconnected. */
   sendScreen(summary: string, tMs?: number): void;
-  /** Tell the agent the user is busy (typing/clicking) so it holds its turn. */
+  /** Tell the agent the user is busy (typing/clicking) so it holds its turn. No-op while disconnected. */
   markActivity(): void;
   /** Subscribe to user speech signals for the Turn Gate. Returns an unsubscribe. */
   onUserSpeech(cb: (tMs: number) => void): () => void;
@@ -103,11 +106,16 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
     sendUserActivity,
   } = conversation;
 
+  // The SDK throws if anything is sent without an active session (e.g. the expert clicks a
+  // ticket before pressing Start). Outside a session there is nobody to tell, so drop it.
+  const connected = useRef(false);
+  connected.current = status === "connected";
+
   const screen = useRef<Coalescer<string> | null>(null);
   useEffect(() => {
-    screen.current = createCoalescer<string>(SCREEN_COALESCE_MS, (text) =>
-      sendContextualUpdate(text),
-    );
+    screen.current = createCoalescer<string>(SCREEN_COALESCE_MS, (text) => {
+      if (connected.current) sendContextualUpdate(text);
+    });
     return () => screen.current?.dispose();
   }, [sendContextualUpdate]);
 
@@ -139,8 +147,11 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
   }, [endSession]);
 
   const sendControl = useCallback(
-    (prefix: ControlPrefix, payload: string | object) =>
-      sendUserMessage(formatControl(prefix, payload)),
+    (prefix: ControlPrefix, payload: string | object): boolean => {
+      if (!connected.current) return false;
+      sendUserMessage(formatControl(prefix, payload));
+      return true;
+    },
     [sendUserMessage],
   );
   const sendScreen = useCallback(
@@ -148,7 +159,9 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
       screen.current?.push(formatScreenUpdate(tMs ?? now(), summary)),
     [now],
   );
-  const markActivity = useCallback(() => sendUserActivity(), [sendUserActivity]);
+  const markActivity = useCallback(() => {
+    if (connected.current) sendUserActivity();
+  }, [sendUserActivity]);
   const onUserSpeech = useCallback((cb: (tMs: number) => void) => {
     speechListeners.current.add(cb);
     return () => {
