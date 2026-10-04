@@ -24,9 +24,13 @@ export type LoadResult =
   | { source: "api"; map: WorkMap }
   | { source: "fixture"; map: WorkMap; reason: "forced" | "unreachable" };
 
-/** `GET /frames/:frameId.jpg` has no client method (it is an <img src>), so it is built here. */
-export function frameUrl(frameId: string): string {
-  return `${publicEnv.apiUrl}/frames/${encodeURIComponent(frameId)}.jpg`;
+/**
+ * `GET /sessions/:id/frames/:frameId.jpg` has no client method (it is an <img src> / poster),
+ * so it is built here. Frame ids are per session: the API stores them under the session id.
+ */
+export function frameUrl(sessionId: string, frameId: string): string {
+  const seg = encodeURIComponent;
+  return `${publicEnv.apiUrl}/sessions/${seg(sessionId)}/frames/${seg(frameId)}.jpg`;
 }
 
 /**
