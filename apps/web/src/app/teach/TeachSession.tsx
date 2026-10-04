@@ -27,6 +27,7 @@ import {
 import { MasteryReportSlot } from "@/components/tutor/MasteryReportSlot";
 import { PredictPanel } from "@/components/tutor/PredictPanel";
 import { TutorVoicePanel } from "@/components/tutor/TutorVoicePanel";
+import { Button } from "@/components/ui";
 import {
   ApiClientError,
   createSession,
@@ -281,33 +282,31 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const interventionFrame = intervention?.intervention.payload.frameId ?? null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-      <section className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          {phase === "loading" && <p className="text-sm text-neutral-500">Loading…</p>}
-          {phase === "ready" && (
-            <button
-              type="button"
-              onClick={() => void finish()}
-              disabled={ending}
-              className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
-            >
-              Finish and see mastery
-            </button>
-          )}
-          {map && (
-            <p className="text-xs text-neutral-500">
-              Teaching from {map.workflow} · v{map.version} · {expertName}
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
+      <section aria-label="Practice desk" className="flex min-w-0 flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-rule pb-4">
+          {map ? (
+            <p className="text-[0.9375rem] text-ink-muted">
+              Teaching from <span className="text-ink">{map.workflow}</span>, version{" "}
+              <span className="font-mono text-[0.8125rem] text-ink">{map.version}</span>, in{" "}
+              {expertName}'s words.
             </p>
+          ) : phase === "loading" ? (
+            <p className="text-[0.9375rem] text-ink-muted">Loading…</p>
+          ) : null}
+          {phase === "ready" && (
+            <Button variant="secondary" size="sm" onClick={() => void finish()} disabled={ending}>
+              Finish and see mastery
+            </Button>
           )}
         </div>
         {problem && (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          <p className="rounded-panel border border-stop/40 bg-stop-wash px-4 py-3 text-[0.9375rem] text-stop">
             {problem}
           </p>
         )}
         {mapNotice && (
-          <p className="rounded-md bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          <p className="rounded-panel border border-rule-strong bg-sunken px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
             {mapNotice}
           </p>
         )}
@@ -316,7 +315,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
             // biome-ignore lint/suspicious/noArrayIndexKey: warnings are append-only and never reordered
             key={i}
             role="alert"
-            className="rounded-md bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            className="rounded-panel border border-rule-strong bg-sunken px-4 py-3 text-[0.9375rem] leading-relaxed text-ink"
           >
             {w}
           </p>
@@ -343,23 +342,31 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         )}
         {report && <MasteryReportSlot report={report} />}
         {phase !== "loading" && phase !== "failed" && (
-          <DeskSim
-            tickets={tickets}
-            mode="teach"
-            clock={clock}
-            onDeskEvent={onDeskEvent}
-            preSave={onPreSave}
-          />
+          // DeskSim keeps its own fixed two-column layout; on narrow screens it scrolls inside
+          // this frame instead of widening the page.
+          <div className="overflow-x-auto rounded-panel border border-rule bg-sunken p-1.5 sm:p-2">
+            <div className="min-w-[44rem]">
+              <DeskSim
+                tickets={tickets}
+                mode="teach"
+                clock={clock}
+                onDeskEvent={onDeskEvent}
+                preSave={onPreSave}
+              />
+            </div>
+          </div>
         )}
       </section>
-      <TutorVoicePanel
-        status={voice.status}
-        mode={voice.mode}
-        error={voice.error}
-        transcript={voice.transcript}
-        onStart={() => void voice.start()}
-        onStop={voice.stop}
-      />
+      <div className="lg:sticky lg:top-6 lg:self-start">
+        <TutorVoicePanel
+          status={voice.status}
+          mode={voice.mode}
+          error={voice.error}
+          transcript={voice.transcript}
+          onStart={() => void voice.start()}
+          onStop={voice.stop}
+        />
+      </div>
       {replayFrameId && (
         <ClipOverlay
           frameId={replayFrameId}
