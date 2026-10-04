@@ -1,6 +1,13 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { OpenQuestion, ScreenEvent, TranscriptSegment, WorkMap } from "@shadow/schema";
+import {
+  GuardVerdict,
+  OpenQuestion,
+  Outcome,
+  ScreenEvent,
+  TranscriptSegment,
+  WorkMap,
+} from "@shadow/schema";
 import { z } from "zod";
 import type { ObjectStorage } from "../storage/types.js";
 import { createMemoryStore, type SessionRecord, type Store } from "./memory.js";
@@ -23,6 +30,12 @@ const SessionData = z.object({
     }),
   ),
   debriefQueue: z.array(OpenQuestion),
+  // Snapshots written before verdicts were recorded replay with none.
+  guardVerdicts: z
+    .array(
+      z.object({ ticketId: z.string(), outcome: Outcome, verdict: GuardVerdict, at: z.number() }),
+    )
+    .default([]),
   offRecord: z.object({
     on: z.boolean(),
     spans: z.array(z.tuple([z.number(), z.number()])),

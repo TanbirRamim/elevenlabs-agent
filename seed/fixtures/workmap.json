@@ -66,7 +66,7 @@
         "speaker": "expert",
         "source": "live_question"
       },
-      "guardrailIds": ["G3"],
+      "guardrailIds": ["G3", "G4"],
       "judgmentCall": true
     }
   ],
@@ -139,6 +139,22 @@
         },
         "effect": "BLOCK",
         "expectedOutcome": "handoff_security"
+      }
+    },
+    {
+      "id": "G4",
+      "type": "stop_and_ask",
+      "condition": "card used without permission / fraud",
+      "action": "no refund; route to Security",
+      "evidence": {
+        "quote": {
+          "text": "If a customer says their card was used \"without my permission\", that's fraud. Never refund that, it goes to Security first.",
+          "segmentId": "seg_7",
+          "tMs": 660000,
+          "speaker": "expert",
+          "source": "debrief"
+        },
+        "moment": { "tMs": 428000, "frameId": "f_4", "clip": [423000, 433000] }
       }
     },
     {

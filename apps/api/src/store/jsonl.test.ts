@@ -58,6 +58,29 @@ describe("jsonl store", () => {
     expect(reborn.getPublishedWorkMap()?.id).toBe(map.id);
   });
 
+  it("guard verdicts survive a restart, and older snapshots replay with none", async () => {
+    const { dir, store } = await tempStore();
+    const session = store.createSession("teach", "wm_mock_1");
+    session.guardVerdicts.push({
+      ticketId: "N1",
+      outcome: "refund",
+      verdict: { decision: "BLOCK", ruleIds: ["G4"], source: "llm_judge" },
+      at: 5000,
+    });
+    await store.close();
+    // A snapshot written before guardVerdicts existed must still load.
+    const old = { ...session, id: "sess_old" } as Partial<typeof session>;
+    delete old.guardVerdicts;
+    appendFileSync(
+      join(dir, "sessions", "sess_old.jsonl"),
+      `${JSON.stringify({ kind: "session", data: old })}\n`,
+    );
+
+    const { store: reborn } = await tempStore(dir);
+    expect(reborn.getSession(session.id)?.guardVerdicts).toEqual(session.guardVerdicts);
+    expect(reborn.getSession("sess_old")?.guardVerdicts).toEqual([]);
+  });
+
   it("flush only appends when a session actually changed", async () => {
     const { dir, store } = await tempStore();
     const session = store.createSession("capture");

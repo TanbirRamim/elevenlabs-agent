@@ -7,6 +7,7 @@ import { PublicTicket, type Ticket } from "@shadow/schema";
 import Fastify from "fastify";
 import { createCuriosityEngine } from "./curiosity/engine.js";
 import type { Env } from "./env.js";
+import type { JudgeDeps } from "./llm/judge.js";
 import { createLlm } from "./llm/structured.js";
 import { loadMockFixtures } from "./mock/fixtures.js";
 import { registerMockRoutes } from "./mock/routes.js";
@@ -39,6 +40,8 @@ export interface AppDeps {
   llm?: ReturnType<typeof createLlm> | null;
   /** Test seams for the debrief routes (fake map generation / teach-back text). */
   debriefSeams?: Omit<DebriefDeps, "llm">;
+  /** Test seams for the guard judge (fake decide fn / timeout). */
+  judgeSeams?: JudgeDeps;
   /** Test override for the global per-IP limit (default 300/min). */
   rateLimitMax?: number;
 }
@@ -51,6 +54,7 @@ export async function buildApp({
   storage,
   llm: llmOverride,
   debriefSeams,
+  judgeSeams,
   rateLimitMax = 300,
 }: AppDeps) {
   const app = Fastify({
@@ -82,7 +86,16 @@ export async function buildApp({
   // Recording upload/replay works in both modes (RustFS is local, no AI keys involved).
   const objectStorage = storage !== undefined ? storage : await createS3Storage(env, app.log);
   registerTicketRoutes(app, tickets);
-  registerGuardRoutes(app, store, fallbackRules);
+  const llm =
+    llmOverride !== undefined
+      ? llmOverride
+      : env.ANTHROPIC_API_KEY && env.MOCK_AI !== "1"
+        ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL)
+        : null;
+  registerGuardRoutes(app, store, fallbackRules, {
+    llm,
+    ...(judgeSeams ? { judge: judgeSeams } : {}),
+  });
   registerRecordingRoutes(app, store, objectStorage);
   if (env.MOCK_AI === "1") {
     // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The Work Map routes are
@@ -101,12 +114,6 @@ export async function buildApp({
       log: app.log,
     });
     // Without a key, frames are stored (redacted) but never shown to a model.
-    const llm =
-      llmOverride !== undefined
-        ? llmOverride
-        : env.ANTHROPIC_API_KEY
-          ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL)
-          : null;
     const ticketsById = new Map(tickets.map((t) => [t.id, PublicTicket.parse(t)]));
     registerWorkMapRoutes(app, store);
     if (llm) registerDebriefRoutes(app, store, { llm, ...debriefSeams });

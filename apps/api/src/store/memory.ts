@@ -1,4 +1,11 @@
-import type { OpenQuestion, ScreenEvent, TranscriptSegment, WorkMap } from "@shadow/schema";
+import type {
+  GuardVerdict,
+  OpenQuestion,
+  Outcome,
+  ScreenEvent,
+  TranscriptSegment,
+  WorkMap,
+} from "@shadow/schema";
 
 /** A curiosity question the expert answered live (persisted here so HTTP routes can see it). */
 export interface AnsweredQuestionRecord {
@@ -22,6 +29,8 @@ export interface SessionRecord {
   answeredQuestions: AnsweredQuestionRecord[];
   /** Gaps that decayed unanswered; the debrief asks them. */
   debriefQueue: OpenQuestion[];
+  /** Every pre-save verdict in this session (mastery report input, HAR-12). */
+  guardVerdicts: { ticketId: string; outcome: Outcome; verdict: GuardVerdict; at: number }[];
   offRecord: { on: boolean; spans: [number, number][]; since: number | null };
 }
 
@@ -55,6 +64,7 @@ export function createMemoryStore(): Store {
         storedFrameIds: [],
         answeredQuestions: [],
         debriefQueue: [],
+        guardVerdicts: [],
         offRecord: { on: false, spans: [], since: null },
       };
       sessions.set(rec.id, rec);
