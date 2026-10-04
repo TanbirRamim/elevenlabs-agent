@@ -71,31 +71,31 @@ No all-caps labels, no tracked-out eyebrows. Line length ≤ 75ch (`max-w-prose`
 
 ## 4. Colour
 
-All colours are tokens; utilities switch with the scheme, so never write `dark:` for them.
-Scheme follows the OS; `data-theme="light" | "dark"` on `<html>` forces one (theme toggle,
-stored in `localStorage["shadow-theme"]`, applied before paint).
+**Light only.** The site has one colour scheme: light. There is no dark palette, no theme
+toggle and no stored preference; `color-scheme: light` is set on `:root` and the OS
+`prefers-color-scheme` is ignored. All colours are tokens; never write `dark:` classes (the
+variant is bound to an attribute nothing sets, so it never applies).
 
 ### Neutrals (zinc-like)
 
-| Utility | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `bg-canvas` | `#f7f7f8` | `#0c0c0e` | app frame, sidebar, marketing pages |
-| `bg-surface` | `#ffffff` | `#131316` | content panel, cards, inputs |
-| `bg-raised` | `#ffffff` | `#1a1a1e` | dialogs, palette, toasts |
-| `bg-sunken` | `#f4f4f5` | `#0f0f11` | wells, table headers, panel footers |
-| `bg-hover` / `bg-selected` | `#f0f0f2` / `#ebebee` | `#1c1c20` / `#232328` | row hover / current item |
-| `border-rule` / `border-rule-strong` | `#e6e6e9` / `#d4d4d8` | `#24242a` / `#34343b` | hairlines / control borders |
-| `text-ink` | `#18181b` | `#ededef` | primary text, primary button fill |
-| `text-ink-muted` | `#52525b` | `#a1a1aa` | secondary text |
-| `text-ink-faint` | `#6b6b74` | `#8b8b94` | metadata, placeholders |
+| Utility | Value | Use |
+| --- | --- | --- |
+| `bg-canvas` | `#f7f7f8` | app frame, sidebar, marketing pages |
+| `bg-surface` | `#ffffff` | content panel, cards, inputs |
+| `bg-raised` | `#ffffff` | dialogs, palette, toasts |
+| `bg-sunken` | `#f4f4f5` | wells, table headers, panel footers |
+| `bg-hover` / `bg-selected` | `#f0f0f2` / `#ebebee` | row hover / current item |
+| `border-rule` / `border-rule-strong` | `#e6e6e9` / `#d4d4d8` | hairlines / control borders |
+| `text-ink` | `#18181b` | primary text, primary button fill |
+| `text-ink-muted` | `#52525b` | secondary text |
+| `text-ink-faint` | `#6b6b74` | metadata, placeholders |
 
 Contrast (WCAG AA, 4.5:1) is verified for ink, ink-muted and ink-faint on canvas, surface and
-sunken in both schemes. On `bg-selected` (light) use ink or ink-muted, not ink-faint.
+sunken. On `bg-selected` use ink or ink-muted, not ink-faint.
 
 ### One brand colour: Shadow blue
 
-`brand` = `#3b5bdb` (fill, both schemes; white text on it 5.7:1), brand text `#3b5bdb` light /
-`#8ea2ff` dark, wash `#eef2ff` / `#191d33`.
+`brand` = `#3b5bdb` (fill; white text on it 5.7:1), brand text `#3b5bdb`, wash `#eef2ff`.
 
 The brand means **Shadow itself**: the mark, Shadow's avatar, and Shadow listening or asking
 (the `ask` tokens are the brand). It is also the focus ring. It is **not** a "click here"
@@ -234,7 +234,6 @@ Every view that loads data designs all four:
 - `TopBarActions`: portal page actions into the top bar (renders inline outside the shell).
 - `TopBarStatus`: portal the live session status (e.g. `RecordingStatus`, `ListeningIndicator`).
 - `useShell()`: `openPalette`, `openShortcuts`, `toggleSidebar` (null outside the shell).
-- `useTheme()`: `pref`, `resolved`, `setPref`, `toggle`.
 - `START_CAPTURE_HREF` (`/capture?intent=start`): what "Start a capture session" in the
   command menu opens. The Capture page should read `intent=start` and open its preflight.
 
@@ -259,5 +258,5 @@ Pure, presentational, controlled by props; the Capture page owns the state.
 - [ ] Colour used only by meaning (§4); state also in words.
 - [ ] Loading, empty, error and offline states designed (§9).
 - [ ] Keyboard-only pass; focus visible; shortcuts listed if added.
-- [ ] Light and dark checked; 390px checked; reduced motion checked.
+- [ ] Light only (no `dark:` classes); 390px checked; reduced motion checked.
 - [ ] Nothing from §12.

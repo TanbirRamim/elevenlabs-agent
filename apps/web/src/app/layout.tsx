@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { ShellGate } from "@/components/shell/ShellGate";
-import { THEME_INIT_SCRIPT } from "@/components/shell/theme";
 import "./globals.css";
 import { WakeBanner } from "@/components/shell/WakeBanner";
 
@@ -28,20 +27,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0c0e" },
-  ],
+  // Light only: one browser chrome colour (the canvas token) whatever the OS scheme.
+  themeColor: "#f7f7f8",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    // data-theme is set before paint by THEME_INIT_SCRIPT, so the server markup can differ.
-    <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
-      <head>
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, first-party theme bootstrap; avoids a theme flash */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-dvh bg-canvas font-sans text-ink antialiased">
         <a
           href="#content"

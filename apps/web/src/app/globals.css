@@ -3,25 +3,17 @@
 /*
  * Singoda AI design tokens, v2. Rules and rationale: docs/DESIGN.md.
  *
- * Raw values live on :root as --sd-* custom properties and switch with the colour scheme.
- * `@theme inline` maps them to Tailwind utilities (bg-canvas, text-ink, border-rule, bg-rec, …),
- * so a utility always resolves to the current scheme without a `dark:` prefix.
+ * Raw values live on :root as --sd-* custom properties.
+ * `@theme inline` maps them to Tailwind utilities (bg-canvas, text-ink, border-rule, bg-rec, …).
  *
- * Scheme: follows the OS by default; `data-theme="light" | "dark"` on <html> forces one
- * (set by the theme toggle, persisted in localStorage, applied before paint in app/layout.tsx).
+ * Scheme: light only. There is no dark palette and no theme toggle; the OS preference is ignored.
  */
 
-/* `dark:` keeps its default media behaviour and also honours a forced data-theme. */
-@custom-variant dark {
-  @media (prefers-color-scheme: dark) {
-    &:not(:where([data-theme="light"], [data-theme="light"] *)) {
-      @slot;
-    }
-  }
-  &:where([data-theme="dark"], [data-theme="dark"] *) {
-    @slot;
-  }
-}
+/*
+ * Tailwind's default `dark:` variant follows the OS colour scheme. Light only means it must never
+ * apply, so it is bound to an attribute nothing sets. Do not add `dark:` classes.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
   color-scheme: light;
@@ -66,80 +58,6 @@
   --sd-shadow-overlay:
     0 0 0 1px rgb(24 24 27 / 0.06), 0 4px 8px -2px rgb(24 24 27 / 0.06),
     0 16px 32px -8px rgb(24 24 27 / 0.14);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --sd-canvas: #0c0c0e;
-    --sd-surface: #131316;
-    --sd-raised: #1a1a1e;
-    --sd-sunken: #0f0f11;
-    --sd-hover: #1c1c20;
-    --sd-selected: #232328;
-    --sd-rule: #24242a;
-    --sd-rule-strong: #34343b;
-    --sd-ink: #ededef;
-    --sd-ink-muted: #a1a1aa;
-    --sd-ink-faint: #8b8b94;
-    --sd-ink-inverse: #18181b;
-    --sd-brand: #3b5bdb;
-    --sd-brand-ink: #ffffff;
-    --sd-brand-text: #8ea2ff;
-    --sd-brand-wash: #191d33;
-    --sd-rec: #f03e3e;
-    --sd-rec-text: #ff8787;
-    --sd-rec-wash: #2c1517;
-    --sd-guard: #f5a524;
-    --sd-guard-ink: #1a1205;
-    --sd-guard-text: #f5a524;
-    --sd-guard-wash: #2a1f0d;
-    --sd-ok: #5fcf97;
-    --sd-ok-fill: #2f9e66;
-    --sd-ok-wash: #10251a;
-    --sd-danger: #ff8a80;
-    --sd-danger-fill: #d92d20;
-    --sd-danger-wash: #2d1513;
-    --sd-focus: #8ea2ff;
-    --sd-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
-    --sd-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.07), 0 16px 32px -8px rgb(0 0 0 / 0.6);
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --sd-canvas: #0c0c0e;
-  --sd-surface: #131316;
-  --sd-raised: #1a1a1e;
-  --sd-sunken: #0f0f11;
-  --sd-hover: #1c1c20;
-  --sd-selected: #232328;
-  --sd-rule: #24242a;
-  --sd-rule-strong: #34343b;
-  --sd-ink: #ededef;
-  --sd-ink-muted: #a1a1aa;
-  --sd-ink-faint: #8b8b94;
-  --sd-ink-inverse: #18181b;
-  --sd-brand: #3b5bdb;
-  --sd-brand-ink: #ffffff;
-  --sd-brand-text: #8ea2ff;
-  --sd-brand-wash: #191d33;
-  --sd-rec: #f03e3e;
-  --sd-rec-text: #ff8787;
-  --sd-rec-wash: #2c1517;
-  --sd-guard: #f5a524;
-  --sd-guard-ink: #1a1205;
-  --sd-guard-text: #f5a524;
-  --sd-guard-wash: #2a1f0d;
-  --sd-ok: #5fcf97;
-  --sd-ok-fill: #2f9e66;
-  --sd-ok-wash: #10251a;
-  --sd-danger: #ff8a80;
-  --sd-danger-fill: #d92d20;
-  --sd-danger-wash: #2d1513;
-  --sd-focus: #8ea2ff;
-  --sd-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
-  --sd-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.07), 0 16px 32px -8px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
