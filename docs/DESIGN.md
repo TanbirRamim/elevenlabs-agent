@@ -133,6 +133,8 @@ v1 names were renamed across the codebase: `signal*` → `ask*` (listening/askin
   Transform and opacity only. No hover lifts, parallax, animated gradients or bouncing.
 - `prefers-reduced-motion`: a global rule in `globals.css` stops loops and transitions; JS
   animation must check `useReducedMotion()`. State still changes, it just doesn't animate.
+- Exception: the Singoda AI brand mark in the landing hero may use restrained continuous
+  motion (sway/breathe, reduced-motion → static). Nothing else on the page may.
 
 ## 7. Iconography
 

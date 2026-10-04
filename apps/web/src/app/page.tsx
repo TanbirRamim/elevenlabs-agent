@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { HeroMark } from "@/components/brand/HeroMark";
 import { CaptureCrop, MapCrop, TeachCrop } from "@/components/brand/LandingCrops";
 import {
   Avatar,
@@ -100,49 +101,52 @@ function Hero() {
   return (
     <section aria-labelledby="hero-title" className="pt-14 pb-16 sm:pt-20 sm:pb-20">
       <Container>
-        <div className="max-w-3xl">
-          <StatusPill tone="ask">An AI apprentice for support escalations</StatusPill>
-          <h1
-            id="hero-title"
-            className="mt-5 max-w-[22ch] text-[2.25rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance text-ink sm:text-5xl sm:leading-[1.05]"
-          >
-            Your best support lead’s judgment, taught to every new hire.
-          </h1>
-          <p className="mt-5 max-w-[38rem] text-base leading-relaxed text-pretty text-ink-muted sm:text-lg">
-            Singoda AI sits beside your senior lead while they triage, asks why at the moments that
-            matter, and turns the answers into a Work Map that coaches the people who come after
-            them.
-          </p>
-          <ul aria-label="Proof" className="mt-6 flex flex-wrap gap-2">
-            {PROOF_CHIPS.map((c) => (
-              <li
-                key={c}
-                className="rounded-full border border-rule bg-surface px-3 py-1 text-xs text-ink"
-              >
-                {c}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <ButtonLink href="/teach" size="lg" icon={<ShieldCheck aria-hidden="true" />}>
-              See it stop a wrong refund
-            </ButtonLink>
-            <ButtonLink
-              href="/demo"
-              size="lg"
-              variant="secondary"
-              icon={<Play aria-hidden="true" />}
+        <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
+          <HeroMark className="-my-4 -ms-4 w-32 sm:w-40 lg:order-last lg:m-0 lg:w-full" />
+          <div className="max-w-3xl">
+            <StatusPill tone="ask">An AI apprentice for support escalations</StatusPill>
+            <h1
+              id="hero-title"
+              className="mt-5 max-w-[22ch] text-[2.25rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance text-ink sm:text-5xl sm:leading-[1.05]"
             >
-              Watch it work · 90 s
-            </ButtonLink>
-            <ButtonLink href="/map/latest?fixture=1" size="lg" variant="ghost">
-              Open the sample Work Map
-              <ArrowRight aria-hidden="true" />
-            </ButtonLink>
+              Your best support lead’s judgment, taught to every new hire.
+            </h1>
+            <p className="mt-5 max-w-[38rem] text-base leading-relaxed text-pretty text-ink-muted sm:text-lg">
+              Singoda AI sits beside your senior lead while they triage, asks why at the moments
+              that matter, and turns the answers into a Work Map that coaches the people who come
+              after them.
+            </p>
+            <ul aria-label="Proof" className="mt-6 flex flex-wrap gap-2">
+              {PROOF_CHIPS.map((c) => (
+                <li
+                  key={c}
+                  className="rounded-full border border-rule bg-surface px-3 py-1 text-xs text-ink"
+                >
+                  {c}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <ButtonLink href="/teach" size="lg" icon={<ShieldCheck aria-hidden="true" />}>
+                See it stop a wrong refund
+              </ButtonLink>
+              <ButtonLink
+                href="/demo"
+                size="lg"
+                variant="secondary"
+                icon={<Play aria-hidden="true" />}
+              >
+                Watch it work · 90 s
+              </ButtonLink>
+              <ButtonLink href="/map/latest?fixture=1" size="lg" variant="ghost">
+                Open the sample Work Map
+                <ArrowRight aria-hidden="true" />
+              </ButtonLink>
+            </div>
+            <p className="mt-4 text-xs text-ink-faint">
+              Voice by ElevenLabs Agents · reasoning by Claude
+            </p>
           </div>
-          <p className="mt-4 text-xs text-ink-faint">
-            Voice by ElevenLabs Agents · reasoning by Claude
-          </p>
         </div>
 
         <ProductFrame />
