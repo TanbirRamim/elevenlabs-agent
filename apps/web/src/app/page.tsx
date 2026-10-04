@@ -76,6 +76,9 @@ function Hero() {
             Work Map that coaches the people who come after them.
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <ButtonLink href="/demo" size="lg">
+              Watch it work · 90 s
+            </ButtonLink>
             <ButtonLink href="/capture" size="lg">
               Start a capture session
             </ButtonLink>
