@@ -52,7 +52,7 @@ test.describe("Work Map with the sample map (?fixture=1)", () => {
 });
 
 test.describe("Work Map evidence for a recorded session", () => {
-  test("serves the step's frame by session and shows a no-recording state", async ({
+  test("serves the step's frame by session and shows it when there is no recording", async ({
     page,
     request,
   }) => {
@@ -65,19 +65,20 @@ test.describe("Work Map evidence for a recorded session", () => {
     // frames, so this test puts one there itself.
     const dir = new URL(`../../../infra/data/objects/frames/${sessionId}/`, import.meta.url);
     mkdirSync(dir, { recursive: true });
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0xff, 0xd9]);
+    // A decodable JPEG: the player probes frames by loading them as images.
+    const jpeg = readFileSync(new URL("./assets/frame.jpg", import.meta.url));
     writeFileSync(new URL(`${frameId}.jpg`, dir), jpeg);
 
     await page.goto(`/map/latest?fixture=1&session=${sessionId}`);
-    const video = page.getByLabel(/Session clip/);
-    const poster = await video.getAttribute("poster");
-    expect(poster).toBe(`${API_URL}/sessions/${sessionId}/frames/${frameId}.jpg`);
-    const frame = await request.get(poster ?? "");
+    const frameSrc = `${API_URL}/sessions/${sessionId}/frames/${frameId}.jpg`;
+    const frame = await request.get(frameSrc);
     expect(frame.status()).toBe(200);
     expect(frame.headers()["content-type"]).toBe("image/jpeg");
 
-    // The session never uploaded a recording: the player says so instead of a broken element.
-    await expect(page.getByText("The recording could not be loaded")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Play clip" })).toBeDisabled();
+    // The session never uploaded a recording: its stored frame plays instead of a broken player.
+    const still = page.getByRole("img", { name: /^Redacted screen at / }).first();
+    await expect(still).toBeVisible();
+    expect(await still.getAttribute("src")).toBe(frameSrc);
+    await expect(page.getByRole("button", { name: "Play clip" })).toHaveCount(0);
   });
 });
