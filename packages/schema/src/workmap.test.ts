@@ -66,4 +66,12 @@ describe("WorkMap evidence rules", () => {
       false,
     );
   });
+
+  it("keeps sourceSessionId optional and backward compatible", () => {
+    const legacy = WorkMap.parse(base);
+    expect(legacy.sourceSessionId).toBeUndefined();
+    const linked = WorkMap.parse({ ...base, sourceSessionId: "ses_1234" });
+    expect(linked.sourceSessionId).toBe("ses_1234");
+    expect(WorkMap.safeParse({ ...base, sourceSessionId: "" }).success).toBe(false);
+  });
 });
