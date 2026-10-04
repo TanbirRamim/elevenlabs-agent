@@ -114,8 +114,8 @@ describe("curiosity engine", () => {
     engine.stop();
   });
 
-  it("decayed unanswered gaps move to the debrief queue", () => {
-    const { engine } = setup();
+  it("decayed unanswered gaps move to the debrief queue (once the live quota is met)", () => {
+    const { engine } = setup({ liveQuota: 0 });
     engine.onDeskEvent({
       type: "action_committed",
       tMs: 0,
@@ -141,7 +141,7 @@ describe("curiosity engine", () => {
   });
 
   it("a newer top gap replaces the candidate; sub-threshold gaps never send one", async () => {
-    const { sent, engine } = setup();
+    const { sent, engine } = setup({ liveQuota: 0 });
     // T1 reply is unsurprising: guardrail priority 0.5 < 0.6, no candidate.
     engine.onDeskEvent({ type: "action_committed", tMs: 0, ticketId: "T1", outcome: "reply" });
     await flush();
@@ -165,6 +165,134 @@ describe("curiosity engine", () => {
     expect(cs).toHaveLength(2);
     expect(cs[0]?.question.aboutTicketId).toBe("T3");
     expect(cs[1]?.question.aboutTicketId).toBe("T4"); // fresher gap took over
+    engine.stop();
+  });
+});
+
+describe("curiosity engine minimum coverage (until 3 questions are asked live)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("a T1 reply (priority 0.5) still yields an on-screen guardrail candidate", async () => {
+    const { sent, engine } = setup();
+    engine.onDeskEvent({ type: "action_committed", tMs: 5000, ticketId: "T1", outcome: "reply" });
+    await flush();
+    const q = candidates(sent)[0]?.question;
+    expect(q).toMatchObject({ slot: "guardrail", aboutTicketId: "T1" });
+    expect(q?.priority).toBeGreaterThanOrEqual(0.2);
+    engine.stop();
+  });
+
+  it("after a ticket was asked, the next candidate is about another decided ticket", async () => {
+    const { sent, engine } = setup();
+    engine.onDeskEvent({ type: "action_committed", tMs: 5000, ticketId: "T1", outcome: "reply" });
+    await flush();
+    const q1 = candidates(sent)[0]?.question;
+    if (!q1) throw new Error("no candidate");
+    engine.onQuestionAsked(q1.id, 8000);
+    engine.onDeskEvent({
+      type: "action_committed",
+      tMs: 30_000,
+      ticketId: "T2",
+      outcome: "refund",
+    });
+    await flush();
+    const q2 = candidates(sent)[1]?.question;
+    expect(q2).toMatchObject({ aboutTicketId: "T2", slot: "guardrail" });
+    engine.stop();
+  });
+
+  it("never offers a gap the screen already answers, even when behind", async () => {
+    const { sent, engine } = setup({
+      screenAnswers: () => [
+        "T1 banner: never resend to an unverified email (rule)",
+        "T1 reason shown: because the account looks normal",
+        "T1 exception note: unless the invoice is wrong",
+      ],
+    });
+    engine.onDeskEvent({ type: "action_committed", tMs: 5000, ticketId: "T1", outcome: "reply" });
+    await flush();
+    expect(candidates(sent)).toHaveLength(0);
+    engine.stop();
+  });
+
+  it("re-offers an unasked candidate with a fresh time when the expert talked through it", async () => {
+    const { sent, engine } = setup();
+    engine.onDeskEvent({
+      type: "action_committed",
+      tMs: 10_000,
+      ticketId: "T3",
+      outcome: "handoff_billing_disputes",
+    });
+    await flush();
+    engine.onTranscript({
+      id: "seg_talk",
+      tStartMs: 38_000,
+      tEndMs: 40_000,
+      speaker: "expert",
+      text: "Let me pull up the next one.",
+      offRecord: false,
+    });
+    await flush();
+    const cs = candidates(sent);
+    expect(cs).toHaveLength(2);
+    expect(cs[1]?.question.id).toBe(cs[0]?.question.id);
+    expect(cs[1]?.question.createdAtMs).toBe(40_000);
+    engine.stop();
+  });
+
+  it("does not decay gaps before the quota; unasked ones lead the debrief queue", () => {
+    const { session, engine } = setup();
+    engine.onDeskEvent({ type: "action_committed", tMs: 0, ticketId: "T1", outcome: "reply" });
+    engine.onDeskEvent({ type: "input_activity", tMs: 61_000 });
+    expect(engine.openGapCount()).toBeGreaterThan(0);
+    const front = [...session.debriefQueue].sort((a, b) => b.priority - a.priority)[0];
+    expect(front?.priority).toBeGreaterThanOrEqual(0.9);
+    expect(front?.text).toContain("T1");
+    expect(front?.slot).toBe("guardrail");
+    engine.stop();
+  });
+
+  it("a shortfall question the debrief answered is never re-queued", async () => {
+    const { session, engine } = setup();
+    engine.onDeskEvent({ type: "action_committed", tMs: 0, ticketId: "T1", outcome: "reply" });
+    await flush();
+    engine.onDeskEvent({ type: "input_activity", tMs: 61_000 });
+    const front = session.debriefQueue.find((q) => q.priority >= 0.9);
+    if (!front) throw new Error("no shortfall");
+    // debrief.ts removes an answered question from the queue
+    session.debriefQueue = session.debriefQueue.filter((q) => q.id !== front.id);
+    engine.onTranscript({
+      id: "seg_debrief",
+      tStartMs: 62_000,
+      tEndMs: 63_000,
+      speaker: "expert",
+      text: "Only if the invoice itself is wrong would I loop in billing.",
+      offRecord: false,
+    });
+    await flush();
+    expect(session.debriefQueue.some((q) => q.id === front.id)).toBe(false);
+    engine.stop();
+  });
+
+  it("a question asked live leaves the debrief shortfall; 3 asked restores the 0.6 bar", async () => {
+    const { session, sent, engine } = setup();
+    const decide = async (tMs: number, ticketId: string, outcome: "reply" | "refund") => {
+      engine.onDeskEvent({ type: "action_committed", tMs, ticketId, outcome });
+      await flush();
+      const q = candidates(sent).at(-1)?.question;
+      if (!q || q.aboutTicketId !== ticketId) throw new Error(`no candidate for ${ticketId}`);
+      engine.onQuestionAsked(q.id, tMs + 3000);
+      expect(session.debriefQueue.some((d) => d.text === q.text && d.priority >= 0.9)).toBe(false);
+    };
+    await decide(5000, "T1", "reply");
+    await decide(25_000, "T2", "refund");
+    await decide(45_000, "T5", "reply");
+    expect(session.debriefQueue.filter((d) => d.priority >= 0.9)).toHaveLength(0);
+    const before = candidates(sent).length;
+    engine.onDeskEvent({ type: "action_committed", tMs: 65_000, ticketId: "T6", outcome: "reply" });
+    await flush();
+    expect(candidates(sent)).toHaveLength(before); // unsurprising reply: below 0.6 again
     engine.stop();
   });
 });

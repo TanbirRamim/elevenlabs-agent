@@ -21,6 +21,16 @@ export interface GateConfig {
   maxPer10Min: number;
   minPriority: number;
   candidateTtlMs: number;
+  /**
+   * Minimum coverage: until `quota` questions are asked, the gate takes the best on-screen
+   * candidate the Curiosity Engine offers (down to `quotaMinPriority`), waits only
+   * `quotaMinGapMs` between questions and keeps a candidate for `quotaCandidateTtlMs`. The pause
+   * itself (silence, typing, screen), agent speech and off-record rules never relax.
+   */
+  quota: number;
+  quotaMinPriority: number;
+  quotaMinGapMs: number;
+  quotaCandidateTtlMs: number;
 }
 
 export const DEFAULT_GATE: GateConfig = {
@@ -34,6 +44,12 @@ export const DEFAULT_GATE: GateConfig = {
   maxPer10Min: 5,
   minPriority: 0.6,
   candidateTtlMs: 20_000,
+  // The challenge needs >= 3 live questions; a talking expert leaves only short breaths, and
+  // T1/T2 candidates scored under 0.6, so sessions ended with 0-2 questions.
+  quota: 3,
+  quotaMinPriority: 0.2,
+  quotaMinGapMs: 15_000,
+  quotaCandidateTtlMs: 45_000,
 };
 
 export type GateDecision =
@@ -55,7 +71,13 @@ export type GateDecision =
 
 const idleFor = (now: number, last: number | null, ms: number) => last === null || now - last >= ms;
 
+/** True while fewer than `quota` questions were asked this session: the gate relaxes (see GateConfig). */
+export function behindQuota(s: Pick<GateSignals, "questionsAskedMs">, c: GateConfig): boolean {
+  return s.questionsAskedMs.length < c.quota;
+}
+
 export function decide(s: GateSignals, c: GateConfig = DEFAULT_GATE): GateDecision {
+  const behind = behindQuota(s, c);
   if (s.offRecord) return { open: false, reason: "off_record" };
   if (s.agentSpeaking) return { open: false, reason: "agent_speaking" };
   if (!idleFor(s.nowMs, s.lastUserSpeechMs, c.silenceMs))
@@ -65,11 +87,13 @@ export function decide(s: GateSignals, c: GateConfig = DEFAULT_GATE): GateDecisi
   if (!idleFor(s.nowMs, s.lastScreenChangeMs, c.screenIdleMs))
     return { open: false, reason: "screen_changing" };
   if (!s.candidate) return { open: false, reason: "no_candidate" };
-  if (s.candidate.priority < c.minPriority) return { open: false, reason: "low_priority" };
-  if (s.nowMs - s.candidate.createdAtMs > c.candidateTtlMs)
+  if (s.candidate.priority < (behind ? c.quotaMinPriority : c.minPriority))
+    return { open: false, reason: "low_priority" };
+  if (s.nowMs - s.candidate.createdAtMs > (behind ? c.quotaCandidateTtlMs : c.candidateTtlMs))
     return { open: false, reason: "stale_candidate" };
   const last = s.questionsAskedMs.at(-1);
-  if (last !== undefined && s.nowMs - last < c.minGapMs) return { open: false, reason: "too_soon" };
+  if (last !== undefined && s.nowMs - last < (behind ? c.quotaMinGapMs : c.minGapMs))
+    return { open: false, reason: "too_soon" };
   const recent = s.questionsAskedMs.filter((t) => s.nowMs - t < 600_000).length;
   if (recent >= c.maxPer10Min) return { open: false, reason: "budget_spent" };
   return { open: true };

@@ -17,6 +17,7 @@
  *
  * Exit code 0 only when every check passes. Never prints secrets: it only talks to the API.
  */
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -31,13 +32,34 @@ const { values: args } = parseArgs({
     // "truth": send DeskSim DOM events (the API uses them per CAPTURE_SIGNALS; in the default
     // vision mode only for the agreement metric). "off": send none, as a third-party app would.
     desk: { type: "string", default: "truth" },
+    // "pauses": the expert stops after each decision. "talking": the expert keeps talking
+    // (short breaths only, filler between tickets), the hard case for the Turn Gate.
+    talk: { type: "string", default: "pauses" },
   },
 });
+// The live Turn Gate (apps/web/src/lib/turnGate.ts) is TypeScript; Node 22 needs type stripping.
+if (!process.execArgv.some((a) => a.includes("strip-types")) && !process.features?.typescript) {
+  const r = spawnSync(
+    process.execPath,
+    [
+      "--experimental-strip-types",
+      "--disable-warning=ExperimentalWarning",
+      ...process.execArgv,
+      fileURLToPath(import.meta.url),
+      ...process.argv.slice(2),
+    ],
+    { stdio: "inherit" },
+  );
+  process.exit(r.status ?? 1);
+}
 const API = args.api.replace(/\/+$/, "");
 const WS = API.replace(/^http/, "ws");
 const DEBRIEF_MAX = Number(args["debrief-max"]);
 const PACE = Number(args.pace);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const TALKING = args.talk === "talking";
+const MIN_LIVE_QUESTIONS = 3;
+const { decide, DEFAULT_GATE } = await import(join(ROOT, "apps/web/src/lib/turnGate.ts"));
 
 const out = (line = "") => process.stdout.write(`${line}\n`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms * PACE));
@@ -223,6 +245,13 @@ const CAPTURE = {
   },
 };
 
+/** What an expert says while working on, without leaving a real pause (--talk talking). */
+const FILLER = [
+  "Okay, let me just check the history on this one.",
+  "Right, nothing odd in the account so far.",
+  "Let me pull up the next one in the queue.",
+];
+
 const FRAUD_LINE =
   'If a customer says their card was used "without my permission", that\'s fraud. Never refund that, it goes to Security first.';
 const OFF_RECORD_LINE =
@@ -283,19 +312,73 @@ async function main() {
     if (args.desk !== "off") stream.send({ type: "desk_event", event: { tMs: clock(), ...event } });
   };
 
-  const asked = [];
+  // The client's Turn Gate, simulated with the real pure decide(): the API only proposes
+  // candidates, the gate asks one at a natural pause (apps/web/src/lib/gate/useTurnGate.ts).
+  const asked = []; // { id, ticketId, slot, tMs }
+  const gate = {
+    lastUserSpeechMs: null,
+    lastInputActivityMs: null,
+    lastScreenChangeMs: null,
+    agentSpeakingUntil: -1,
+    candidate: null,
+    seen: 0,
+    reasons: {},
+  };
+  const expertSays = (text) => {
+    const id = say(text);
+    // Speaking runs on for the length of the line (~55 ms a character), like VAD would see it.
+    gate.lastUserSpeechMs = clock() + (TALKING ? Math.min(4000, text.length * 55) : 0);
+    return id;
+  };
+  const gateTimer = setInterval(() => {
+    if (stream.inbox.candidates.length > gate.seen) {
+      gate.seen = stream.inbox.candidates.length;
+      gate.candidate = stream.inbox.candidates.at(-1);
+    }
+    const nowMs = clock();
+    const c = gate.candidate;
+    const d = decide(
+      {
+        nowMs,
+        lastUserSpeechMs: gate.lastUserSpeechMs,
+        lastInputActivityMs: gate.lastInputActivityMs,
+        lastScreenChangeMs: gate.lastScreenChangeMs,
+        agentSpeaking: nowMs < gate.agentSpeakingUntil,
+        offRecord: false,
+        questionsAskedMs: asked.map((q) => q.tMs),
+        candidate: c ? { priority: c.priority, createdAtMs: c.createdAtMs } : null,
+      },
+      DEFAULT_GATE,
+    );
+    if (!d.open) {
+      gate.reasons[d.reason] = (gate.reasons[d.reason] ?? 0) + 1;
+      return;
+    }
+    if (!c || asked.some((q) => q.id === c.id)) return;
+    asked.push({ id: c.id, ticketId: c.aboutTicketId, slot: c.slot, tMs: nowMs });
+    gate.candidate = null;
+    stream.send({ type: "question_asked", questionId: c.id, tMs: nowMs });
+    say(c.text, "agent");
+    gate.agentSpeakingUntil = nowMs + 3000;
+    setTimeout(() => expertSays(CAPTURE[c.aboutTicketId]?.followUp ?? debriefAnswer(c)), 3500);
+  }, 250);
+
   const captureStarted = performance.now();
   await frame(null, "");
+  gate.lastScreenChangeMs = clock();
   for (const ticket of tickets) {
     const plan = CAPTURE[ticket.id];
     if (!plan) continue;
     desk({ type: "ticket_opened", ticketId: ticket.id });
     await frame(ticket.id, "");
+    gate.lastScreenChangeMs = clock();
     for (const line of plan.lines) {
-      await sleep(2500);
-      say(line);
+      // Talking: a breath (1.8 s) after the previous line ends; pauses: 2.5 s between lines.
+      await sleep(TALKING ? Math.max(0, (gate.lastUserSpeechMs ?? 0) - clock()) + 1800 : 2500);
+      expertSays(line);
     }
     desk({ type: "input_activity" });
+    gate.lastInputActivityMs = clock();
     // Capture mode never blocks; the client still asks the guard before committing.
     const pending = {
       ticket,
@@ -308,19 +391,16 @@ async function main() {
     const { ticket: _ticket, ...committed } = pending;
     desk({ type: "action_committed", ticketId: ticket.id, ...committed });
     await frame(ticket.id, `Committed: ${plan.outcome.replaceAll("_", " ")}`);
-    // Give the Curiosity Engine a pause to plan a question, then ask it (Turn Gate open).
-    // Vision-first, the decision is read off the frame (~10 s p90), so wait up to 15 s.
-    const findQ = () =>
-      stream.inbox.candidates.find((c) => c.aboutTicketId === ticket.id && !asked.includes(c.id));
-    await sleep(4000);
-    for (let waited = 0; !findQ() && waited < 11_000; waited += 500) await sleep(500);
-    const q = findQ();
-    if (q) {
-      asked.push(q.id);
-      stream.send({ type: "question_asked", questionId: q.id, tMs: clock() });
-      say(q.text, "agent");
-      await sleep(2500);
-      say(plan.followUp);
+    gate.lastScreenChangeMs = clock();
+    if (TALKING) {
+      // No long pause: the expert keeps narrating into the next ticket.
+      for (const line of FILLER.slice(0, 2)) {
+        await sleep(Math.max(0, (gate.lastUserSpeechMs ?? 0) - clock()) + 1800);
+        expertSays(line);
+      }
+    } else {
+      // A natural pause after the decision; vision reads it off the frame (~10 s p90).
+      await sleep(9000);
     }
     if (ticket.id === "T3") {
       // Off the record between T3 and T4. The real client sends nothing while off; the
@@ -332,6 +412,17 @@ async function main() {
       stream.send({ type: "off_record", on: false, tMs: clock() });
     }
   }
+  // A last quiet stretch, as when the expert finishes the queue before ending the session.
+  await sleep(12_000);
+  clearInterval(gateTimer);
+  const guardrailAsked = asked.some((q) => q.slot === "guardrail");
+  const onScreen = asked.every((q) => tickets.some((t) => t.id === q.ticketId));
+  record(
+    `live questions at pauses (${TALKING ? "talking" : "pauses"})`,
+    asked.length >= MIN_LIVE_QUESTIONS && guardrailAsked && onScreen,
+    null,
+    `${asked.length} asked (need ${MIN_LIVE_QUESTIONS}, guardrail ${guardrailAsked ? "yes" : "no"}): ${asked.map((q) => `${q.ticketId}/${q.slot}@${Math.round(q.tMs / 1000)}s`).join(", ") || "none"}; gate closed ${JSON.stringify(gate.reasons)}`,
+  );
   // OCR redaction + vision lag behind the last frame; the client uploads the recording here.
   await sleep(10_000);
   record(

@@ -96,13 +96,15 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await expect(page.getByRole("toolbar", { name: "Recording controls" })).toBeVisible();
   await expect(page.getByRole("status", { name: "Singoda AI is listening" })).toBeVisible();
 
-  // T1: a plain step. Its candidate is below the priority bar, so Singoda AI stays quiet.
+  // T1: a plain step. Its candidate is below the usual 0.6 bar, but until 3 questions are in the
+  // gate's minimum-coverage policy takes it, at the pause after the reply.
   await openTicket(page, "T1");
   voice.say("T1 just wants the invoice, so I resend it.");
   await typeReply(page, "Here is your invoice.");
   await act(page, "Reply");
-  await page.waitForTimeout(5000);
   expect(asks()).toHaveLength(0);
+  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(1);
+  voice.say("Only if the invoice itself is wrong would I loop in billing.");
   await page.clock.fastForward(15_000);
 
   // T2: refund, then keep working the ticket (clicking through the message and the customer
@@ -123,8 +125,8 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
     await page.waitForTimeout(400);
   }
   expect(candidateFor("T2"), "the T2 candidate arrived while the expert was busy").toBe(true);
-  expect(asks()).toHaveLength(0);
-  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(1);
+  expect(asks()).toHaveLength(1);
+  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(2);
   voice.say("Only if the second charge is still pending, then it drops off by itself.");
   await page.clock.fastForward(20_000);
 
@@ -136,12 +138,12 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await expect(page.getByText("You are off the record.")).toBeVisible();
   await page.waitForTimeout(7000);
   expect(candidateFor("T3"), "the T3 candidate arrived off the record").toBe(true);
-  expect(asks()).toHaveLength(1);
+  expect(asks()).toHaveLength(2);
   await page
     .getByRole("toolbar", { name: "Recording controls" })
     .getByRole("button", { name: "Back on the record" })
     .click();
-  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(2);
+  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(3);
   voice.say("Never refund while a chargeback is open, the bank decides.");
   await page.clock.fastForward(25_000);
 
@@ -149,7 +151,7 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await openTicket(page, "T4");
   voice.say("The email changed right before the refund request. That smells like takeover.");
   await act(page, "Handoff: Security");
-  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(3);
+  await expect.poll(() => asks().length, { timeout: 15_000 }).toBe(4);
   voice.say("Any sign of takeover goes to Security, never a refund.");
   await page.waitForTimeout(2500);
 
