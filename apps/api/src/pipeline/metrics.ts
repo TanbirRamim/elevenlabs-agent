@@ -51,12 +51,29 @@ export function p90(samples: readonly number[]): number | null {
   return sorted[idx] ?? null;
 }
 
+/**
+ * The record id in a vision `object` ("ticket T3", "#t12", "ticket 4471"), upper-cased, or null.
+ * Prefers a letter+digits id (T3) over a bare number so "T4 refund 120" reads as T4.
+ */
+export function ticketIdFrom(text: string): string | null {
+  const lettered = /\b#?([a-z]{1,3}-?\d+)\b/i.exec(text);
+  if (lettered?.[1]) return lettered[1].replace("-", "").toUpperCase();
+  const numeric = /(?:^|[\s#])(\d{2,})\b/.exec(text);
+  return numeric?.[1] ?? null;
+}
+
+/** True when `text` names ticket `id` as a whole token: "T1" is not inside "T10". */
+export function mentionsTicket(text: string, id: string): boolean {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}(?![a-z0-9])`, "i").test(text);
+}
+
 /** §6.3: same ticket and outcome within 5 s counts as agreement. */
 export function matchesDomAction(dom: DomAction, vision: VisionAction): boolean {
   if (Math.abs(vision.tMs - dom.tMs) > 5000) return false;
-  const text = vision.text.toLowerCase();
-  if (!text.includes(dom.ticketId.toLowerCase())) return false;
-  return OUTCOME_KEYWORDS[dom.outcome].some((k) => text.includes(k));
+  if (!mentionsTicket(vision.text, dom.ticketId)) return false;
+  // The most specific outcome the text names, so a handoff that mentions a refund is a handoff.
+  return outcomeFromText(vision.text) === dom.outcome;
 }
 
 export interface PipelineMetrics {

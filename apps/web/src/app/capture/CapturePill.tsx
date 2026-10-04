@@ -3,6 +3,8 @@
 import { ChartNoAxesColumn, MessageCircleQuestion, Mic, MicOff, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { InsightNumbers } from "@/components/insight/InsightPanel";
+import { VisionFeed } from "@/components/insight/VisionFeed";
+import type { VisionLine } from "@/components/insight/visionLines";
 import {
   ListeningIndicator,
   type ListeningState,
@@ -49,6 +51,8 @@ export interface CapturePillProps {
   onToggleMic?: () => void;
   currentQuestion?: { id: string; text: string } | null;
   insight?: InsightNumbers | null;
+  /** The latest events Claude read off the frames (vision screen_events), newest first. */
+  visionLines?: VisionLine[];
   questionsAsked?: number;
   questionBudget?: number;
   /** Floating notices (connection loss, session problems) stacked above the dock. */
@@ -70,6 +74,7 @@ export function CapturePill({
   onToggleMic,
   currentQuestion = null,
   insight = null,
+  visionLines = [],
   questionsAsked = 0,
   questionBudget = 5,
   notice,
@@ -123,6 +128,9 @@ export function CapturePill({
             </InsightRow>
             <InsightRow label="Open gaps">{insight?.openGaps ?? "—"}</InsightRow>
           </dl>
+          <div className="mt-2 border-t border-rule pt-2">
+            <VisionFeed lines={visionLines} />
+          </div>
         </section>
       ) : null}
 
