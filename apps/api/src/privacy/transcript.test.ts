@@ -105,4 +105,28 @@ describe("offRecordPhrase", () => {
   ])("%s -> %s", (text, expected) => {
     expect(offRecordPhrase(text)).toBe(expected);
   });
+
+  it("keeps spoken order when a later segment finishes redaction first", async () => {
+    const session = createMemoryStore().createSession("capture");
+    let releaseFirst: () => void = () => {};
+    const slowFirst: RedactText = (text) =>
+      text === "first"
+        ? new Promise((resolve) => {
+            releaseFirst = () => resolve(text);
+          })
+        : Promise.resolve(text);
+    const first = ingestTranscript(
+      session,
+      segment({ segmentId: "a", tStartMs: 1000, text: "first" }),
+      slowFirst,
+    );
+    await ingestTranscript(
+      session,
+      segment({ segmentId: "b", tStartMs: 5000, text: "second" }),
+      slowFirst,
+    );
+    releaseFirst();
+    await first;
+    expect(session.transcript.map((s) => s.id)).toEqual(["a", "b"]);
+  });
 });
