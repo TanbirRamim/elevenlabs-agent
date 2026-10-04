@@ -59,6 +59,93 @@
     "label": { "outcome": "handoff_security", "guardrails": ["G3"], "set": "expert" }
   },
   {
+    "id": "T5",
+    "subject": "Dashboard is blank, refund this month",
+    "body": "Since Tuesday the dashboard loads a blank page. If this is not fixed, refund my 99 EUR for the month.",
+    "customer": {
+      "name": "Priya Sharma",
+      "email": "priya@example.test",
+      "plan": "enterprise",
+      "vip": false,
+      "accountAgeDays": 540
+    },
+    "amountEur": 99,
+    "tags": ["bug", "technical"],
+    "knownBugId": "BUG-187",
+    "label": { "outcome": "escalate_engineering", "guardrails": ["G7"], "set": "expert" }
+  },
+  {
+    "id": "T6",
+    "subject": "Compensation for the outage",
+    "body": "The outage cost us real money. Our counsel is preparing legal action unless we hear back about compensation this week.",
+    "customer": {
+      "name": "Quinn Walsh",
+      "email": "quinn@example.test",
+      "plan": "enterprise",
+      "vip": true,
+      "accountAgeDays": 920
+    },
+    "tags": ["complaint"],
+    "label": { "outcome": "handoff_legal", "guardrails": ["G5"], "set": "expert" }
+  },
+  {
+    "id": "T7",
+    "subject": "It doesn't work",
+    "body": "Nothing works since yesterday. Fix it.",
+    "customer": {
+      "name": "Rosa Alvarez",
+      "email": "rosa@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 33
+    },
+    "tags": ["technical"],
+    "label": { "outcome": "hold_request_info", "guardrails": [], "set": "expert" }
+  },
+  {
+    "id": "T8",
+    "subject": "Refund unused seats",
+    "body": "We downsized the team and no longer use five of our seats. Please refund the 190 EUR difference.",
+    "customer": {
+      "name": "Stefan Weber",
+      "email": "stefan@example.test",
+      "plan": "annual",
+      "vip": true,
+      "accountAgeDays": 1100
+    },
+    "amountEur": 190,
+    "tags": ["billing"],
+    "label": { "outcome": "refund", "guardrails": ["G1"], "set": "expert" }
+  },
+  {
+    "id": "T9",
+    "subject": "Sync is broken again, third time",
+    "body": "Calendar sync dropped again. I have reported this twice before and support replies did not fix it. I want this looked at properly.",
+    "customer": {
+      "name": "Tara O'Brien",
+      "email": "tara@example.test",
+      "plan": "monthly",
+      "vip": false,
+      "accountAgeDays": 460
+    },
+    "tags": ["technical", "repeat"],
+    "label": { "outcome": "escalate_tier2", "guardrails": [], "set": "expert" }
+  },
+  {
+    "id": "T10",
+    "subject": "Never mind, solved it",
+    "body": "Found the setting myself, you can close my earlier request.",
+    "customer": {
+      "name": "Umar Farouk",
+      "email": "umar@example.test",
+      "plan": "free",
+      "vip": false,
+      "accountAgeDays": 75
+    },
+    "tags": ["account"],
+    "label": { "outcome": "close", "guardrails": [], "set": "expert" }
+  },
+  {
     "id": "N1",
     "subject": "Refund 180 EUR please",
     "body": "Please refund the 180 EUR charge. Also my card was used without my permission last week.",
