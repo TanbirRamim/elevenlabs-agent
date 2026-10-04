@@ -3,7 +3,7 @@ import { type GuardVerdict, PendingAction } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CLAUDE_ROUTE_RATE_LIMIT } from "../limits.js";
-import { JUDGED_OUTCOMES, type JudgeDeps, judgeAction } from "../llm/judge.js";
+import { escalate, JUDGED_OUTCOMES, type JudgeDeps, judgeAction } from "../llm/judge.js";
 import type { LlmDeps } from "../llm/structured.js";
 import type { Store } from "../store/memory.js";
 
@@ -38,11 +38,12 @@ export function registerGuardRoutes(
     const action = parsed.data;
     let verdict: GuardVerdict = evaluate(action, rulesFromStore(store, fallback));
 
-    // A machine ALLOW on a risky outcome gets the LLM second opinion against the
-    // published map's full guardrails — including the ones without machine rules.
+    // A risky outcome the machine rules did not BLOCK gets the LLM second opinion against
+    // the published map's full guardrails — including the ones without machine rules. It
+    // also runs after a REQUIRE_APPROVAL/WARN (N1: G1 fires, the fraud rule is only spoken).
     const map = store.getPublishedWorkMap();
     if (
-      verdict.decision === "ALLOW" &&
+      verdict.decision !== "BLOCK" &&
       JUDGED_OUTCOMES.includes(action.outcome) &&
       llm &&
       map &&
@@ -52,7 +53,7 @@ export function registerGuardRoutes(
         log: req.log,
         ...judge,
       });
-      if (judged) verdict = judged;
+      verdict = escalate(verdict, judged);
     }
 
     // Recorded for the mastery report (HAR-12); the teach page passes ?sessionId=.

@@ -134,6 +134,76 @@ describe("guard route with judge", () => {
   });
 });
 
+describe("guard route: judge on top of a machine REQUIRE_APPROVAL", () => {
+  type Decide = NonNullable<NonNullable<Parameters<typeof judgeAction>[3]>["decide"]>;
+  // The fixture map as published: G1 (refund > 100) is a machine rule, G4 (fraud) is not.
+  async function appWithFixtureMap(decide: Decide, timeoutMs?: number) {
+    const store = createMemoryStore();
+    store.publishWorkMap(loadMockFixtures().workMap);
+    const app = await buildApp({
+      env,
+      store,
+      llm: fakeLlm,
+      judgeSeams: { decide, log, ...(timeoutMs ? { timeoutMs } : {}) },
+    });
+    return app;
+  }
+  const presave = (app: Awaited<ReturnType<typeof appWithFixtureMap>>, payload: PendingAction) =>
+    app.inject({ method: "POST", url: "/guard/presave", payload }).then((r) => r.json());
+
+  it("N1 refund: G1 asks for approval, the judge escalates to BLOCK citing G4 first", async () => {
+    const decide = vi.fn(async () => ({
+      decision: "BLOCK" as const,
+      ruleIds: ["G4"],
+      expectedOutcome: "handoff_security" as const,
+    }));
+    const app = await appWithFixtureMap(decide);
+    expect(await presave(app, n1Action())).toEqual({
+      decision: "BLOCK",
+      ruleIds: ["G4", "G1"],
+      expectedOutcome: "handoff_security",
+      source: "llm_judge",
+    });
+    expect(decide).toHaveBeenCalledOnce();
+  });
+
+  it("the judge can never loosen a machine verdict (ALLOW or WARN keep REQUIRE_APPROVAL)", async () => {
+    for (const decision of ["ALLOW", "WARN"] as const) {
+      const app = await appWithFixtureMap(async () => ({ decision, ruleIds: ["G4"] }));
+      expect(await presave(app, n1Action())).toMatchObject({
+        decision: "REQUIRE_APPROVAL",
+        ruleIds: ["G1"],
+        source: "machine_rule",
+      });
+    }
+  });
+
+  it("a judge timeout or failure keeps REQUIRE_APPROVAL instead of downgrading to timeout_allow", async () => {
+    const slow = await appWithFixtureMap(() => new Promise(() => {}), 20);
+    const failing = await appWithFixtureMap(async () => {
+      throw new Error("unparseable");
+    });
+    for (const app of [slow, failing]) {
+      expect(await presave(app, n1Action())).toMatchObject({
+        decision: "REQUIRE_APPROVAL",
+        source: "machine_rule",
+      });
+    }
+  });
+
+  it("a machine BLOCK never reaches the judge", async () => {
+    const decide = vi.fn(async () => ({ decision: "ALLOW" as const, ruleIds: [] }));
+    const app = await appWithFixtureMap(decide);
+    const action = n1Action();
+    const chargeback = { ...action, ticket: { ...action.ticket, tags: ["chargeback-open"] } };
+    expect(await presave(app, chargeback)).toMatchObject({
+      decision: "BLOCK",
+      ruleIds: ["G2", "G1"],
+    });
+    expect(decide).not.toHaveBeenCalled();
+  });
+});
+
 // The real thing, run locally with the key (CI skips it):
 //   ANTHROPIC_API_KEY=... pnpm --filter @shadow/api test
 describe.skipIf(!process.env.ANTHROPIC_API_KEY)("guard judge (live Claude)", () => {

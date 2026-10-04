@@ -3,7 +3,7 @@ import { type Guardrail, GuardVerdict, Outcome, type PendingAction } from "@shad
 import { z } from "zod";
 import { type LlmDeps, structured } from "./structured.js";
 
-/** Outcomes where a machine-rule ALLOW still gets a second opinion (§6.8). */
+/** Outcomes where a machine verdict short of BLOCK still gets a second opinion (§6.8). */
 export const JUDGED_OUTCOMES: readonly Outcome[] = ["refund", "reply", "close"];
 
 const JudgeOutput = z.object({
@@ -56,11 +56,17 @@ export async function judgeAction(
   try {
     result = await Promise.race([decideFn(action, guardrails), timeout]);
   } catch (err) {
-    log?.warn({ err: String(err), ticket: action.ticket.id }, "guard judge failed, allowing");
+    log?.warn(
+      { err: String(err), ticket: action.ticket.id },
+      "guard judge failed; save not checked by the judge",
+    );
     return GuardVerdict.parse({ decision: "ALLOW", ruleIds: [], source: "timeout_allow" });
   }
   if (result === "timeout") {
-    log?.warn({ ticket: action.ticket.id, timeoutMs }, "guard judge timed out, allowing");
+    log?.warn(
+      { ticket: action.ticket.id, timeoutMs },
+      "guard judge timed out; save not checked by the judge",
+    );
     return GuardVerdict.parse({ decision: "ALLOW", ruleIds: [], source: "timeout_allow" });
   }
   if (result.decision === "ALLOW") return null; // machine verdict stands
@@ -73,4 +79,27 @@ export async function judgeAction(
     return null;
   }
   return GuardVerdict.parse({ ...result, source: "llm_judge" });
+}
+
+const RANK = { ALLOW: 0, WARN: 1, REQUIRE_APPROVAL: 2, BLOCK: 3 } as const;
+
+/**
+ * Folds the judge's verdict (null: no usable answer) into the machine verdict. The judge can
+ * only make it stricter: N1's G1 REQUIRE_APPROVAL becomes a BLOCK when the judge cites the
+ * unmechanized fraud guardrail, but a judge ALLOW/WARN or a timeout never loosens a machine
+ * REQUIRE_APPROVAL or WARN. timeout_allow is only ever returned for a machine ALLOW.
+ */
+export function escalate(machine: GuardVerdict, judged: GuardVerdict | null): GuardVerdict {
+  if (!judged) return machine;
+  if (machine.decision === "ALLOW") return judged;
+  if (judged.source === "timeout_allow" || RANK[judged.decision] <= RANK[machine.decision]) {
+    return machine;
+  }
+  // The judge's rules lead (the UI quotes ruleIds[0]); the machine rules that fired follow.
+  const expectedOutcome = judged.expectedOutcome ?? machine.expectedOutcome;
+  return {
+    ...judged,
+    ruleIds: [...judged.ruleIds, ...machine.ruleIds.filter((id) => !judged.ruleIds.includes(id))],
+    ...(expectedOutcome ? { expectedOutcome } : {}),
+  };
 }
