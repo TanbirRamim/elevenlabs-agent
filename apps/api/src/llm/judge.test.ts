@@ -218,6 +218,62 @@ describe("guard route: judge on top of a machine REQUIRE_APPROVAL", () => {
   });
 });
 
+describe("guard route: judge timeout from GUARD_JUDGE_TIMEOUT_MS", () => {
+  // A model that answers BLOCK G4 after 300 ms, through the real structured() path.
+  const slowLlm = {
+    model: "test",
+    client: {
+      beta: {
+        messages: {
+          parse: () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () =>
+                  resolve({
+                    stop_reason: "end_turn",
+                    parsed_output: {
+                      decision: "BLOCK",
+                      ruleIds: ["G4"],
+                      expectedOutcome: "handoff_security",
+                    },
+                  }),
+                300,
+              ),
+            ),
+        },
+      },
+    },
+  } as unknown as LlmDeps;
+
+  async function presaveN1(timeout: string) {
+    const store = createMemoryStore();
+    store.publishWorkMap(loadMockFixtures().workMap);
+    const app = await buildApp({
+      env: loadEnv({ NODE_ENV: "test", GUARD_JUDGE_TIMEOUT_MS: timeout }),
+      store,
+      llm: slowLlm,
+    });
+    return app
+      .inject({ method: "POST", url: "/guard/presave", payload: n1Action() })
+      .then((r) => r.json());
+  }
+
+  it("defaults to the 2.5 s of §6.8", () => {
+    expect(loadEnv({ NODE_ENV: "test" }).GUARD_JUDGE_TIMEOUT_MS).toBe(2500);
+  });
+
+  it("a shorter configured timeout cuts the judge off (machine verdict stands)", async () => {
+    expect(await presaveN1("50")).toMatchObject({
+      decision: "REQUIRE_APPROVAL",
+      source: "machine_rule",
+    });
+  });
+
+  it("a longer configured timeout lets a slow judge answer", async () => {
+    expect(await presaveN1("2000")).toMatchObject({ decision: "BLOCK", source: "llm_judge" });
+  });
+});
+
 // The real thing, run locally with the key (CI skips it):
 //   ANTHROPIC_API_KEY=... pnpm --filter @shadow/api test
 describe.skipIf(!process.env.ANTHROPIC_API_KEY)("guard judge (live Claude)", () => {

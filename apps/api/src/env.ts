@@ -16,6 +16,11 @@ const Env = z.object({
   PRESIDIO_ANALYZER_URL: z.string().url().optional(),
   PRESIDIO_ANONYMIZER_URL: z.string().url().optional(),
   /** Load seed/reference-guardrails.json when no Work Map is published. Never on in a judged run. */
+  /**
+   * How long /guard/presave and /copilot/run wait for the LLM judge before a machine ALLOW
+   * becomes timeout_allow (§6.8 says 2.5 s; measured live, the judge takes ~2.7 s at p50).
+   */
+  GUARD_JUDGE_TIMEOUT_MS: z.coerce.number().int().positive().default(2500),
   DEMO_FALLBACK_RULES: z.enum(["0", "1"]).default("0"),
   /** Serve fixture data from seed/fixtures instead of calling Claude/Presidio (UI work, tests). */
   MOCK_AI: z.enum(["0", "1"]).default("0"),
