@@ -5,10 +5,15 @@ import {
   type ServerMessage,
 } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
+import type { StreamHooks } from "../mock/stream.js";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
 import type { Store } from "../store/memory.js";
 
-export function registerSessionRoutes(app: FastifyInstance, store: Store): void {
+export function registerSessionRoutes(
+  app: FastifyInstance,
+  store: Store,
+  hooks?: StreamHooks,
+): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
     if (!body.success)
@@ -28,6 +33,12 @@ export function registerSessionRoutes(app: FastifyInstance, store: Store): void 
         socket.close();
         return;
       }
+      // Hook-scheduled sends (mock candidate questions) must not fire after close.
+      const timers = new Set<NodeJS.Timeout>();
+      socket.on("close", () => {
+        for (const timer of timers) clearTimeout(timer);
+        timers.clear();
+      });
 
       socket.on("message", (raw: Buffer) => {
         let json: unknown;
@@ -77,6 +88,7 @@ export function registerSessionRoutes(app: FastifyInstance, store: Store): void 
             };
             session.events.push(ev);
             send({ type: "screen_event", event: ev });
+            hooks?.onDeskEvent(m.event, send, timers);
             return;
           }
           case "frame":
