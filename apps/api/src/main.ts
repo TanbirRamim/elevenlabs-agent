@@ -22,9 +22,10 @@ const app = await buildApp({
   fallbackRules: env.DEMO_FALLBACK_RULES === "1" ? loadReferenceRules() : [],
 });
 // After a wiped disk (Hugging Face Space restart), republish the committed demo map and clips.
-// Unset: restore from seed/boot (the demo map). Empty string: no boot restore.
+// Unset: restore from seed/boot (the demo map). Empty string: no boot restore. Fixture mode
+// serves its own sample data, so it never restores.
 await restoreBootState({
-  dir: env.SHADOW_BOOT_DIR ?? join(findSeedDir(), "boot"),
+  dir: env.MOCK_AI === "1" ? undefined : (env.SHADOW_BOOT_DIR ?? join(findSeedDir(), "boot")),
   store,
   storage,
   log: app.log,
