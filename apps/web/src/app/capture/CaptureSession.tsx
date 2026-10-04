@@ -13,6 +13,7 @@ import { DebriefPanel } from "@/components/debrief/DebriefPanel";
 import type { DebriefVoice } from "@/components/debrief/useDebrief";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { DESK_ROOT_ID, PII_ATTR } from "@/components/desk/types";
+import { type InsightNumbers, InsightPanel } from "@/components/insight/InsightPanel";
 import { describeDeskEvent, detectRecordPhrase } from "@/components/session/helpers";
 import { Notice } from "@/components/session/Notice";
 import { SidePanel } from "@/components/session/SidePanel";
@@ -54,6 +55,10 @@ export function CaptureSession() {
   const [tickets, setTickets] = useState<PublicTicket[]>([]);
   const [offRecord, setOffRecord] = useState(false);
   const [candidate, setCandidate] = useState<CandidateQuestion | null>(null);
+  // Judge-facing evidence: recent candidates and the pipeline numbers from the API.
+  const [candidates, setCandidates] = useState<CandidateQuestion[]>([]);
+  const [insight, setInsight] = useState<InsightNumbers | null>(null);
+  const [insightOpen, setInsightOpen] = useState(true);
   const [lastInputActivityMs, setLastInputActivityMs] = useState<number | null>(null);
   const [lastScreenChangeMs, setLastScreenChangeMs] = useState<number | null>(null);
 
@@ -108,7 +113,13 @@ export function CaptureSession() {
     const s = openSessionStream({ sessionId });
     stream.current = s;
     const offs = [
-      s.on("candidate_question", (m) => setCandidate(m.question)),
+      s.on("candidate_question", (m) => {
+        setCandidate(m.question);
+        setCandidates((list) =>
+          [m.question, ...list.filter((q) => q.id !== m.question.id)].slice(0, 6),
+        );
+      }),
+      s.on("insight", ({ type: _type, ...numbers }) => setInsight(numbers)),
       s.on("screen_event", (m) => {
         // DOM events are already sent to the agent locally; only vision adds new information.
         if (m.event.source === "vision" && !offRecordRef.current)
@@ -454,6 +465,31 @@ export function CaptureSession() {
           onToggleOffRecord={() => setRecord(!offRecordRef.current)}
         />
       </div>
+      {phase === "capturing" && (
+        <section aria-label="Insight panel" className="min-w-0 lg:col-span-12">
+          <InsightPanel
+            now={gate.signals.nowMs}
+            signals={gate.signals}
+            decision={gate.decision}
+            candidates={candidates}
+            asked={gate.asked.map((q) => ({
+              id: q.id,
+              text: q.text,
+              atMs: q.atMs,
+              // A signal that never fired has been quiet since the session started.
+              pauseMs: {
+                silence: q.pauseMs.silence ?? q.atMs,
+                inputIdle: q.pauseMs.inputIdle ?? q.atMs,
+                screenIdle: q.pauseMs.screenIdle ?? q.atMs,
+              },
+            }))}
+            insight={insight}
+            offRecord={offRecord}
+            collapsed={!insightOpen}
+            onToggle={() => setInsightOpen((open) => !open)}
+          />
+        </section>
+      )}
     </div>
   );
 }
