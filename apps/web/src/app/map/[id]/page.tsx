@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { WorkMapView } from "@/components/workmap/WorkMapView";
+
+export const metadata: Metadata = { title: "Work Map · Singoda AI" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

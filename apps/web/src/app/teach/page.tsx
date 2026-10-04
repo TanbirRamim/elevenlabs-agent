@@ -4,6 +4,12 @@ import { TeachSession } from "./TeachSession";
 
 export const metadata: Metadata = { title: "Teach · Singoda AI" };
 
+/**
+ * The learner's name when the link has no `?learner=`: the name the tutor greets
+ * (`{{learner_name}}`) and the dock shows, so neither reads "New hire · " with no one in it.
+ */
+const DEFAULT_LEARNER_NAME = "Jonas";
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function first(value: string | string[] | undefined): string | null {
@@ -23,7 +29,7 @@ export default async function TeachPage({ searchParams }: { searchParams: Promis
       <TeachSession
         workMapId={first(query.workMap)}
         expertSessionId={first(query.expertSession)}
-        learnerName={first(query.learner)}
+        learnerName={first(query.learner) ?? DEFAULT_LEARNER_NAME}
       />
     </VoiceProvider>
   );

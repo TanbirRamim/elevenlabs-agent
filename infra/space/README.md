@@ -10,7 +10,7 @@ short_description: Backend for Shadow, the AI apprentice for support escalations
 
 # Shadow API
 
-Backend for [Shadow](https://shadow-web-meow-4acb.vercel.app): the Fastify API (HTTP + WebSocket)
+Backend for [Shadow](https://shadow-web.tanbirramim420.workers.dev): the Fastify API (HTTP + WebSocket)
 and Microsoft Presidio (analyzer, anonymizer, image redactor) in one container. Presidio is only
 reachable from inside the container; the API on port 7860 is the only public endpoint.
 

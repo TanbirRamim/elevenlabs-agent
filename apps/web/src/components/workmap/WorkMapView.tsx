@@ -109,6 +109,8 @@ export function WorkMapView({
   const isPublished = (state.status === "ready" && !isFixture && id === "latest") || publishedNow;
   const canEdit = state.status === "ready" && !isFixture && !isPublished;
   const clipSession = sessionId ?? map?.sourceSessionId ?? null;
+  /** No source session: sample data, whether the API served it or the bundled fixture. */
+  const isSample = map !== null && !map.sourceSessionId;
 
   /** Selects a step; on one-column layouts (or when asked) brings its evidence into view. */
   const selectStep = useCallback((stepId: string, reveal = false, fromKey = false) => {
@@ -303,6 +305,7 @@ export function WorkMapView({
             ) : (
               <StatusPill tone="neutral">Draft</StatusPill>
             )}
+            {isSample && !isFixture ? <Badge tone="muted">Sample Work Map</Badge> : null}
             <Badge tone="muted" className="figures font-mono">
               v{map.version}
             </Badge>
@@ -311,10 +314,8 @@ export function WorkMapView({
                 <>
                   From session <span className="font-mono">{map.sourceSessionId}</span>
                 </>
-              ) : isFixture ? (
-                "Not from a recorded session"
               ) : (
-                <span className="font-mono">{map.id}</span>
+                "Not from a recorded session"
               )}
             </span>
           </>
@@ -347,6 +348,18 @@ export function WorkMapView({
       />
 
       <div className="mt-6 flex flex-col gap-3">
+        {/* The offline alert below already says the sample is standing in for the API. */}
+        {isSample &&
+        !(
+          state.status === "ready" &&
+          state.source === "fixture" &&
+          state.reason === "unreachable"
+        ) ? (
+          <Alert tone="info" title="Sample Work Map">
+            Built from sample data, not from a recorded session. Record a live capture and the Work
+            Map built from it replaces this one.
+          </Alert>
+        ) : null}
         {isFixture && state.status === "ready" && state.reason === "unreachable" ? (
           <Alert
             tone="offline"
