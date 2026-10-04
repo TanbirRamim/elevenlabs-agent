@@ -63,7 +63,11 @@ export function useScreenReplay(
   moment: ScreenMoment | null,
   nearby: readonly ScreenMoment[],
 ) {
-  const [recording, setRecording] = useState<RecordingState>("pending");
+  // The answer is stored with the clip it belongs to, so a new clip reads "pending" without an
+  // effect resetting it: a reset effect could run after a fast 404 and lose the error.
+  const clipKey = moment ? `${sessionId ?? ""}#${moment.frameId}#${moment.clip.join("-")}` : "";
+  const [answer, setAnswer] = useState<{ key: string; state: RecordingState } | null>(null);
+  const recording: RecordingState = answer?.key === clipKey ? answer.state : "pending";
   const candidates = useMemo(
     () => (moment ? framesAroundMoment(moment, nearby) : []),
     [moment, nearby],
@@ -75,10 +79,9 @@ export function useScreenReplay(
   const frames = recording !== "missing" ? "pending" : stored === "pending" ? "pending" : stored;
   const mode: ReplayMode = replayMode({ sessionId, recording, frames });
   const slides = frames === "pending" ? [] : candidates.filter((c) => frames.includes(c.frameId));
-  const reset = useCallback(() => setRecording("pending"), []);
-  const onVideoReady = useCallback(() => setRecording("ok"), []);
-  const onVideoError = useCallback(() => setRecording("missing"), []);
-  return { mode, slides, reset, onVideoReady, onVideoError };
+  const onVideoReady = useCallback(() => setAnswer({ key: clipKey, state: "ok" }), [clipKey]);
+  const onVideoError = useCallback(() => setAnswer({ key: clipKey, state: "missing" }), [clipKey]);
+  return { mode, slides, onVideoReady, onVideoError };
 }
 
 /**
@@ -182,7 +185,6 @@ export function ClipPlayer({
   const [playing, setPlaying] = useState(false);
   const [nowMs, setNowMs] = useState(startMs);
   const failed = replay.mode !== "video";
-  const { reset } = replay;
   const lengthMs = Math.max(1, endMs - startMs);
 
   // A new clip resets the transport.
@@ -190,7 +192,6 @@ export function ClipPlayer({
   useEffect(() => {
     setPlaying(false);
     setNowMs(startMs);
-    reset();
   }, [src]);
 
   const seek = useCallback(
