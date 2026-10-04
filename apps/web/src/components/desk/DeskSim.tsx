@@ -3,6 +3,7 @@
 import type { Outcome, PublicTicket } from "@shadow/schema";
 import { Inbox } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SingodaNav } from "@/app/capture/parts";
 import { cx, Kbd } from "../ui";
 import { ACTION_ORDER, ActionBar, type CommitPhase, type CommittedAction } from "./ActionBar";
 import { useDeskCoach } from "./coach";
@@ -211,15 +212,24 @@ export function DeskSim({
             {doneCount > 0 ? ` · ${doneCount} done` : ""}
           </span>
         </p>
-        <p className="hidden items-center gap-3 text-xs text-ink-faint @2xl:flex">
-          <span className="inline-flex items-center gap-1">
-            <Kbd>J</Kbd>
-            <Kbd>K</Kbd> move
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Kbd>1</Kbd>–<Kbd>9</Kbd> act
-          </span>
-        </p>
+        <div className="flex shrink-0 items-center gap-3">
+          <p className="hidden items-center gap-3 text-xs text-ink-faint @2xl:flex">
+            <span className="inline-flex items-center gap-1">
+              <Kbd>J</Kbd>
+              <Kbd>K</Kbd> move
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Kbd>1</Kbd>–<Kbd>9</Kbd> act
+            </span>
+          </p>
+          {/* The standalone app routes have no site chrome: this is the way back to Singoda AI. */}
+          {app ? (
+            <>
+              <span aria-hidden="true" className="hidden h-5 w-px bg-rule @2xl:block" />
+              <SingodaNav placement="down" align="end" />
+            </>
+          ) : null}
+        </div>
       </div>
       <div
         className={cx(

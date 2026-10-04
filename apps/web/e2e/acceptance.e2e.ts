@@ -193,7 +193,7 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   expect(asked.some((a) => candidates.get(a.questionId)?.slot === "guardrail")).toBe(true);
 
   // ---------------------------------------------------------------- Debrief
-  await page.getByRole("button", { name: "Stop" }).click();
+  await page.getByRole("button", { name: "End session" }).click();
   const debriefList = page.getByRole("list", { name: "Debrief questions" });
   await expect(debriefList).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => voice.controls.some((c) => c.prefix === "[DEBRIEF]")).toBe(true);

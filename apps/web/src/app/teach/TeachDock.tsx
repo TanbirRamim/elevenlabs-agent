@@ -7,11 +7,13 @@ import { TutorVoicePanel, type TutorVoicePanelProps } from "@/components/tutor/T
 import { Avatar, Button, IconButton, Tooltip } from "@/components/ui";
 import { cx } from "@/components/ui/cx";
 import { formatMs } from "@/components/workmap/format";
+import { SingodaNav } from "../capture/parts";
 
 /**
  * Singoda AI's entire presence while the learner works the standalone DeskSim app: a Meet-style
  * dock floating over the bottom of the screen, the teach twin of CapturePill. It carries the
- * tutor's voice state, the mic, the session timer, how many saves Singoda AI held, and Finish.
+ * way back to the website, the tutor's voice state, the mic, the session timer, how many saves
+ * Singoda AI held, and Finish.
  * Singoda AI's prompts (predict at a judgment point) surface as a callout above the dock; a held
  * save is explained beside the held action itself, inside the app.
  */
@@ -79,7 +81,9 @@ export function TeachDock({
       ) : null}
 
       <div className="pointer-events-auto flex w-full max-w-2xl flex-wrap items-center justify-center gap-2 rounded-overlay border border-rule bg-surface/95 p-2 shadow-overlay backdrop-blur sm:flex-nowrap">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 pl-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <SingodaNav placement="up" showName={false} />
+          <span aria-hidden="true" className="h-6 w-px bg-rule" />
           <Avatar name="Singoda AI" shadow size="sm" />
           <div className="min-w-0 leading-tight">
             <p className="truncate text-ui font-semibold text-ink">
