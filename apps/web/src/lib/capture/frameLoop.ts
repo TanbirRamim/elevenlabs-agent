@@ -31,6 +31,13 @@ export interface FrameLoopOptions {
    * Gate reads a still screen as "changing" forever.
    */
   changeThreshold?: number;
+  /**
+   * Send a frame at least this often while sharing, even when the screen is still, so the
+   * server always has a frame from the last couple of seconds (it skips vision on a screen it
+   * has already read). Default 2000; 0 turns the heartbeat off. A tick sends when waiting for
+   * the next one would leave a gap longer than this.
+   */
+  heartbeatMs?: number;
   /** Session clock in ms. */
   clock: () => number;
   timers?: Timers;
@@ -49,14 +56,19 @@ const defaultTimers: Timers = {
   clearInterval: (h) => globalThis.clearInterval(h as ReturnType<typeof setInterval>),
 };
 
+export const DEFAULT_HEARTBEAT_MS = 2000;
+
 /**
- * Captures every `intervalMs`, hashes, and sends only frames that differ from the last sent one.
+ * Captures every `intervalMs`, hashes, and sends frames that differ from the last sent one, plus
+ * a heartbeat frame so no gap between sent frames is longer than `heartbeatMs`.
  * Pure apart from the timer, so it is tested with fake timers and a scripted `capture`.
  */
 export function startFrameLoop(opts: FrameLoopOptions): FrameLoop {
   const timers = opts.timers ?? defaultTimers;
   const changeThreshold = Math.max(1, opts.changeThreshold ?? 1);
+  const heartbeatMs = Math.max(0, opts.heartbeatMs ?? DEFAULT_HEARTBEAT_MS);
   let lastSentHash: string | null = null;
+  let lastSentAt = 0;
   let lastSeenHash: string | null = null;
   let paused = false;
   let stopped = false;
@@ -73,8 +85,11 @@ export function startFrameLoop(opts: FrameLoopOptions): FrameLoop {
       opts.onScreenChange(tMs);
     lastSeenHash = phash;
 
-    if (lastSentHash !== null && hamming(phash, lastSentHash) < opts.hammingThreshold) return;
+    const unchanged = lastSentHash !== null && hamming(phash, lastSentHash) < opts.hammingThreshold;
+    const heartbeatDue = heartbeatMs > 0 && tMs - lastSentAt + opts.intervalMs > heartbeatMs;
+    if (unchanged && !heartbeatDue) return;
     lastSentHash = phash;
+    lastSentAt = tMs;
     seq += 1;
     opts.onFrame({ ...frame, frameId: `f${seq}-${phash}`, tMs, phash });
   };

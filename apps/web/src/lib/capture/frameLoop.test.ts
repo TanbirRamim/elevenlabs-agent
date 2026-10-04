@@ -32,7 +32,16 @@ const fiveBits = frame([0x1f]); // distance 5
 const sixBits = frame([0x3f]); // distance 6
 const far = frame([0xff, 0xff, 0xff]); // distance 24
 
-function setup(script: (Frame | null)[], threshold = 6, changeThreshold?: number) {
+/**
+ * The change-filter tests turn the heartbeat off (`heartbeatMs: 0`) to look at the filter alone;
+ * pass `null` to use the loop's default heartbeat.
+ */
+function setup(
+  script: (Frame | null)[],
+  threshold = 6,
+  changeThreshold?: number,
+  heartbeatMs: number | null = 0,
+) {
   let now = 0;
   const sent: SentFrame[] = [];
   const changes: number[] = [];
@@ -41,6 +50,7 @@ function setup(script: (Frame | null)[], threshold = 6, changeThreshold?: number
     intervalMs: 1500,
     hammingThreshold: threshold,
     ...(changeThreshold !== undefined ? { changeThreshold } : {}),
+    ...(heartbeatMs !== null ? { heartbeatMs } : {}),
     capture: () => {
       i++;
       return script[i - 1] ?? null;
@@ -151,5 +161,42 @@ describe("startFrameLoop", () => {
     expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 1500);
     loop.stop();
     expect(clearInterval).toHaveBeenCalledWith(42);
+  });
+
+  it("sends a heartbeat frame on a still screen so no gap exceeds 2 s (default)", () => {
+    // 1500 ms ticks: waiting for the next tick would leave a 3 s gap, so every tick sends.
+    const { loop, sent, changes, advance } = setup([base, base, base, oneBit], 6, 6, null);
+    advance(1500 * 4);
+    expect(sent.map((f) => f.tMs)).toEqual([1500, 3000, 4500, 6000]);
+    expect(sent.map((f) => f.frameId.split("-")[0])).toEqual(["f1", "f2", "f3", "f4"]);
+    expect(changes).toEqual([]);
+    loop.stop();
+  });
+
+  it("with fast ticks, sends a still screen once per heartbeat and changes at once", () => {
+    let now = 0;
+    const sent: number[] = [];
+    const script = [base, base, base, base, base, far, far, far, far, far, far, far];
+    let i = 0;
+    const loop = startFrameLoop({
+      intervalMs: 500,
+      hammingThreshold: 6,
+      heartbeatMs: 2000,
+      capture: () => script[i++] ?? null,
+      onFrame: (f) => sent.push(f.tMs),
+      onScreenChange: () => {},
+      clock: () => now,
+    });
+    for (let k = 0; k < script.length; k++) {
+      now += 500;
+      vi.advanceTimersByTime(500);
+    }
+    // First frame, a heartbeat 2000 ms later, the change at once at 3000, then a heartbeat
+    // 2000 ms after it.
+    expect(sent).toEqual([500, 2500, 3000, 5000]);
+    for (let k = 1; k < sent.length; k++) {
+      expect((sent[k] ?? 0) - (sent[k - 1] ?? 0)).toBeLessThanOrEqual(2000);
+    }
+    loop.stop();
   });
 });
