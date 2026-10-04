@@ -1,21 +1,26 @@
-import { evaluate, type RuleRef } from "@shadow/guard";
-import { type GuardVerdict, PendingAction } from "@shadow/schema";
+import { type RuleRef, rulesFromWorkMap } from "@shadow/guard";
+import { Id, PendingAction } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CLAUDE_ROUTE_RATE_LIMIT } from "../limits.js";
-import { escalate, JUDGED_OUTCOMES, type JudgeDeps, judgeAction } from "../llm/judge.js";
+import { type JudgeDeps, runGuard } from "../llm/judge.js";
 import type { LlmDeps } from "../llm/structured.js";
 import type { Store } from "../store/memory.js";
 
 export function rulesFromStore(store: Store, fallback: RuleRef[]): RuleRef[] {
   const map = store.getPublishedWorkMap();
-  if (!map) return fallback;
-  return map.guardrails.flatMap((g) =>
-    g.machineRule ? [{ id: g.id, machineRule: g.machineRule }] : [],
-  );
+  return map ? rulesFromWorkMap(map) : fallback;
 }
 
-const PresaveQuery = z.object({ sessionId: z.string().optional() });
+const PresaveQuery = z.object({ sessionId: Id.optional() });
+
+/** Which teach session is saving: the `x-shadow-session` header, else `?sessionId=`. */
+function sessionIdOf(headers: Record<string, unknown>, query: unknown): string | null {
+  const header = Id.safeParse(headers["x-shadow-session"]);
+  if (header.success) return header.data;
+  const fromQuery = PresaveQuery.safeParse(query);
+  return fromQuery.success ? (fromQuery.data.sessionId ?? null) : null;
+}
 
 export interface GuardRouteDeps {
   /** null: no key — machine rules only, never a judge call. */
@@ -36,31 +41,19 @@ export function registerGuardRoutes(
       return reply.code(400).send({ code: "invalid_action", issues: parsed.error.issues });
     }
     const action = parsed.data;
-    let verdict: GuardVerdict = evaluate(action, rulesFromStore(store, fallback));
+    // Machine rules, then the judge for a risky outcome they did not BLOCK (N1: G1 fires,
+    // the fraud rule is only spoken) — see runGuard.
+    const verdict = await runGuard(action, {
+      map: store.getPublishedWorkMap(),
+      fallbackRules: fallback,
+      llm,
+      judge: { log: req.log, ...judge },
+    });
 
-    // A risky outcome the machine rules did not BLOCK gets the LLM second opinion against
-    // the published map's full guardrails — including the ones without machine rules. It
-    // also runs after a REQUIRE_APPROVAL/WARN (N1: G1 fires, the fraud rule is only spoken).
-    const map = store.getPublishedWorkMap();
-    if (
-      verdict.decision !== "BLOCK" &&
-      JUDGED_OUTCOMES.includes(action.outcome) &&
-      llm &&
-      map &&
-      map.guardrails.length > 0
-    ) {
-      const judged = await judgeAction(llm, action, map.guardrails, {
-        log: req.log,
-        ...judge,
-      });
-      verdict = escalate(verdict, judged);
-    }
-
-    // Recorded for the mastery report (HAR-12); the teach page passes ?sessionId=.
-    const query = PresaveQuery.safeParse(req.query);
-    if (query.success && query.data.sessionId) {
-      const session = store.getSession(query.data.sessionId);
-      session?.guardVerdicts.push({
+    // Recorded for the mastery report (HAR-12); the teach page sends x-shadow-session.
+    const sessionId = sessionIdOf(req.headers, req.query);
+    if (sessionId) {
+      store.getSession(sessionId)?.guardVerdicts.push({
         ticketId: action.ticket.id,
         outcome: action.outcome,
         verdict,

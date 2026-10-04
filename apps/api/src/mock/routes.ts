@@ -1,7 +1,6 @@
 import {
   DebriefAnswerRequest,
   DebriefStatus,
-  MasteryReport,
   type OpenQuestion,
   TeachBackConfirmRequest,
   TeachBackConfirmResponse,
@@ -12,10 +11,10 @@ import type { Store } from "../store/memory.js";
 import type { MockFixtures } from "./fixtures.js";
 
 /**
- * MOCK_AI=1 stand-ins for the endpoints HAR-9/HAR-12 build for real. They let the
+ * MOCK_AI=1 stand-ins for the debrief endpoints HAR-9 builds for real. They let the
  * web app run Capture -> Map -> Teach end to end with no Claude or Presidio keys.
- * The Work Map routes (GET/PATCH/publish/markdown/predictions, routes/workmaps.ts) are the
- * real store-backed ones; the fixture map is saved into the store here.
+ * The Work Map routes (routes/workmaps.ts), learner predictions and mastery (routes/teach.ts)
+ * are the real store-backed ones; the fixture map is saved into the store here.
  */
 export function registerMockRoutes(
   app: FastifyInstance,
@@ -95,12 +94,5 @@ export function registerMockRoutes(
       workMap: corrected,
       recheckText: fixtures.teachBack.recheckText,
     });
-  });
-
-  app.get<{ Params: { id: string } }>("/sessions/:id/mastery", async (req, reply) => {
-    if (!store.getSession(req.params.id)) {
-      return reply.code(404).send({ code: "unknown_session" });
-    }
-    return MasteryReport.parse({ ...fixtures.mastery, sessionId: req.params.id });
   });
 }

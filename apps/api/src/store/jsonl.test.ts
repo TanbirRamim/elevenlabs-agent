@@ -67,10 +67,21 @@ describe("jsonl store", () => {
       verdict: { decision: "BLOCK", ruleIds: ["G4"], source: "llm_judge" },
       at: 5000,
     });
+    session.predictions.push({
+      ticketId: "N2",
+      stepId: "G6",
+      guardrailId: "G6",
+      predictedOutcome: "handoff_legal",
+      expectedOutcome: "handoff_legal",
+      correct: true,
+      tMs: 1000,
+      at: 5100,
+    });
     await store.close();
-    // A snapshot written before guardVerdicts existed must still load.
+    // A snapshot written before guardVerdicts/predictions existed must still load.
     const old = { ...session, id: "sess_old" } as Partial<typeof session>;
     delete old.guardVerdicts;
+    delete old.predictions;
     appendFileSync(
       join(dir, "sessions", "sess_old.jsonl"),
       `${JSON.stringify({ kind: "session", data: old })}\n`,
@@ -79,6 +90,8 @@ describe("jsonl store", () => {
     const { store: reborn } = await tempStore(dir);
     expect(reborn.getSession(session.id)?.guardVerdicts).toEqual(session.guardVerdicts);
     expect(reborn.getSession("sess_old")?.guardVerdicts).toEqual([]);
+    expect(reborn.getSession(session.id)?.predictions).toEqual(session.predictions);
+    expect(reborn.getSession("sess_old")?.predictions).toEqual([]);
   });
 
   it("flush only appends when a session actually changed", async () => {

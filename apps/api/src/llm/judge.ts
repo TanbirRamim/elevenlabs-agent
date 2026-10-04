@@ -1,5 +1,12 @@
+import { evaluate, type RuleRef, rulesFromWorkMap } from "@shadow/guard";
 import { guardJudge } from "@shadow/prompts";
-import { type Guardrail, GuardVerdict, Outcome, type PendingAction } from "@shadow/schema";
+import {
+  type Guardrail,
+  GuardVerdict,
+  Outcome,
+  type PendingAction,
+  type WorkMap,
+} from "@shadow/schema";
 import { z } from "zod";
 import { type LlmDeps, structured } from "./structured.js";
 
@@ -111,4 +118,35 @@ export function escalate(machine: GuardVerdict, judged: GuardVerdict | null): Gu
     ruleIds: [...judged.ruleIds, ...machine.ruleIds.filter((id) => !judged.ruleIds.includes(id))],
     ...(expectedOutcome ? { expectedOutcome } : {}),
   };
+}
+
+export interface RunGuardDeps {
+  /** The map the action is checked against; undefined: the fallback rules only, no judge. */
+  map: WorkMap | undefined;
+  fallbackRules: readonly RuleRef[];
+  /** null: no key, machine rules only. */
+  llm: LlmDeps | null;
+  judge?: JudgeDeps;
+}
+
+/**
+ * The full pre-save check (§6.8): the map's machine rules, then — for a risky outcome the rules
+ * did not BLOCK — the judge against all of the map's guardrails, folded in by `escalate`.
+ * Shared by /guard/presave, /copilot/run and `pnpm eval:tutor`, so all three agree.
+ */
+export async function runGuard(
+  action: PendingAction,
+  { map, fallbackRules, llm, judge }: RunGuardDeps,
+): Promise<GuardVerdict> {
+  const machine = evaluate(action, map ? rulesFromWorkMap(map) : fallbackRules);
+  if (
+    machine.decision === "BLOCK" ||
+    !JUDGED_OUTCOMES.includes(action.outcome) ||
+    !llm ||
+    !map ||
+    map.guardrails.length === 0
+  ) {
+    return machine;
+  }
+  return escalate(machine, await judgeAction(llm, action, map.guardrails, judge));
 }

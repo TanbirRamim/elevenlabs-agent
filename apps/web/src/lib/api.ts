@@ -1,5 +1,8 @@
 import {
+  AgentExport,
   ApiError,
+  CopilotRun,
+  CopilotRunRequest,
   CreateSessionRequest,
   CreateSessionResponse,
   DebriefAnswerRequest,
@@ -107,6 +110,8 @@ interface RequestSpec<T> {
   body?: { json: unknown } | { blob: Blob; contentType: string };
   /** How to read the response: JSON parsed with `schema`, text, or nothing (204). */
   response: { kind: "json"; schema: z.ZodType<T> } | { kind: "text" } | { kind: "none" };
+  /** Extra request headers (e.g. `x-shadow-session`). */
+  headers?: Record<string, string>;
 }
 
 const seg = (id: string): string => encodeURIComponent(Id.parse(id));
@@ -117,7 +122,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
   async function request<T>(spec: RequestSpec<T>): Promise<T> {
     const { method, path } = spec;
-    const headers: Record<string, string> = { accept: "application/json, text/*" };
+    const headers: Record<string, string> = {
+      ...spec.headers,
+      accept: "application/json, text/*",
+    };
     let body: BodyInit | undefined;
     if (spec.body && "json" in spec.body) {
       headers["content-type"] = "application/json";
@@ -296,13 +304,35 @@ export function createApiClient(options: ApiClientOptions = {}) {
         response: json(MasteryReport),
       }),
 
-    /** `POST /guard/presave` evaluates a pending DeskSim action before it is saved. */
-    preSave: async (action: PendingAction): Promise<GuardVerdict> =>
+    /**
+     * `POST /guard/presave` evaluates a pending DeskSim action before it is saved. With a
+     * `sessionId` (teach mode) the verdict is recorded on that session for the mastery report;
+     * it goes in the `x-shadow-session` header so the URL stays the same.
+     */
+    preSave: async (action: PendingAction, sessionId?: string): Promise<GuardVerdict> =>
       request({
         method: "POST",
         path: "/guard/presave",
         body: { json: PendingAction.parse(action) },
         response: json(GuardVerdict),
+        ...(sessionId ? { headers: { "x-shadow-session": Id.parse(sessionId) } } : {}),
+      }),
+
+    /** `GET /workmaps/:id/export?format=agent` (id may be "published") -> the map as a policy. */
+    getAgentExport: async (workMapId: string): Promise<AgentExport> =>
+      request({
+        method: "GET",
+        path: `/workmaps/${seg(workMapId)}/export?format=agent`,
+        response: json(AgentExport),
+      }),
+
+    /** `POST /copilot/run` runs the map (id may be "published") over the held-out tickets. */
+    runCopilot: async (workMapId: string): Promise<CopilotRun> =>
+      request({
+        method: "POST",
+        path: "/copilot/run",
+        body: { json: CopilotRunRequest.parse({ workMapId }) },
+        response: json(CopilotRun),
       }),
 
     /** `PUT /sessions/:id/recording` (body `video/webm`) -> 204 */
@@ -347,6 +377,8 @@ export const {
   submitLearnerPrediction,
   getMastery,
   preSave,
+  getAgentExport,
+  runCopilot,
   uploadRecording,
   recordingUrl,
 } = api;

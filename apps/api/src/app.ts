@@ -20,9 +20,11 @@ import {
   registerDebriefRoutes,
   registerDebriefUnavailableRoutes,
 } from "./routes/debrief.js";
+import { registerExportRoutes } from "./routes/export.js";
 import { registerGuardRoutes } from "./routes/guard.js";
 import { registerRecordingRoutes } from "./routes/recording.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
+import { registerTeachRoutes } from "./routes/teach.js";
 import { registerTicketRoutes } from "./routes/tickets.js";
 import { registerWorkMapRoutes } from "./routes/workmaps.js";
 import { createS3Storage } from "./storage/s3.js";
@@ -92,18 +94,24 @@ export async function buildApp({
       : env.ANTHROPIC_API_KEY && env.MOCK_AI !== "1"
         ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL)
         : null;
-  registerGuardRoutes(app, store, fallbackRules, {
-    llm,
-    ...(judgeSeams ? { judge: judgeSeams } : {}),
-  });
+  const judge = judgeSeams ? { judge: judgeSeams } : {};
+  registerGuardRoutes(app, store, fallbackRules, { llm, ...judge });
   registerRecordingRoutes(app, store, objectStorage);
   if (env.MOCK_AI === "1") {
     // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The Work Map routes are
-    // the real store-backed ones over the fixture map; debrief/mastery are fixture stand-ins.
+    // the real store-backed ones over the fixture map, and so are predictions, mastery and the
+    // Copilot export (none call Claude here); the debrief is a fixture stand-in.
     // No frameSink either: frames cannot be redacted without Presidio, so none are stored.
     const fixtures = loadMockFixtures();
     registerMockRoutes(app, store, fixtures);
     registerWorkMapRoutes(app, store, { publishedFallback: fixtures.workMap });
+    registerTeachRoutes(app, store, { tickets, publishedFallback: fixtures.workMap });
+    registerExportRoutes(app, store, {
+      tickets,
+      publishedFallback: fixtures.workMap,
+      llm,
+      ...judge,
+    });
     registerSessionRoutes(app, store, {
       hooks: createMockStreamHooks(fixtures),
       redactText: identityRedactor, // fixture text only, no PII
@@ -116,6 +124,8 @@ export async function buildApp({
     // Without a key, frames are stored (redacted) but never shown to a model.
     const ticketsById = new Map(tickets.map((t) => [t.id, PublicTicket.parse(t)]));
     registerWorkMapRoutes(app, store);
+    registerTeachRoutes(app, store, { tickets });
+    registerExportRoutes(app, store, { tickets, llm, ...judge });
     if (llm) registerDebriefRoutes(app, store, { llm, ...debriefSeams });
     else registerDebriefUnavailableRoutes(app);
     registerSessionRoutes(app, store, {
