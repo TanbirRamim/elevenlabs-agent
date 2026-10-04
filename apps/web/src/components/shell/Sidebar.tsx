@@ -64,10 +64,10 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto flex items-center gap-2 border-t border-rule px-1 pt-3">
-        <Avatar name="Demo workspace" size="sm" />
+        <Avatar name="Singoda AI" size="sm" />
         <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-ui font-medium text-ink">Demo workspace</p>
-          <p className="truncate text-2xs text-ink-faint">Local session</p>
+          <p className="truncate text-ui font-medium text-ink">Singoda AI</p>
+          <p className="truncate text-2xs text-ink-faint">Support escalations</p>
         </div>
         <IconButton label="Keyboard shortcuts" size="sm" onClick={onOpenShortcuts}>
           <Keyboard />

@@ -9,7 +9,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: WEB_ORIGIN
-        value: https://shadow-web-meow-4acb.vercel.app
+        value: https://shadow-web.tanbirramim420.workers.dev
       - key: DEMO_FALLBACK_RULES
         value: "0"
       - key: GUARD_JUDGE_TIMEOUT_MS

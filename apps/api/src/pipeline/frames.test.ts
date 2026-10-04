@@ -1,21 +1,28 @@
+import { createHash } from "node:crypto";
 import type { ServerMessage, VisionResult } from "@shadow/schema";
 import { describe, expect, it, vi } from "vitest";
 import type { LlmDeps } from "../llm/structured.js";
 import type { FrameInput } from "../llm/vision.js";
 import { createMemoryObjectStorage } from "../storage/memory.js";
 import { createMemoryStore } from "../store/memory.js";
-import { createFrameProcessor, type FrameProcessorDeps } from "./frames.js";
+import {
+  createFrameProcessor,
+  type FrameProcessorDeps,
+  phashDistance,
+  sameScreen,
+} from "./frames.js";
 
 const log = { warn: vi.fn() };
 const fakeLlm = { client: {}, model: "test" } as unknown as LlmDeps;
 
-function frameMsg(frameId: string, tMs: number) {
+/** A distinct screen per frame id unless a phash is given (sha256 bits: far apart). */
+function frameMsg(frameId: string, tMs: number, phash?: string) {
   return {
     type: "frame" as const,
     tMs,
     frameId,
     jpegBase64: Buffer.from(`raw-${frameId}`).toString("base64"),
-    phash: "0".repeat(16),
+    phash: phash ?? createHash("sha256").update(frameId).digest("hex").slice(0, 16),
   };
 }
 
@@ -220,5 +227,44 @@ describe("createFrameProcessor", () => {
     expect(seen).toEqual(["f2"]); // f1 is stale: never sent to vision after f2
     expect(storage.objects.has(`frames/${session.id}/f1.jpg`)).toBe(true); // still stored as evidence
     sink.stop();
+  });
+
+  it("stores a heartbeat frame of the same screen but does not run vision on it", async () => {
+    const seen: string[] = [];
+    const { session, sink } = setup({
+      extract: async (_llm, _prev, frame) => {
+        seen.push(frame.frameId);
+        return okResult();
+      },
+    });
+    const still = "00ff00ff00ff00ff";
+    sink.onFrame(frameMsg("f1", 1000, still));
+    await flush();
+    sink.onFrame(frameMsg("f2", 2500, still)); // identical
+    await flush();
+    sink.onFrame(frameMsg("f3", 4000, "00ff00ff00ff00fe")); // 1 bit of flicker
+    await flush();
+    sink.onFrame(frameMsg("f4", 5500, "ff00ff00ff00ff00")); // the screen changed
+    await flush();
+    expect(session.storedFrameIds).toEqual(["f1", "f2", "f3", "f4"]);
+    expect(seen).toEqual(["f1", "f4"]);
+    sink.stop();
+  });
+});
+
+describe("sameScreen", () => {
+  it("treats identical and near-identical dHashes as the same screen", () => {
+    expect(sameScreen(null, "0000000000000000")).toBe(false);
+    expect(sameScreen("0000000000000000", "0000000000000000")).toBe(true);
+    expect(sameScreen("0000000000000000", "000000000000001f")).toBe(true); // 5 bits
+    expect(sameScreen("0000000000000000", "000000000000003f")).toBe(false); // 6 bits
+    expect(sameScreen("abc", "abd")).toBe(true);
+    expect(sameScreen("short", "0000000000000000")).toBe(false);
+  });
+
+  it("counts differing bits", () => {
+    expect(phashDistance("00", "ff")).toBe(8);
+    expect(phashDistance("0f", "0e")).toBe(1);
+    expect(phashDistance("zz", "00")).toBeNull();
   });
 });

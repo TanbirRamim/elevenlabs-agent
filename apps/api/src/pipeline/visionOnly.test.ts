@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { loadTickets } from "@shadow/guard/fixtures";
 import { PublicTicket, type ServerMessage, type VisionResult } from "@shadow/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -78,7 +79,8 @@ function wire() {
       type: "frame",
       frameId,
       tMs,
-      phash: "0".repeat(16),
+      // A different screen per frame (sha256 bits are far apart), so vision reads each one.
+      phash: createHash("sha256").update(frameId).digest("hex").slice(0, 16),
       jpegBase64: Buffer.from(frameId).toString("base64"),
     });
   return { session, sent, sink, curiosity, frame };

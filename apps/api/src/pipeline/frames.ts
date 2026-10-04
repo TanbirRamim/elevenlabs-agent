@@ -46,6 +46,34 @@ export interface FrameProcessorDeps {
   onVisionEvent?: (event: VisionEvent, tMs: number) => void;
 }
 
+/**
+ * dHash distance below which two frames show the same screen. Matches the capture client's send
+ * threshold: a still desk over compressed tab video flickers by a few bits from frame to frame.
+ */
+export const SAME_SCREEN_HAMMING = 6;
+
+/** Bit distance between two hex dHashes; null when they are not comparable. */
+export function phashDistance(a: string, b: string): number | null {
+  if (a.length !== b.length || !/^[0-9a-f]+$/i.test(a) || !/^[0-9a-f]+$/i.test(b)) return null;
+  let bits = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    let x = Number.parseInt(a[i] ?? "0", 16) ^ Number.parseInt(b[i] ?? "0", 16);
+    while (x) {
+      bits += x & 1;
+      x >>= 1;
+    }
+  }
+  return bits;
+}
+
+/** True when `phash` shows the same screen as `prevPhash` (identical or within flicker). */
+export function sameScreen(prevPhash: string | null, phash: string): boolean {
+  if (prevPhash === null) return false;
+  if (prevPhash === phash) return true;
+  const d = phashDistance(prevPhash, phash);
+  return d !== null && d < SAME_SCREEN_HAMMING;
+}
+
 export function createFrameProcessor({
   session,
   send,
@@ -68,6 +96,8 @@ export function createFrameProcessor({
   let openGapsFn: () => number = () => 0;
   /** tMs of the newest frame handed to vision; redaction can finish out of order. */
   let newestForVision = Number.NEGATIVE_INFINITY;
+  /** dHash of the last frame handed to vision (run or pending). */
+  let lastVisionPhash: string | null = null;
 
   const interval = setInterval(() => {
     send({
@@ -154,6 +184,11 @@ export function createFrameProcessor({
         // must not replace a newer one (newest wins, and `prev` must stay chronological).
         if (m.tMs <= newestForVision) return;
         newestForVision = m.tMs;
+        // The client sends a heartbeat frame every couple of seconds even on a still screen.
+        // It is stored above (the replay needs it) but vision is not asked about a screen it
+        // has already read.
+        if (sameScreen(lastVisionPhash, m.phash)) return;
+        lastVisionPhash = m.phash;
         const frame: FrameInput = {
           frameId: m.frameId,
           tMs: m.tMs,
