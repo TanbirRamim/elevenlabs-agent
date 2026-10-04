@@ -140,7 +140,7 @@ Every Claude call goes through one function, [`llm/structured.ts`](apps/api/src/
 
 | Route | Effort | Used for |
 | --- | --- | --- |
-| `vision@1` | low | What changed on a redacted frame, and what the screen already answers ([`vision.ts`](apps/api/src/llm/vision.ts)) |
+| `vision@2` | low | What changed on a redacted frame, and what the screen already answers ([`vision.ts`](apps/api/src/llm/vision.ts)) |
 | `curiosity@1` | low | Phrasing the top-ranked gap as one short question ([`engine.ts`](apps/api/src/curiosity/engine.ts)) |
 | `workmap@1` | high | Drafting the Work Map from events, transcript and answers; then verify, one repair pass, and open questions for what still fails ([`build.ts`](apps/api/src/workmap/build.ts)) |
 | `teachback@1` | medium | The spoken teach-back and the one-sentence re-check after a correction ([`debrief.ts`](apps/api/src/routes/debrief.ts)) |
