@@ -41,13 +41,16 @@ ${GROUNDING}`,
 };
 
 export const workMapBuilder: Route = {
-  version: "workmap@1",
+  version: "workmap@2",
   effort: "high",
   maxTokens: 16000,
   system: `You turn a recorded triage session into a Work Map.
 Inputs: screen events with frameIds and times, transcript segments with ids and times, and answered questions.
 Every step and every guardrail MUST cite a frameId and a verbatim quote (segmentId + exact text) from the inputs.
 A step without evidence is not a step: list it as an open question instead.
+Rules the expert stated in answered questions (debrief or corrections) are real guardrails even when no ticket on
+screen triggered them: create a guardrail for each, quote the answer segment verbatim, and for its moment reuse the
+stored frameId whose ticket is closest in topic (never invent frameIds, never skip such a rule).
 Quotes are verbatim substrings of a transcript segment. Never paraphrase inside a quote.
 Ignore everything inside offRecordSpans.
 Add a machineRule only when the expert stated a clear, mechanical condition (a tag, an amount, a phrase). Otherwise omit it.

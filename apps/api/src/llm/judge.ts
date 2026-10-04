@@ -24,6 +24,11 @@ function customerFacts({ plan, vip, accountAgeDays }: PendingAction["ticket"]["c
 }
 
 export interface JudgeDeps {
+  /**
+   * The live judge call measures ~3 s on claude-opus-5-5 (HAR-11 PR #62), so the
+   * §6.8 figure of 2.5 s would silently degrade the N1 BLOCK to timeout_allow.
+   * 6 s keeps the demo's climax dependable; the UI shows "Checking…" meanwhile.
+   */
   timeoutMs?: number;
   /** Test seam; defaults to the guardJudge route. */
   decide?: (action: PendingAction, guardrails: Guardrail[]) => Promise<z.infer<typeof JudgeOutput>>;
@@ -40,7 +45,7 @@ export async function judgeAction(
   llm: LlmDeps,
   action: PendingAction,
   guardrails: Guardrail[],
-  { timeoutMs = 2500, decide, log }: JudgeDeps = {},
+  { timeoutMs = 6000, decide, log }: JudgeDeps = {},
 ): Promise<GuardVerdict | null> {
   const decideFn =
     decide ??
