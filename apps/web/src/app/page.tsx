@@ -72,6 +72,13 @@ const MODULES: readonly Module[] = [
   },
 ];
 
+/** The guard figures come from `pnpm eval:guard` on the seed tickets (same as the Proof row). */
+const PROOF_CHIPS = [
+  "Any helpdesk: screen share to learn, one API call to block",
+  "No evidence, no rule: every rule cites a quote and a frame",
+  "Measured: 9/9 caught, 0/16 false blocks",
+] as const;
+
 export default function Home() {
   return (
     <main>
@@ -106,18 +113,36 @@ function Hero() {
             matter, and turns the answers into a Work Map that coaches the people who come after
             them.
           </p>
+          <ul aria-label="Proof" className="mt-6 flex flex-wrap gap-2">
+            {PROOF_CHIPS.map((c) => (
+              <li
+                key={c}
+                className="rounded-full border border-rule bg-surface px-3 py-1 text-xs text-ink"
+              >
+                {c}
+              </li>
+            ))}
+          </ul>
           <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <ButtonLink href="/demo" size="lg" icon={<Play aria-hidden="true" />}>
-              Watch it work · 90 s
+            <ButtonLink href="/teach" size="lg" icon={<ShieldCheck aria-hidden="true" />}>
+              See it stop a wrong refund
             </ButtonLink>
-            <ButtonLink href="/capture" size="lg" variant="secondary">
-              Start a capture session
+            <ButtonLink
+              href="/demo"
+              size="lg"
+              variant="secondary"
+              icon={<Play aria-hidden="true" />}
+            >
+              Watch it work · 90 s
             </ButtonLink>
             <ButtonLink href="/map/latest?fixture=1" size="lg" variant="ghost">
               Open the sample Work Map
               <ArrowRight aria-hidden="true" />
             </ButtonLink>
           </div>
+          <p className="mt-4 text-xs text-ink-faint">
+            Voice by ElevenLabs Agents · reasoning by Claude
+          </p>
         </div>
 
         <ProductFrame />
