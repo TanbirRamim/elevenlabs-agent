@@ -56,6 +56,8 @@ export function createFrameProcessor({
   let inFlight = false;
   let stopped = false;
   let openGapsFn: () => number = () => 0;
+  /** tMs of the newest frame handed to vision; redaction can finish out of order. */
+  let newestForVision = Number.NEGATIVE_INFINITY;
 
   const interval = setInterval(() => {
     send({
@@ -137,6 +139,10 @@ export function createFrameProcessor({
           session.storedFrameIds.push(m.frameId);
         }
         if (!llm || stopped) return;
+        // OCR redaction takes seconds and frames overlap; an older frame that finishes late
+        // must not replace a newer one (newest wins, and `prev` must stay chronological).
+        if (m.tMs <= newestForVision) return;
+        newestForVision = m.tMs;
         const frame: FrameInput = {
           frameId: m.frameId,
           tMs: m.tMs,
