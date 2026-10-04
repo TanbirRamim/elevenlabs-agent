@@ -11,6 +11,13 @@ export {
   WORKMAP_MAX_CHARS,
   WORKMAP_PREFIX,
 } from "./protocol";
-export type { UseVoiceOptions, Voice, VoiceAgent, VoiceLine, VoiceStatus } from "./useVoice";
+export type {
+  UseVoiceOptions,
+  Voice,
+  VoiceAgent,
+  VoiceEndReason,
+  VoiceLine,
+  VoiceStatus,
+} from "./useVoice";
 export { useVoice } from "./useVoice";
 export { VoiceProvider } from "./VoiceProvider";
