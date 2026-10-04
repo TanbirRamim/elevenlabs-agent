@@ -138,9 +138,9 @@ export function usePreflight({ deskReady }: { deskReady: boolean }) {
           code === "eleven_not_configured"
             ? {
                 status: "failed",
-                detail: "Voice is not configured on the server.",
+                detail: "Voice agent not configured on the server.",
                 fixHint:
-                  "Set ELEVENLABS_INTERVIEWER_AGENT_ID (see .env.example) and restart the web app. Without voice, Singoda AI follows silently and you type the debrief.",
+                  "Set ELEVENLABS_INTERVIEWER_AGENT_ID and ELEVENLABS_TUTOR_AGENT_ID (see .env.example) on the server, then select Check again. Without voice, Singoda AI follows silently and you type the debrief.",
               }
             : {
                 status: "failed",
