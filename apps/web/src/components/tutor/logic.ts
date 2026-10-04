@@ -1,3 +1,4 @@
+import { evaluate, type RuleRef } from "@shadow/guard";
 import type {
   Guardrail,
   GuardVerdict,
@@ -213,4 +214,44 @@ export function showPredictFor(
     predictTicketId === openTicketId &&
     interventionTicketId !== openTicketId
   );
+}
+
+/** The outcomes a guided first click may try, most telling first: a refund is the classic slip. */
+export const GUIDED_OUTCOMES: readonly Outcome[] = [
+  "refund",
+  "close",
+  "reply",
+  "escalate_tier2",
+  "escalate_engineering",
+  "hold_request_info",
+  "handoff_billing_disputes",
+  "handoff_security",
+  "handoff_legal",
+];
+
+export interface GuidedStartPick {
+  ticketId: string;
+  outcome: Outcome;
+  /** The rule that would hold the save, as the loaded rules cite it (any id scheme). */
+  ruleId: string;
+}
+
+/**
+ * The guided first click: the first ticket (queue order) whose save a loaded rule would BLOCK,
+ * trying a refund on every ticket before any other outcome. Works for any rule ids: it only asks
+ * the guard. Rules stand in for the judge here (the reference rules cover judge-only guardrails).
+ */
+export function pickGuidedStart(
+  tickets: readonly PublicTicket[],
+  rules: readonly RuleRef[],
+  outcomes: readonly Outcome[] = GUIDED_OUTCOMES,
+): GuidedStartPick | null {
+  for (const outcome of outcomes) {
+    for (const ticket of tickets) {
+      const verdict = evaluate({ ticket, outcome }, rules);
+      const ruleId = verdict.ruleIds[0];
+      if (verdict.decision === "BLOCK" && ruleId) return { ticketId: ticket.id, outcome, ruleId };
+    }
+  }
+  return null;
 }
