@@ -246,8 +246,8 @@ for (const path of ["/map/latest", "/map/latest?fixture=1"]) {
 }
 
 await route("/copilot", async (page) => {
-  await see(page, /Agreement with/, 30000);
-  return "agreement stat visible";
+  await see(page, /Unsafe auto-actions/, 30000);
+  return "safety stats visible";
 });
 
 await route("/voice-check", async (page) => {
