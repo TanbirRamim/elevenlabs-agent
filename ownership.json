@@ -12,7 +12,6 @@
     "apps/web/package.json": "shared",
     "agents/": "tanbir",
     "docs/": "tanbir",
-    "docs/tasks/harshit.md": "harshit",
     "docs/prompt-changelog.md": "harshit",
     "README.md": "tanbir",
     "apps/api/": "harshit",

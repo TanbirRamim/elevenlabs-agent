@@ -23,7 +23,7 @@ A PR that must touch both owners' areas (repo setup, an agreed cross-cutting fix
 
 ## Tasks
 
-Your tasks are in `docs/tasks/tanbir.md` or `docs/tasks/harshit.md`. Each lists the paths it owns, the contracts it reads, its steps and its acceptance checks. `docs/tasks/README.md` has the prompt to give your coding agent.
+Work from a GitHub issue. Each task names the paths it owns (see `ownership.json`), the contracts it reads, its steps and its acceptance checks.
 
 ## Daily loop
 
@@ -44,7 +44,3 @@ git push -u origin HEAD && gh pr create --fill
 ## Commit messages
 
 `type(scope): summary`, enforced by a hook. Types: feat fix chore docs test refactor perf ci build. Scopes: web api schema guard prompts agents desk infra docs ci seed eval repo.
-
-## Issues
-
-`node scripts/create-issues.mjs` (dry run) / `--apply` creates one GitHub issue per task, labelled with its owner.

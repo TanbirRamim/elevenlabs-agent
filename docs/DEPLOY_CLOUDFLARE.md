@@ -32,7 +32,7 @@ flowchart LR
 
 ## Deploy from the Cloudflare dashboard (Git integration)
 
-Both Workers can build and deploy from GitHub on every push to `main` (Workers Builds also builds the container images). Account: **Tanbirramim420@gmail.com's Account** (`d7adc56ae0b48c02f351bb3e7ca6b9bc`, pinned in both `wrangler.jsonc` files).
+Both Workers can build and deploy from GitHub on every push to `main` (Workers Builds also builds the container images). The account id is pinned in both `wrangler.jsonc` files.
 
 **One-time:** R2 → enable R2 → create bucket `shadow-frames` → Manage API tokens → create an *Object Read & Write* token scoped to `shadow-frames` (gives the access key id and secret).
 
@@ -116,7 +116,7 @@ pnpm cf:deploy:api
 curl https://elevenlabs-agent.<subdomain>.workers.dev/health    # {"ok":true,...}; first call may take a few seconds (cold start)
 ```
 
-Then from the demo laptop: open the web URL, allow the microphone and screen sharing, and run Capture → Map → Teach once.
+Then open the web URL, allow the microphone and screen sharing, and run Capture → Map → Teach once.
 
 ## Things to know
 

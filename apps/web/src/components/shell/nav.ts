@@ -1,13 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  AudioLines,
-  CircleDot,
-  GraduationCap,
-  Headset,
-  Inbox,
-  PlayCircle,
-  Workflow,
-} from "lucide-react";
+import { CircleDot, GraduationCap, Headset, PlayCircle, Workflow } from "lucide-react";
 
 export type NavItem = {
   id: string;
@@ -61,7 +53,10 @@ export const PRODUCT_NAV: readonly NavItem[] = [
   },
 ];
 
-/** Tools for setup and review; quieter, below the product nav. */
+/**
+ * Secondary entries, quieter, below the product nav. Setup and diagnostic routes (/desk,
+ * /voice-check) stay reachable by URL for tests but are deliberately not linked here or in ⌘K.
+ */
 export const TOOLS_NAV: readonly NavItem[] = [
   {
     id: "demo",
@@ -70,22 +65,6 @@ export const TOOLS_NAV: readonly NavItem[] = [
     match: "/demo",
     icon: PlayCircle,
     description: "The whole story in 90 seconds",
-  },
-  {
-    id: "desk",
-    label: "Desk preview",
-    href: "/desk",
-    match: "/desk",
-    icon: Inbox,
-    description: "The sandbox helpdesk on its own",
-  },
-  {
-    id: "voice-check",
-    label: "Voice check",
-    href: "/voice-check",
-    match: "/voice-check",
-    icon: AudioLines,
-    description: "Test the voice agents",
   },
 ];
 
