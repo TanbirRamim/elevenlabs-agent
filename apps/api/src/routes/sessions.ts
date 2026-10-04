@@ -6,24 +6,24 @@ import {
 } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
 import type { StreamHooks } from "../mock/stream.js";
-import type { StoreFrame } from "../privacy/frames.js";
+import type { FrameSink } from "../pipeline/frames.js";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
 import { type RedactText, unavailableRedactor } from "../privacy/presidio.js";
 import { ingestTranscript } from "../privacy/transcript.js";
-import type { Store } from "../store/memory.js";
+import type { SessionRecord, Store } from "../store/memory.js";
 
 export interface SessionStreamDeps {
   hooks?: StreamHooks;
   /** Defaults to the fail-safe placeholder redactor; app.ts wires the real one. */
   redactText?: RedactText;
-  /** Absent (mock mode / no storage): frames are dropped, never stored unredacted. */
-  storeFrame?: StoreFrame;
+  /** Per-connection frame pipeline factory (redact -> store -> vision). Absent: frames dropped. */
+  frameSink?: (session: SessionRecord, send: (m: ServerMessage) => void) => FrameSink;
 }
 
 export function registerSessionRoutes(
   app: FastifyInstance,
   store: Store,
-  { hooks, redactText = unavailableRedactor, storeFrame }: SessionStreamDeps = {},
+  { hooks, redactText = unavailableRedactor, frameSink }: SessionStreamDeps = {},
 ): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
@@ -46,9 +46,11 @@ export function registerSessionRoutes(
       }
       // Hook-scheduled sends (mock candidate questions) must not fire after close.
       const timers = new Set<NodeJS.Timeout>();
+      const sink = frameSink?.(session, send);
       socket.on("close", () => {
         for (const timer of timers) clearTimeout(timer);
         timers.clear();
+        sink?.stop();
       });
 
       socket.on("message", (raw: Buffer) => {
@@ -93,18 +95,15 @@ export function registerSessionRoutes(
             };
             session.events.push(ev);
             send({ type: "screen_event", event: ev });
+            if (m.event.type === "action_committed") {
+              sink?.onDomAction(m.event.tMs, m.event.ticketId, m.event.outcome);
+            }
             hooks?.onDeskEvent(m.event, send, timers);
             return;
           }
           case "frame":
             if (isOffRecord(session, m.tMs)) return;
-            // Vision queue (HAR-6) will consume frames from here as well.
-            void storeFrame?.(session, m).catch((err: unknown) => {
-              req.log.warn(
-                { sessionId: session.id, frameId: m.frameId, err },
-                "frame store failed",
-              );
-            });
+            sink?.onFrame(m);
             return;
           case "question_asked":
             return;
