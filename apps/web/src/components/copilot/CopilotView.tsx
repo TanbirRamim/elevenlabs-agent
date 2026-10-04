@@ -1,10 +1,46 @@
 "use client";
 
 import type { CopilotTicketResult, Outcome } from "@shadow/schema";
-import { useCallback, useEffect, useState } from "react";
+import {
+  Bot,
+  Check,
+  CircleDot,
+  Copy,
+  Download,
+  GraduationCap,
+  Map as MapIcon,
+  RotateCw,
+  Scale,
+  UserRound,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { publicEnv } from "../../env";
 import { ApiClientError, api } from "../../lib/api";
-import { Badge, Button, ButtonLink, buttonClasses, Stat, StatGroup } from "../ui";
+import { Page } from "../shell/Page";
+import {
+  Alert,
+  Badge,
+  Button,
+  ButtonLink,
+  buttonClasses,
+  cx,
+  EmptyState,
+  Meter,
+  PageHeader,
+  Panel,
+  SegmentedControl,
+  Skeleton,
+  Stat,
+  StatGroup,
+  StatusPill,
+  Table,
+  TBody,
+  Td,
+  THead,
+  Th,
+  Tr,
+  useToast,
+} from "../ui";
 import { type CopilotClient, type CopilotData, loadCopilot } from "./load";
 
 export const OUTCOME_LABEL: Record<Outcome, string> = {
@@ -29,10 +65,14 @@ const HANDOFF_LABEL: Record<NonNullable<CopilotTicketResult["handoffReason"]>, s
 export const FRAMING =
   "People first, then agents: the Work Map that taught the new hire, run as a policy.";
 
+const CAPTURE_HREF = "/capture?intent=start";
+
 type State =
   | { status: "loading" }
   | { status: "ready"; data: CopilotData }
   | { status: "error"; error: Error };
+
+type RowFilter = "all" | "differs" | "handoff";
 
 export function CopilotView({
   mapId,
@@ -45,47 +85,83 @@ export function CopilotView({
   client?: CopilotClient;
 }) {
   const [state, setState] = useState<State>({ status: "loading" });
+  const [rerunning, setRerunning] = useState(false);
 
-  const run = useCallback(() => {
-    setState({ status: "loading" });
-    loadCopilot(mapId, client).then(
-      (data) => setState({ status: "ready", data }),
-      (error: unknown) =>
-        setState({
-          status: "error",
-          error: error instanceof Error ? error : new Error("The Copilot run failed."),
-        }),
-    );
-  }, [mapId, client]);
+  const run = useCallback(
+    (keep = false) => {
+      if (keep) setRerunning(true);
+      else setState({ status: "loading" });
+      loadCopilot(mapId, client)
+        .then(
+          (data) => setState({ status: "ready", data }),
+          (error: unknown) =>
+            setState({
+              status: "error",
+              error: error instanceof Error ? error : new Error("The Copilot run failed."),
+            }),
+        )
+        .finally(() => setRerunning(false));
+    },
+    [mapId, client],
+  );
 
   useEffect(() => {
     run();
   }, [run]);
 
-  return (
-    <main className="mx-auto w-full max-w-6xl px-4 pt-12 pb-24 sm:px-6 sm:pt-16">
-      <header className="max-w-[44rem]">
-        <h1 className="font-display text-[2.75rem] leading-[1.05] font-normal tracking-[-0.025em] text-balance sm:text-[3.5rem]">
-          Triage Copilot
-        </h1>
-        <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-pretty text-ink">{FRAMING}</p>
-        <p className="mt-3 max-w-[34rem] text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
-          It decides the ten held-out tickets the expert never worked, cites the rule it used, and
-          hands blocks, approvals and judgment calls back to a person. Nothing is sent: this is
-          shadow mode, scored against the expert’s own labels.
-        </p>
-      </header>
+  const ready = state.status === "ready" ? state.data : null;
+  const mapHref = mapId ? `/map/${encodeURIComponent(mapId)}` : "/map/latest";
 
-      <div aria-live="polite" className="mt-12 border-t border-rule pt-12">
-        {state.status === "loading" ? (
-          <p className="text-ink-muted">Running the Work Map over the held-out tickets…</p>
-        ) : null}
+  return (
+    <Page width="wide">
+      <PageHeader
+        meta={
+          <>
+            <StatusPill tone="muted">Shadow mode, nothing is sent</StatusPill>
+            {ready ? (
+              ready.run.judge === "on" ? (
+                <Badge tone="ok" icon={<Check aria-hidden="true" />}>
+                  Judge on
+                </Badge>
+              ) : (
+                <Badge tone="muted">Judge unavailable</Badge>
+              )
+            ) : null}
+            {ready ? (
+              <span className="text-xs text-ink-faint">
+                <span className="font-mono">{ready.run.workMapId}</span> v{ready.run.version}
+              </span>
+            ) : null}
+          </>
+        }
+        title="Triage Copilot"
+        description={FRAMING}
+        actions={
+          <>
+            <ButtonLink href={mapHref} variant="ghost" icon={<MapIcon aria-hidden="true" />}>
+              Open the Work Map
+            </ButtonLink>
+            <Button
+              variant="secondary"
+              icon={<RotateCw aria-hidden="true" />}
+              onClick={() => run(true)}
+              loading={rerunning}
+              disabled={state.status === "loading"}
+            >
+              Run again
+            </Button>
+          </>
+        }
+      />
+
+      <div aria-live="polite" className="mt-6">
+        {state.status === "loading" ? <LoadingResults /> : null}
         {state.status === "error" ? (
-          <ErrorPanel error={state.error} apiUrl={apiUrl} mapId={mapId} onRetry={run} />
+          <ErrorPanel error={state.error} apiUrl={apiUrl} mapId={mapId} onRetry={() => run()} />
         ) : null}
-        {state.status === "ready" ? <Results data={state.data} onRetry={run} /> : null}
+        {state.status === "ready" ? <Results data={state.data} /> : null}
       </div>
-    </main>
+    </Page>
   );
 }
 
@@ -106,28 +182,51 @@ function ErrorPanel({
         ? "no_map"
         : error.kind
       : "http";
-  const message =
-    kind === "network"
-      ? `The API at ${apiUrl} did not answer. Start it with pnpm dev, then run the Copilot again.`
-      : kind === "no_map"
-        ? mapId
-          ? `Work Map "${mapId}" was not found. Open the Work Map page and run the Copilot from a published map.`
-          : "No Work Map is published yet. Publish one from the Map page, then run the Copilot again."
-        : `The Copilot run failed: ${error.message}`;
-  return (
-    <div role="alert" className="max-w-[38rem]">
-      <p className="text-[1.0625rem] leading-relaxed text-ink">{message}</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={onRetry}>
-          Run the Copilot again
-        </Button>
-        {kind === "no_map" ? (
-          <ButtonLink href="/map/latest" variant="ghost">
-            Open the Work Map
-          </ButtonLink>
-        ) : null}
+
+  if (kind === "no_map") {
+    return (
+      <div role="alert" className="rounded-panel border border-rule bg-surface">
+        <EmptyState
+          size="page"
+          icon={<MapIcon />}
+          title={mapId ? `Work Map "${mapId}" was not found` : "No Work Map is published yet"}
+          description={
+            mapId
+              ? "Open the Work Map page and run the Copilot from a published map."
+              : "The Copilot runs a published Work Map over tickets the expert never saw. Capture a session and publish its map, then run the Copilot again."
+          }
+          action={
+            <>
+              <ButtonLink href={CAPTURE_HREF} icon={<CircleDot aria-hidden="true" />}>
+                Start a capture session
+              </ButtonLink>
+              <ButtonLink href="/map/latest?fixture=1" variant="secondary">
+                Open the sample Work Map
+              </ButtonLink>
+            </>
+          }
+        />
       </div>
-    </div>
+    );
+  }
+
+  const retry = (
+    <Button size="sm" variant="secondary" onClick={onRetry}>
+      Run the Copilot again
+    </Button>
+  );
+  if (kind === "network") {
+    return (
+      <Alert tone="offline" title={`The API at ${apiUrl} did not answer`} action={retry}>
+        Start it with <code className="font-mono text-xs text-ink">pnpm dev</code>, then run the
+        Copilot again.
+      </Alert>
+    );
+  }
+  return (
+    <Alert tone="danger" title="The Copilot run failed" action={retry}>
+      {error.message}
+    </Alert>
   );
 }
 
@@ -135,151 +234,265 @@ function percent(rate: number | null): string {
   return rate === null ? "n/a" : `${Math.round(rate * 100)}%`;
 }
 
-function Results({ data, onRetry }: { data: CopilotData; onRetry: () => void }) {
+function Results({ data }: { data: CopilotData }) {
   const { run, exported } = data;
-  const rulesJson = JSON.stringify(exported.rules, null, 2);
-  return (
-    <>
-      <p className="max-w-[38rem] text-[1.0625rem] leading-relaxed text-ink-muted">
-        {run.expertName}’s Work Map for {run.workflow.toLowerCase()},{" "}
-        <span className="font-mono text-sm text-ink-faint">
-          {run.workMapId} v{run.version}
-        </span>
-      </p>
+  const toast = useToast();
+  const [filter, setFilter] = useState<RowFilter>("all");
+  const rulesJson = useMemo(() => JSON.stringify(exported.rules, null, 2), [exported.rules]);
+  const total = run.tickets.length;
+  const decidedAlone = total - run.handedToHuman;
+  const differs = run.tickets.filter((t) => !t.agrees).length;
+  const rows = run.tickets.filter((t) =>
+    filter === "differs" ? !t.agrees : filter === "handoff" ? t.handedToHuman : true,
+  );
 
-      <StatGroup className="mt-10">
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(exported.systemPrompt);
+      toast.toast({ title: "System prompt copied", tone: "ok" });
+    } catch {
+      toast.toast({ title: "Could not copy the prompt", tone: "danger" });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Loop expertName={run.expertName} />
+      <StatGroup>
         <Stat
+          label={`Agreement with ${run.expertName}`}
           value={percent(run.agreement.rate)}
-          label={`agreement with ${run.expertName}’s decisions`}
           note={`${run.agreement.agreed} of ${run.agreement.total} held-out tickets`}
         />
         <Stat
+          label="Handed to a human"
           value={run.handedToHuman}
-          label="handed to a human"
+          unit={`/ ${total}`}
           note="blocks, approvals, judgment calls"
         />
         <Stat
+          label="Decided by the Copilot"
+          value={decidedAlone}
+          unit={`/ ${total}`}
+          note={
+            <Meter
+              value={decidedAlone}
+              max={Math.max(1, total)}
+              label="Share decided without a person"
+              className="mt-1"
+            />
+          }
+        />
+        <Stat
+          label="Machine rules"
           value={exported.rules.machine.length}
-          label="machine rules in the policy"
           note={`${exported.rules.guardrails.length} guardrails exported`}
         />
       </StatGroup>
 
-      <section aria-labelledby="copilot-results" className="mt-16">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="max-w-[40rem]">
-            <h2
-              id="copilot-results"
-              className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink"
-            >
-              Ticket by ticket
-            </h2>
-            <p className="mt-3 leading-relaxed text-pretty text-ink-muted">
-              The Copilot starts from the default action, a refund when the ticket names an amount
-              and a reply otherwise, and the Work Map’s rules overrule it.{" "}
-              {run.judge === "on"
-                ? "Each action also went to the language-model judge, the same check a pre-save gets."
-                : "Machine rules only: no language-model key is configured, so the judge did not run."}
-            </p>
+      <Panel
+        title="Ticket by ticket"
+        meta={`${total} tickets ${run.expertName} never worked`}
+        flush
+      >
+        <div className="flex flex-col gap-2 border-b border-rule px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-ink-muted">
+            The Copilot starts from the default action, a refund when the ticket names an amount and
+            a reply otherwise, and the Work Map’s rules overrule it.{" "}
+            {run.judge === "on"
+              ? "Each action also went to the language-model judge, the same check a pre-save gets."
+              : "Machine rules only: no language-model key is configured, so the judge did not run."}
+          </p>
+          <div className="shrink-0 overflow-x-auto">
+            <SegmentedControl
+              label="Show tickets"
+              size="sm"
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: "all", label: `All ${total}` },
+                { value: "differs", label: `Differs ${differs}`, disabled: differs === 0 },
+                {
+                  value: "handoff",
+                  label: `To a human ${run.handedToHuman}`,
+                  disabled: run.handedToHuman === 0,
+                },
+              ]}
+            />
           </div>
-          <Button variant="secondary" size="sm" onClick={onRetry}>
-            Run again
-          </Button>
         </div>
-        <ResultsTable rows={run.tickets} expertName={run.expertName} />
-      </section>
+        <ResultsTable rows={rows} expertName={run.expertName} />
+      </Panel>
 
-      <section aria-labelledby="copilot-export" className="mt-16 border-t border-rule pt-12">
-        <h2
-          id="copilot-export"
-          className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink"
-        >
-          The exported policy
-        </h2>
-        <p className="mt-3 max-w-[40rem] leading-relaxed text-pretty text-ink-muted">
-          The same map as an agent’s system prompt and rule file: steps in order, guardrails as hard
-          rules, and when to stop and hand over.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <a
-            className={buttonClasses({ variant: "secondary" })}
-            href={`data:application/json;charset=utf-8,${encodeURIComponent(rulesJson)}`}
-            download={`${run.workMapId}-rules.json`}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Panel title="The exported policy" meta="system prompt and rule file" flush>
+          <div className="flex flex-wrap items-center gap-2 border-b border-rule px-3 py-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Copy aria-hidden="true" />}
+              onClick={copyPrompt}
+            >
+              Copy prompt
+            </Button>
+            <a
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
+              href={`data:application/json;charset=utf-8,${encodeURIComponent(rulesJson)}`}
+              download={`${run.workMapId}-rules.json`}
+            >
+              <Download aria-hidden="true" />
+              Download rules.json
+            </a>
+            <span className="ml-auto hidden text-xs text-ink-faint sm:inline">
+              {exported.systemPrompt.split("\n").length} lines
+            </span>
+          </div>
+          <pre
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable preview must be reachable by keyboard
+            tabIndex={0}
+            className="max-h-80 overflow-auto bg-sunken px-4 py-3 font-mono text-xs leading-5 whitespace-pre-wrap text-ink-muted"
           >
-            Download rules.json
-          </a>
-        </div>
-        <details className="group mt-6 rounded-panel border border-rule bg-surface">
-          <summary className="cursor-pointer list-none px-5 py-4 text-[0.9375rem] font-medium text-ink">
-            <span className="group-open:hidden">Show the system prompt</span>
-            <span className="hidden group-open:inline">Hide the system prompt</span>
-          </summary>
-          <pre className="max-h-[32rem] overflow-auto border-t border-rule px-5 py-4 font-mono text-[0.8125rem] leading-relaxed whitespace-pre-wrap text-ink-muted">
             {exported.systemPrompt}
           </pre>
-        </details>
-      </section>
-    </>
+        </Panel>
+
+        <Panel title="Rules in the policy" meta={`${exported.rules.guardrails.length}`} flush>
+          <ul className="divide-y divide-rule">
+            {exported.rules.guardrails.map((g) => (
+              <li key={g.id} className="flex flex-col gap-1 px-4 py-2.5">
+                <span className="flex items-center gap-2">
+                  <Badge tone="guard" className="font-mono">
+                    {g.id}
+                  </Badge>
+                  <span className="text-xs text-ink-faint">
+                    {g.machineRule ? effectLabel(g.machineRule.effect) : "Judge only"}
+                  </span>
+                </span>
+                <span className="text-ui text-ink">{g.condition}</span>
+                <span className="line-clamp-2 text-xs text-ink-muted">“{g.quote}”</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
+    </div>
   );
 }
 
-const CELL = "block py-1 md:table-cell md:py-4 md:pr-6 md:align-top";
-const CELL_LABEL = "mb-0.5 block text-[0.8125rem] text-ink-faint md:hidden";
+/** The moonshot in one line: the same map goes to people first, then to an agent. */
+function Loop({ expertName }: { expertName: string }) {
+  const steps = [
+    {
+      icon: <CircleDot aria-hidden="true" />,
+      title: `Captured from ${expertName}`,
+      body: "Real tickets, their reasons, their limits",
+    },
+    {
+      icon: <MapIcon aria-hidden="true" />,
+      title: "Work Map",
+      body: "Every rule backed by a quote and a clip",
+    },
+    {
+      icon: <GraduationCap aria-hidden="true" />,
+      title: "Taught to a new hire",
+      body: "Coached in the expert’s words, wrong refunds stopped",
+    },
+    {
+      icon: <Bot aria-hidden="true" />,
+      title: "Run as a policy",
+      body: "Judgment calls go back to a person",
+      current: true,
+    },
+  ];
+  return (
+    <ol
+      aria-label="People first, then agents"
+      className="grid gap-px overflow-hidden rounded-panel border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-4"
+    >
+      {steps.map((s, i) => (
+        <li
+          key={s.title}
+          aria-current={s.current ? "step" : undefined}
+          className={cx("flex items-start gap-3 px-4 py-3", s.current ? "bg-sunken" : "bg-surface")}
+        >
+          <span
+            aria-hidden="true"
+            className={cx(
+              "mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-control border [&_svg]:size-3.5 [&_svg]:stroke-[1.75]",
+              s.current
+                ? "border-ink bg-ink text-ink-inverse"
+                : "border-rule bg-sunken text-ink-muted",
+            )}
+          >
+            {s.icon}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-ui font-medium text-ink">
+              <span className="figures mr-1.5 font-mono text-xs font-normal text-ink-faint">
+                {i + 1}
+              </span>
+              {s.title}
+              {s.current ? (
+                <span className="ml-2 text-xs font-normal text-ink-faint">this page</span>
+              ) : null}
+            </span>
+            <span className="block text-xs text-ink-muted">{s.body}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function effectLabel(effect: "BLOCK" | "REQUIRE_APPROVAL" | "WARN"): string {
+  return effect === "BLOCK" ? "Blocks" : effect === "REQUIRE_APPROVAL" ? "Needs approval" : "Warns";
+}
 
 function ResultsTable({ rows, expertName }: { rows: CopilotTicketResult[]; expertName: string }) {
+  if (rows.length === 0) {
+    return (
+      <div className="px-4">
+        <EmptyState title="No tickets match" description="Pick another view to see its tickets." />
+      </div>
+    );
+  }
   return (
-    <table className="mt-8 block w-full text-left text-[0.9375rem] md:table">
+    <Table className="min-w-[56rem]">
       <caption className="sr-only">
         Copilot decisions on the held-out tickets, compared with {expertName}’s labels
       </caption>
-      <thead className="hidden border-b border-rule-strong md:table-header-group">
-        <tr className="text-[0.8125rem] text-ink-muted">
-          <th scope="col" className="py-3 pr-6 font-medium">
-            Ticket
-          </th>
-          <th scope="col" className="py-3 pr-6 font-medium">
-            Copilot decision
-          </th>
-          <th scope="col" className="py-3 pr-6 font-medium">
-            Cited rule
-          </th>
-          <th scope="col" className="py-3 pr-6 font-medium">
-            {expertName}’s label
-          </th>
-          <th scope="col" className="py-3 pr-6 font-medium">
-            Agreement
-          </th>
-          <th scope="col" className="py-3 font-medium">
-            Handed to a human
-          </th>
+      <THead>
+        <tr>
+          <Th className="pl-4">Ticket</Th>
+          <Th>Copilot decision</Th>
+          <Th>Cited rule</Th>
+          <Th>{expertName}’s label</Th>
+          <Th>Agreement</Th>
+          <Th className="pr-4">Handed to a human</Th>
         </tr>
-      </thead>
-      <tbody className="block md:table-row-group">
+      </THead>
+      <TBody>
         {rows.map((r) => (
-          <tr
-            key={r.ticketId}
-            data-ticket-id={r.ticketId}
-            className="block border-b border-rule py-4 md:table-row md:py-0"
-          >
-            <th scope="row" className={`${CELL} font-normal`}>
-              <span className="font-mono text-[0.8125rem] text-ink-faint">{r.ticketId}</span>
-              <span className="mt-0.5 block text-ink">{r.subject}</span>
+          <Tr key={r.ticketId} data-ticket-id={r.ticketId}>
+            <th scope="row" className="h-12 py-2 pr-3 pl-4 text-left align-middle font-normal">
+              <span className="flex items-baseline gap-2">
+                <span className="font-mono text-xs text-ink-faint">{r.ticketId}</span>
+                <span className="text-ui text-ink">{r.subject}</span>
+              </span>
             </th>
-            <td className={CELL}>
-              <span className={CELL_LABEL}>Copilot decision</span>
-              <span className="text-ink">
+            <Td className="py-2">
+              <span className="block text-ink">
                 {r.decision ? OUTCOME_LABEL[r.decision] : "No action, rule blocks it"}
               </span>
               {r.decision !== r.proposed ? (
-                <span className="mt-0.5 block text-[0.8125rem] text-ink-faint">
+                <span className="block text-xs text-ink-faint">
                   instead of {OUTCOME_LABEL[r.proposed].toLowerCase()}
                 </span>
               ) : null}
-            </td>
-            <td className={CELL}>
-              <span className={CELL_LABEL}>Cited rule</span>
+            </Td>
+            <Td className="py-2">
               {r.citedGuardrailIds.length > 0 ? (
-                <span className="flex flex-wrap gap-1.5">
+                <span className="flex flex-wrap gap-1">
                   {r.citedGuardrailIds.map((id) => (
                     <Badge key={id} tone="guard" className="font-mono">
                       {id}
@@ -289,35 +502,73 @@ function ResultsTable({ rows, expertName }: { rows: CopilotTicketResult[]; exper
               ) : (
                 <span className="text-ink-faint">None applies</span>
               )}
-            </td>
-            <td className={CELL}>
-              <span className={CELL_LABEL}>{expertName}’s label</span>
-              <span className="text-ink">{OUTCOME_LABEL[r.expected]}</span>
+            </Td>
+            <Td className="py-2">
+              <span className="block text-ink">{OUTCOME_LABEL[r.expected]}</span>
               {r.expectedGuardrailIds.length > 0 ? (
-                <span className="mt-0.5 block font-mono text-[0.8125rem] text-ink-faint">
+                <span className="block font-mono text-xs text-ink-faint">
                   {r.expectedGuardrailIds.join(", ")}
                 </span>
               ) : null}
-            </td>
-            <td className={CELL}>
-              <span className={CELL_LABEL}>Agreement</span>
+            </Td>
+            <Td className="py-2">
               <Badge tone={r.agrees ? "ok" : "danger"} dot>
                 {r.agrees ? "Agrees" : "Differs"}
               </Badge>
-            </td>
-            <td className={`${CELL} md:pr-0`}>
-              <span className={CELL_LABEL}>Handed to a human</span>
+            </Td>
+            <Td className="py-2 pr-4">
               {r.handoffReason ? (
-                <span className="text-ink">
-                  Yes, <span className="text-ink-muted">{HANDOFF_LABEL[r.handoffReason]}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  {r.handoffReason === "judgment_call" ? (
+                    <Scale aria-hidden="true" className="size-3.5 shrink-0 text-guard-text" />
+                  ) : (
+                    <UserRound aria-hidden="true" className="size-3.5 shrink-0 text-ink-muted" />
+                  )}
+                  <span className="text-ink">
+                    Yes, <span className="text-ink-muted">{HANDOFF_LABEL[r.handoffReason]}</span>
+                  </span>
                 </span>
               ) : (
                 <span className="text-ink-muted">No, Copilot decides</span>
               )}
-            </td>
-          </tr>
+            </Td>
+          </Tr>
         ))}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
+  );
+}
+
+function LoadingResults() {
+  return (
+    <div role="status" aria-busy="true" className="flex flex-col gap-6">
+      <span className="sr-only">Running the Work Map over the held-out tickets…</span>
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-rule bg-rule sm:grid-cols-4">
+        {["a", "b", "c", "d"].map((k) => (
+          <div key={k} className="flex flex-col gap-2 bg-surface px-4 py-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-6 w-14" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className="overflow-hidden rounded-panel border border-rule bg-surface">
+        <div className="flex h-11 items-center border-b border-rule px-4">
+          <Skeleton className="h-3.5 w-32" />
+        </div>
+        {["1", "2", "3", "4", "5", "6"].map((k) => (
+          <div
+            key={k}
+            className="flex h-12 items-center gap-6 border-b border-rule px-4 last:border-b-0"
+          >
+            <Skeleton className="h-3 w-48" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="hidden h-3 w-32 sm:block" />
+            <Skeleton className="hidden h-5 w-16 sm:block" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

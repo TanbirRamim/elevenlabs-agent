@@ -1,10 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GateTimeline, type TimelineQuestion } from "../insight/GateTimeline";
 import { REASON_SENTENCES } from "../insight/reasons";
+import { ButtonLink, StatusPill } from "../ui";
 import { AgentsStage } from "./AgentsStage";
 import { CaptionBar } from "./CaptionBar";
 import { CaptureStage } from "./CaptureStage";
@@ -198,55 +198,51 @@ export function DemoPlayer() {
   return (
     <>
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col gap-1 border-b border-rule pt-5 pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-          <h1 className="text-base leading-tight font-semibold text-ink">Shadow, in 90 seconds</h1>
-          <p className="text-sm text-ink-muted">
-            Replay of a recorded session — try it live:{" "}
-            <Link
-              href="/capture"
-              className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
-            >
+        <header className="flex flex-col gap-3 border-b border-rule pt-6 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-xl leading-7 font-semibold tracking-[-0.01em] text-ink">
+              Shadow, in 90 seconds
+            </h1>
+            <StatusPill tone="muted">Replay of a recorded session</StatusPill>
+          </div>
+          <nav aria-label="Try it live" className="flex items-center gap-2 text-ui text-ink-muted">
+            <span>Try it live</span>
+            <ButtonLink href="/capture" size="sm" variant="secondary">
               Capture
-            </Link>
-            {", "}
-            <Link
-              href="/teach"
-              className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
-            >
+            </ButtonLink>
+            <ButtonLink href="/teach" size="sm" variant="secondary">
               Teach
-            </Link>
-          </p>
-        </div>
+            </ButtonLink>
+          </nav>
+        </header>
 
-        <div className="pt-5 pb-10">
-          <div className="grid gap-x-10 gap-y-5 lg:grid-cols-12">
-            <section aria-labelledby="chapter-title" className="lg:col-span-4">
-              <h2
-                id="chapter-title"
-                className="flex items-baseline gap-3 text-lg leading-none font-semibold text-ink"
-              >
-                <span className="font-mono text-sm tracking-normal text-ink-faint">
-                  {String(chapter.number).padStart(2, "0")}
-                </span>
+        <div className="flex flex-col gap-4 pt-4 pb-10">
+          <div className="grid overflow-hidden rounded-panel border border-rule bg-surface lg:grid-cols-12">
+            <section
+              aria-labelledby="chapter-title"
+              className="flex flex-col gap-2 border-b border-rule p-4 lg:col-span-4 lg:border-r lg:border-b-0"
+            >
+              <p className="figures font-mono text-2xs text-ink-faint">
+                Act {chapter.number} of {script.chapters.length}
+              </p>
+              <h2 id="chapter-title" className="text-sm font-semibold text-ink">
                 {chapter.title}
               </h2>
-              <p className="mt-3 max-w-[40ch] text-[0.9375rem] leading-relaxed text-pretty text-ink-muted">
-                {chapter.summary}
-              </p>
+              <p className="max-w-[40ch] text-ui text-pretty text-ink-muted">{chapter.summary}</p>
             </section>
-            <div className="border-t border-rule pt-5 lg:col-span-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+            <div className="min-w-0 p-4 lg:col-span-8">
               <CaptionBar orb={orb} transcript={transcript} clock={clock} />
             </div>
           </div>
 
-          <div className="mt-5 border-t border-rule pt-6">
+          <div>
             {reduce ? (
               stage
             ) : (
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={chapter.id}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{
                     opacity: 1,
                     y: 0,
@@ -262,8 +258,8 @@ export function DemoPlayer() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-30 border-t border-rule bg-canvas">
-        <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6">
+      <div className="sticky bottom-0 z-30 border-t border-rule bg-surface">
+        <div className="mx-auto w-full max-w-6xl px-4 py-2.5 sm:px-6">
           <PlayerControls
             playMs={playMs}
             durationMs={durationMs}

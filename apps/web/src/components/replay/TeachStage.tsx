@@ -5,7 +5,9 @@ import { ACTION_LABELS } from "../desk/ActionBar";
 import { InterventionPanel } from "../tutor/InterventionPanel";
 import { buildIntervention } from "../tutor/logic";
 import { resolveItem } from "../tutor/MasteryReport";
+import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
+import { Panel } from "../ui/Card";
 import { sampleWorkMap } from "../workmap/fixture";
 import type { TeachFrame } from "./frame";
 import { ReplayDesk } from "./ReplayDesk";
@@ -22,11 +24,11 @@ export function TeachStage({ frame, teach }: { frame: TeachFrame; teach: ReplayS
     [teach],
   );
   return (
-    <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
-      <div className="lg:col-span-6">
+    <div className="grid gap-4 lg:grid-cols-12">
+      <div className="min-w-0 lg:col-span-6">
         <ReplayDesk view={frame.desk} queueLabel="Jonas’s queue" />
       </div>
-      <div className="lg:col-span-6">
+      <div className="min-w-0 lg:col-span-6">
         {frame.showMastery ? (
           <MasterySummary teach={teach} />
         ) : frame.showIntervention ? (
@@ -55,31 +57,30 @@ function Predict({
   return (
     <section
       aria-label="Predict the decision"
-      className="relative overflow-hidden rounded-panel border border-rule bg-surface px-5 py-5 sm:px-6"
+      className="overflow-hidden rounded-panel border border-rule bg-surface"
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-        <span className="inline-flex items-center gap-2 text-ask-text">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-ask" />
+      <header className="flex min-h-11 flex-wrap items-center justify-between gap-2 border-b border-rule px-4 py-2">
+        <span className="inline-flex items-center gap-2 text-ui font-semibold text-ask-text">
+          <Avatar name="Shadow" size="xs" shadow />
           Shadow asks
         </span>
-        <span>
-          Ticket <span className="font-mono text-[0.8125rem] text-ink">{ticketId}</span>, never
-          handled by Maya
+        <span className="text-xs text-ink-faint">
+          Ticket <span className="figures font-mono text-ink-muted">{ticketId}</span>, never handled
+          by Maya
         </span>
-      </p>
-      <h3 className="mt-2 text-base leading-snug font-semibold text-ink">
-        What would you do here, and why?
-      </h3>
-      <p className="mt-3 flex min-h-8 flex-wrap items-center gap-2 text-[0.9375rem] text-ink-muted">
-        {prediction ? (
-          <>
-            Jonas predicts <Badge tone="neutral">{ACTION_LABELS[prediction]}</Badge>
-          </>
-        ) : (
-          "Waiting for Jonas to commit to a decision before he acts."
-        )}
-      </p>
+      </header>
+      <div className="flex flex-col gap-3 p-4">
+        <h3 className="text-sm font-semibold text-ink">What would you do here, and why?</h3>
+        <p className="flex min-h-7 flex-wrap items-center gap-2 text-ui text-ink-muted">
+          {prediction ? (
+            <>
+              Jonas predicts <Badge tone="neutral">{ACTION_LABELS[prediction]}</Badge>
+            </>
+          ) : (
+            "Waiting for Jonas to commit to a decision before he acts."
+          )}
+        </p>
+      </div>
     </section>
   );
 }
@@ -95,47 +96,43 @@ function MasterySummary({ teach }: { teach: ReplayScript["teach"] }) {
     .map((id) => resolveItem(sampleWorkMap, id))
     .filter((x) => x !== null);
   return (
-    <section
-      aria-labelledby="mastery-title"
-      className="rounded-panel border border-rule bg-surface"
+    <Panel
+      id="mastery"
+      title="Mastery report"
+      meta="Jonas, two unseen tickets, taught from Maya’s Work Map"
+      flush
     >
-      <div className="border-b border-rule px-5 py-4 sm:px-6">
-        <h3 id="mastery-title" className="text-base leading-tight text-ink">
-          Mastery report
-        </h3>
-        <p className="mt-1 text-[0.9375rem] text-ink-muted">
-          Jonas, two unseen tickets, taught from Maya’s Work Map.
-        </p>
-      </div>
-      <dl className="grid grid-cols-3 divide-x divide-rule border-b border-rule">
+      <dl className="grid grid-cols-3 gap-px border-b border-rule bg-rule">
         {groups.map((g) => {
           const entries = mastery.entries.filter((e) => e.status === g.status);
           return (
-            <div key={g.status} className="flex flex-col gap-1 px-5 py-4 sm:px-6">
-              <dt className="order-2 text-sm text-ink-muted">{g.title}</dt>
-              <dd className="order-1 text-xl leading-none font-semibold tabular-nums text-ink">
+            <div key={g.status} className="flex min-w-0 flex-col gap-1 bg-surface px-4 py-3">
+              <dt className="text-xs font-medium text-ink-muted">{g.title}</dt>
+              <dd className="figures text-2xl leading-8 font-semibold tracking-tight text-ink">
                 {entries.length}
               </dd>
-              <dd className="order-3 font-mono text-xs text-ink-faint">
+              <dd className="truncate font-mono text-2xs text-ink-faint">
                 {entries.map((e) => `${e.ticketId}, ${e.stepOrGuardrailId}`).join("; ") || "none"}
               </dd>
             </div>
           );
         })}
       </dl>
-      <div className="px-5 py-4 sm:px-6">
-        <p className="text-sm font-medium text-ink-muted">Practise next</p>
+      <div className="flex flex-col gap-3 p-4">
+        <p className="text-xs font-medium text-ink-muted">Practise next</p>
         {practice.map((item) => (
-          <figure key={item.id} className="mt-2">
-            <p className="text-[0.9375rem] leading-snug text-ink">{practiceTitle(item.id)}</p>
-            <blockquote className="mt-2 text-base leading-snug text-ink">“{item.quote}”</blockquote>
-            <figcaption className="mt-1 font-mono text-xs text-ink-faint">
+          <figure key={item.id}>
+            <p className="text-ui font-medium text-ink">{practiceTitle(item.id)}</p>
+            <blockquote className="mt-2 border-l-2 border-rule-strong pl-3 text-ui text-ink">
+              “{item.quote}”
+            </blockquote>
+            <figcaption className="figures mt-1.5 font-mono text-2xs text-ink-faint">
               Maya, {item.id}
             </figcaption>
           </figure>
         ))}
       </div>
-    </section>
+    </Panel>
   );
 }
 

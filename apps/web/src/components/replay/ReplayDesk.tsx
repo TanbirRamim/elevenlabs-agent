@@ -1,6 +1,7 @@
 import type { Outcome, PublicTicket } from "@shadow/schema";
-import { Check } from "lucide-react";
+import { Check, Inbox, ShieldAlert } from "lucide-react";
 import { ACTION_LABELS } from "../desk/ActionBar";
+import { Badge } from "../ui/Badge";
 import { cx } from "../ui/cx";
 import type { DeskView } from "./script";
 
@@ -23,19 +24,24 @@ const ACTIONS: Outcome[] = [
 
 export function ReplayDesk({ view, queueLabel }: { view: DeskView; queueLabel: string }) {
   const selected = view.tickets.find((t) => t.id === view.selectedId) ?? null;
+  const open = view.tickets.filter((t) => !view.committed[t.id]).length;
   return (
     <section
       aria-label={`DeskSim, ${queueLabel}`}
       className="overflow-hidden rounded-panel border border-rule bg-surface"
     >
-      <header className="flex items-center justify-between gap-3 border-b border-rule px-4 py-2.5">
-        <span className="text-sm text-ink-muted">DeskSim, {queueLabel}</span>
-        <span className="font-mono text-xs text-ink-faint">Sandbox helpdesk</span>
+      <header className="flex h-11 items-center justify-between gap-3 border-b border-rule px-4">
+        <span className="flex min-w-0 items-center gap-2">
+          <Inbox aria-hidden="true" className="size-4 shrink-0 stroke-[1.75] text-ink-muted" />
+          <span className="truncate text-ui font-semibold text-ink">{queueLabel}</span>
+          <span className="figures text-xs text-ink-faint">{open} open</span>
+        </span>
+        <Badge tone="muted">Sandbox helpdesk</Badge>
       </header>
-      <div className="grid md:grid-cols-[12.5rem_1fr]">
+      <div className="grid md:grid-cols-[13rem_1fr]">
         <ol
           aria-label="Ticket queue"
-          className="grid grid-cols-2 border-b border-rule md:flex md:flex-col md:border-r md:border-b-0"
+          className="grid grid-cols-2 gap-px border-b border-rule bg-rule md:flex md:flex-col md:gap-0 md:border-r md:border-b-0 md:bg-sunken md:p-1.5"
         >
           {view.tickets.map((t) => {
             const done = view.committed[t.id];
@@ -45,33 +51,37 @@ export function ReplayDesk({ view, queueLabel }: { view: DeskView; queueLabel: s
                 key={t.id}
                 aria-current={current ? "true" : undefined}
                 className={cx(
-                  "relative flex min-w-0 flex-col gap-0.5 border-rule px-4 py-2.5 odd:border-r md:border-b md:odd:border-r-0",
-                  current ? "bg-sunken" : "",
+                  "flex min-w-0 flex-col gap-0.5 px-3 py-2 md:rounded-control",
+                  current ? "bg-selected" : "bg-surface md:bg-transparent",
                 )}
               >
-                {current ? (
-                  <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ink" />
-                ) : null}
                 <span className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs text-ink-faint">{t.id}</span>
+                  <span className="figures font-mono text-2xs text-ink-faint">{t.id}</span>
                   {done ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-ok">
-                      <Check aria-hidden="true" className="size-3.5" />
+                    <span className="inline-flex items-center gap-1 text-2xs font-medium text-ok">
+                      <Check aria-hidden="true" className="size-3" />
                       <span className="max-sm:sr-only">{ACTION_LABELS[done]}</span>
                     </span>
                   ) : null}
                 </span>
-                <span className="truncate text-sm leading-snug text-ink">{t.subject}</span>
+                <span
+                  className={cx(
+                    "truncate text-ui",
+                    current ? "font-medium text-ink" : "text-ink-muted",
+                  )}
+                >
+                  {t.subject}
+                </span>
               </li>
             );
           })}
         </ol>
 
-        <div className="min-w-0 px-4 py-4 sm:px-5">
+        <div className="min-w-0 p-4">
           {selected ? (
             <TicketBody ticket={selected} view={view} />
           ) : (
-            <p className="py-10 text-[0.9375rem] text-ink-faint">The queue is open.</p>
+            <p className="py-10 text-ui text-ink-faint">The queue is open.</p>
           )}
         </div>
       </div>
@@ -85,47 +95,52 @@ function TicketBody({ ticket, view }: { ticket: PublicTicket; view: DeskView }) 
   return (
     <article className="flex flex-col gap-3">
       <header>
-        <h3 className="text-[1.125rem] leading-snug font-medium text-ink">
-          <span className="mr-2 font-mono text-sm text-ink-faint">{ticket.id}</span>
+        <h3 className="flex items-baseline gap-2 text-sm font-semibold text-ink">
+          <span className="figures font-mono text-xs font-normal text-ink-faint">{ticket.id}</span>
           {ticket.subject}
         </h3>
-        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-ink-muted">
-          <span>{c.name}</span>
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-muted">
+          <span className="text-ink">{c.name}</span>
+          <span aria-hidden="true" className="text-ink-faint">
+            ·
+          </span>
           <span>{c.plan.charAt(0).toUpperCase() + c.plan.slice(1)} plan</span>
-          <span>{c.accountAgeDays} days</span>
+          <span aria-hidden="true" className="text-ink-faint">
+            ·
+          </span>
+          <span className="figures">{c.accountAgeDays} days</span>
           {ticket.amountEur !== undefined ? (
-            <span className="font-mono text-[0.8125rem] text-ink">
-              €{ticket.amountEur.toFixed(2)}
-            </span>
+            <>
+              <span aria-hidden="true" className="text-ink-faint">
+                ·
+              </span>
+              <span className="figures font-mono text-ink">€{ticket.amountEur.toFixed(2)}</span>
+            </>
           ) : null}
         </p>
       </header>
-      <ul className="flex flex-wrap gap-1.5">
+      <ul aria-label="Tags" className="flex flex-wrap gap-1">
         {ticket.tags.map((tag) => (
-          <li
-            key={tag}
-            className={cx(
-              "rounded-pill border px-2 py-px font-mono text-xs",
-              tag.includes("chargeback")
-                ? "border-transparent bg-danger-wash text-danger"
-                : "border-rule text-ink-muted",
-            )}
-          >
-            {tag}
+          <li key={tag}>
+            <Badge tone={tag.includes("chargeback") ? "guard" : "muted"} className="font-mono">
+              {tag}
+            </Badge>
           </li>
         ))}
       </ul>
-      <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed text-ink">{ticket.body}</p>
+      <p className="max-w-[60ch] rounded-panel border border-rule bg-sunken px-3 py-2.5 text-ui text-ink">
+        {ticket.body}
+      </p>
 
       {view.field ? (
         <div>
-          <p className="text-xs text-ink-muted">{view.field.label}</p>
-          <p className="mt-1 min-h-10 rounded-control border border-rule-strong bg-canvas px-3 py-2 text-sm text-ink">
+          <p className="text-xs font-medium text-ink-muted">{view.field.label}</p>
+          <p className="mt-1 min-h-8 rounded-control border border-rule-strong bg-surface px-2.5 py-1.5 text-ui text-ink">
             {view.field.value}
             {view.field.typing ? (
               <span
                 aria-hidden="true"
-                className="ml-px inline-block h-4 w-px translate-y-0.5 bg-ink"
+                className="ml-px inline-block h-3.5 w-px translate-y-0.5 bg-ink"
               />
             ) : null}
           </p>
@@ -141,12 +156,12 @@ function TicketBody({ ticket, view }: { ticket: PublicTicket; view: DeskView }) 
             <span
               key={o}
               className={cx(
-                "inline-flex min-h-8 items-center rounded-control border px-2.5 text-[0.8125rem]",
+                "inline-flex h-7 items-center rounded-control border px-2.5 text-xs font-medium",
                 pressed || done
-                  ? "border-ink bg-ink text-canvas"
+                  ? "border-ink bg-ink text-ink-inverse"
                   : blocked
-                    ? "border-guard text-ink"
-                    : "border-rule-strong text-ink-muted",
+                    ? "border-guard bg-guard-wash text-guard-text"
+                    : "border-rule-strong bg-surface text-ink-muted shadow-raised",
                 committed && !done && "opacity-45",
               )}
             >
@@ -166,12 +181,11 @@ function DeskStatus({ view, committed }: { view: DeskView; committed: Outcome | 
     return (
       <p
         role="status"
-        className="relative overflow-hidden rounded-control bg-guard-wash py-2.5 pr-3 pl-4 text-[0.9375rem] text-ink"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-control border border-guard/30 bg-guard-wash px-3 py-2 text-ui text-ink"
       >
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-guard" />
+        <ShieldAlert aria-hidden="true" className="size-4 shrink-0 stroke-[1.75] text-guard-text" />
         <span className="font-medium">Paused by Shadow</span>
         <span className="text-ink-muted">
-          {" "}
           before it was saved
           {view.blockedRuleIds.length > 0 ? ` (rule ${view.blockedRuleIds.join(", ")})` : ""}
         </span>
@@ -179,15 +193,15 @@ function DeskStatus({ view, committed }: { view: DeskView; committed: Outcome | 
     );
   }
   if (view.phase === "checking") {
-    return <p className="min-h-6 text-sm text-ink-muted">Checking…</p>;
+    return <p className="min-h-6 text-xs text-ink-muted">Checking against the Work Map…</p>;
   }
   if (committed) {
     return (
-      <p className="inline-flex min-h-6 items-center gap-1.5 text-sm text-ok">
-        <Check aria-hidden="true" className="size-4" />
+      <p className="inline-flex min-h-6 items-center gap-1.5 text-xs font-medium text-ok">
+        <Check aria-hidden="true" className="size-3.5" />
         Saved: {ACTION_LABELS[committed]}
       </p>
     );
   }
-  return <p className="min-h-6 text-sm text-ink-faint">Nothing saved yet</p>;
+  return <p className="min-h-6 text-xs text-ink-faint">Nothing saved yet</p>;
 }

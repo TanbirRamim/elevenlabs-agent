@@ -32,11 +32,11 @@ test.describe("Work Map with the sample map (?fixture=1)", () => {
     await expect(list.getByRole("listitem")).toHaveCount(all);
 
     const never = sampleWorkMap.guardrails.filter((g) => g.type === "never");
-    await page.getByRole("button", { name: `Never (${never.length})` }).click();
+    await page.getByRole("radio", { name: `Never (${never.length})` }).click();
     await expect(list.getByRole("listitem")).toHaveCount(never.length);
     for (const g of never) await expect(list.getByText(g.condition)).toBeVisible();
 
-    await page.getByRole("button", { name: "All", exact: true }).click();
+    await page.getByRole("radio", { name: "All", exact: true }).click();
     await expect(list.getByRole("listitem")).toHaveCount(all);
   });
 });
