@@ -63,3 +63,124 @@ export function committedActions(frames: SentFrame[]): { ticketId: string; outco
   }
   return out;
 }
+
+/** Where the fake ElevenLabs conversation lives; never resolves on a real network. */
+const FAKE_AGENT_URL = "wss://fake-elevenlabs.invalid/v1/convai/conversation";
+
+/** A hidden control message (`[ASK] …`) the page sent to the voice agent. */
+export interface ControlSent {
+  prefix: string;
+  body: string;
+}
+
+export interface FakeVoiceAgent {
+  /** Every `user_message` the page sent, parsed into prefix and body. */
+  readonly controls: ControlSent[];
+  /** Contextual updates (`[SCREEN …]`) the page sent. */
+  readonly contextual: string[];
+  /** The expert says something: a final user transcript, as Scribe would deliver it. */
+  say(text: string): void;
+  /** Shadow says something out loud (an agent response line). */
+  reply(text: string): void;
+}
+
+/**
+ * Replaces the stubbed voice with a fake ElevenAgents conversation: the signed-url route
+ * answers with a URL Playwright intercepts, and the WebSocket speaks just enough of the
+ * ConvAI protocol (`@elevenlabs/client` WebSocketConnection) for `useConversation` to connect.
+ * Control messages are recorded; `[ASK]`, `[DEBRIEF]` and `[TEACHBACK]` are read back as
+ * agent lines, like the real agent would say them. Call before `page.goto`.
+ */
+export async function fakeVoiceAgent(page: Page): Promise<FakeVoiceAgent> {
+  const controls: ControlSent[] = [];
+  const contextual: string[] = [];
+  let send: ((m: object) => void) | null = null;
+  let seq = 0;
+
+  await page.unroute("**/api/eleven/signed-url**");
+  await page.route("**/api/eleven/signed-url**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ signedUrl: FAKE_AGENT_URL }),
+    }),
+  );
+
+  const agentLine = (text: string) => {
+    seq += 1;
+    send?.({
+      type: "agent_response",
+      agent_response_event: { agent_response: text, event_id: seq },
+    });
+  };
+
+  await page.routeWebSocket(/fake-elevenlabs\.invalid/, (ws) => {
+    let initiated = false;
+    send = (m) => ws.send(JSON.stringify(m));
+    ws.onMessage((raw) => {
+      const text = typeof raw === "string" ? raw : raw.toString("utf8");
+      let msg: { type?: string; text?: string } = {};
+      try {
+        msg = JSON.parse(text) as typeof msg;
+      } catch {
+        return;
+      }
+      if (!initiated) {
+        // The first client frame is conversation_initiation_client_data.
+        initiated = true;
+        ws.send(
+          JSON.stringify({
+            type: "conversation_initiation_metadata",
+            conversation_initiation_metadata_event: {
+              conversation_id: "conv_fake",
+              agent_output_audio_format: "pcm_16000",
+              user_input_audio_format: "pcm_16000",
+            },
+          }),
+        );
+        return;
+      }
+      if (msg.type === "contextual_update" && msg.text) contextual.push(msg.text);
+      if (msg.type !== "user_message" || !msg.text) return;
+      const match = /^(\[[A-Z]+\])\s?([\s\S]*)$/.exec(msg.text);
+      if (!match) return;
+      const [, prefix = "", body = ""] = match;
+      controls.push({ prefix, body });
+      if (prefix === "[ASK]" || prefix === "[TEACHBACK]") agentLine(body);
+      if (prefix === "[DEBRIEF]") {
+        const parsed = JSON.parse(body) as { questions: { text: string }[] };
+        const first = parsed.questions[0];
+        if (first) agentLine(first.text);
+      }
+    });
+  });
+
+  return {
+    controls,
+    contextual,
+    say(text) {
+      seq += 1;
+      send?.({
+        type: "user_transcript",
+        user_transcription_event: { user_transcript: text, event_id: seq },
+      });
+    },
+    reply: agentLine,
+  };
+}
+
+/** A JSON message the API pushed to the page over the session stream. */
+export function recordReceivedFrames(page: Page): SentFrame[] {
+  const frames: SentFrame[] = [];
+  page.on("websocket", (ws) => {
+    ws.on("framereceived", ({ payload }) => {
+      const text = typeof payload === "string" ? payload : payload.toString("utf8");
+      try {
+        frames.push({ url: ws.url(), message: JSON.parse(text) });
+      } catch {
+        // not JSON
+      }
+    });
+  });
+  return frames;
+}
