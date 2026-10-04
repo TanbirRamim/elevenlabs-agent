@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerEnv } from "@/env";
+import { voiceAccessPlan } from "@/lib/voice/access";
 
 const Query = z.object({ agent: z.enum(["interviewer", "tutor"]) });
 
 /**
- * Returns a short-lived signed URL for an ElevenAgents conversation.
- * The ElevenLabs API key never leaves the server.
+ * Returns how the browser may open an ElevenAgents conversation: a short-lived signed URL
+ * when the server holds an API key (which never leaves the server), otherwise the public
+ * agent id, guarded by the agent's host allowlist in ElevenLabs.
  */
 export async function GET(req: Request) {
   const serverEnv = getServerEnv();
@@ -16,14 +18,12 @@ export async function GET(req: Request) {
   const q = Query.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!q.success) return NextResponse.json({ code: "bad_agent" }, { status: 400 });
 
-  const env = serverEnv.data;
-  const agentId =
-    q.data.agent === "interviewer"
-      ? env.ELEVENLABS_INTERVIEWER_AGENT_ID
-      : env.ELEVENLABS_TUTOR_AGENT_ID;
+  const plan = voiceAccessPlan(serverEnv.data, q.data.agent);
+  if (plan.kind === "public") return NextResponse.json({ agentId: plan.agentId });
+
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
-    { headers: { "xi-api-key": env.ELEVENLABS_API_KEY }, cache: "no-store" },
+    `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(plan.agentId)}`,
+    { headers: { "xi-api-key": plan.apiKey }, cache: "no-store" },
   );
   if (!res.ok) {
     return NextResponse.json({ code: "eleven_upstream", status: res.status }, { status: 502 });
