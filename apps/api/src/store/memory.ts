@@ -8,6 +8,8 @@ export interface SessionRecord {
   createdAt: Date;
   events: ScreenEvent[];
   transcript: TranscriptSegment[];
+  /** Frames that were redacted and written to storage (HAR-8's evidence verifier checks these). */
+  storedFrameIds: string[];
   offRecord: { on: boolean; spans: [number, number][]; since: number | null };
 }
 
@@ -34,6 +36,7 @@ export function createMemoryStore(): Store {
         createdAt: new Date(),
         events: [],
         transcript: [],
+        storedFrameIds: [],
         offRecord: { on: false, spans: [], since: null },
       };
       sessions.set(rec.id, rec);
