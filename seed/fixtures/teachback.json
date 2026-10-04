@@ -1,0 +1,4 @@
+{
+  "text": "Let me explain it back. For a simple billing question, you resend the invoice when the account looks normal. You refund a clear duplicate charge, but anything over a hundred euros needs a lead to approve it. You never refund while a chargeback is open; that goes to Billing disputes. When someone says their email was changed, you treat it as an account takeover: no refund, straight to Security. And anything about GDPR or deleting data goes to Legal. Did I get that right?",
+  "recheckText": "So anything over a hundred euros needs a lead to approve the refund, is that right?"
+}

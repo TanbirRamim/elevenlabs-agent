@@ -141,4 +141,29 @@ describe("buildWorkMap", () => {
     expect(map.steps[0]?.guardrailIds).toEqual([]);
     expect(removed.some((q) => q.slot === "guardrail")).toBe(true);
   });
+
+  it("records the source session on the built map", async () => {
+    const session = sessionWithEvidence();
+    const generate = vi.fn(async () => validDraft());
+    const { map } = await buildWorkMap(llm, session, [], { generate });
+    expect(map.sourceSessionId).toBe(session.id);
+  });
+
+  it("a failed repair call keeps the verified part of the first draft", async () => {
+    const session = sessionWithEvidence();
+    const draft = validDraft();
+    draft.guardrails[0]!.evidence.quote = {
+      ...draft.guardrails[0]!.evidence.quote,
+      text: "totally invented rule",
+    };
+    const generate = vi
+      .fn<(content: string) => Promise<WorkMapDraft>>()
+      .mockResolvedValueOnce(draft)
+      .mockRejectedValueOnce(new Error("workmap@1: max_tokens"));
+    const { map, removed } = await buildWorkMap(llm, session, [], { generate });
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(map.steps.map((s) => s.id)).toEqual(["S1"]);
+    expect(map.guardrails).toEqual([]);
+    expect(removed.some((q) => q.slot === "guardrail")).toBe(true);
+  });
 });

@@ -1,4 +1,12 @@
-import { EndSessionResponse, MasteryReport, ServerMessage, WorkMap } from "@shadow/schema";
+import {
+  EndSessionResponse,
+  MasteryReport,
+  PredictionVariants,
+  ServerMessage,
+  TeachBackConfirmResponse,
+  TeachBackResponse,
+  WorkMap,
+} from "@shadow/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../app.js";
 import { loadEnv } from "../env.js";
@@ -61,8 +69,74 @@ describe("mock routes (MOCK_AI=1)", () => {
   it("does not register mock routes when MOCK_AI=0", async () => {
     const app = await buildApp({ env: loadEnv({ NODE_ENV: "test", MOCK_AI: "0" }) });
     const id = await createSession(app);
+    // The real debrief route answers instead of the fixture: without a key, unavailable.
     const res = await app.inject({ method: "POST", url: `/sessions/${id}/end` });
-    expect(res.statusCode).toBe(404);
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toMatchObject({ code: "llm_unavailable" });
+    expect((await app.inject({ method: "GET", url: "/workmaps/published" })).statusCode).toBe(404);
+  });
+
+  it("serves teach-back, a correction, confirmation and predictions", async () => {
+    const app = await buildApp({ env: mockEnv });
+    const id = await createSession(app);
+    expect(
+      (await app.inject({ method: "POST", url: `/sessions/${id}/teachback` })).statusCode,
+    ).toBe(409);
+    const end = EndSessionResponse.parse(
+      (await app.inject({ method: "POST", url: `/sessions/${id}/end` })).json(),
+    );
+    const tb = await app.inject({ method: "POST", url: `/sessions/${id}/teachback` });
+    expect(TeachBackResponse.parse(tb.json()).text.length).toBeGreaterThan(0);
+
+    const url = `/sessions/${id}/teachback/confirm`;
+    const corr = await app.inject({
+      method: "POST",
+      url,
+      payload: { tMs: 500_000, confirmed: false, correctionSegmentIds: ["seg_9"] },
+    });
+    const corrected = TeachBackConfirmResponse.parse(corr.json());
+    expect(corrected.recheckText).toBeDefined();
+    expect(corrected.workMap.teachBackConfirmedAtMs).toBeNull();
+    const empty = await app.inject({ method: "POST", url, payload: { tMs: 1, confirmed: false } });
+    expect(empty.statusCode).toBe(400);
+
+    const ok = await app.inject({
+      method: "POST",
+      url,
+      payload: { tMs: 520_000, confirmed: true },
+    });
+    expect(TeachBackConfirmResponse.parse(ok.json()).workMap.teachBackConfirmedAtMs).toBe(520_000);
+    const stored = await app.inject({ method: "GET", url: `/workmaps/${end.workMapId}` });
+    expect(WorkMap.parse(stored.json()).teachBackConfirmedAtMs).toBe(520_000);
+
+    const pred = await app.inject({
+      method: "POST",
+      url: `/workmaps/${end.workMapId}/predictions`,
+    });
+    const { variants } = PredictionVariants.parse(pred.json());
+    expect(variants).toHaveLength(2);
+    const stepIds = new Set(WorkMap.parse(stored.json()).steps.map((s) => s.id));
+    for (const v of variants) expect(stepIds.has(v.becauseStepId)).toBe(true);
+  });
+
+  it("serves the fixture map as published, its markdown, publish and patch", async () => {
+    const app = await buildApp({ env: mockEnv });
+    const published = await app.inject({ method: "GET", url: "/workmaps/published" });
+    expect(WorkMap.parse(published.json()).id).toBe("wm_mock_1");
+    const md = await app.inject({ method: "GET", url: "/workmaps/wm_mock_1/markdown" });
+    expect(md.statusCode).toBe(200);
+    expect(md.headers["content-type"]).toContain("text/markdown");
+    for (const g of WorkMap.parse(published.json()).guardrails) {
+      expect(md.body).toContain(g.evidence.quote.text);
+    }
+    const pub = await app.inject({ method: "POST", url: "/workmaps/wm_mock_1/publish" });
+    expect(pub.json()).toEqual({ id: "wm_mock_1" });
+    const patched = await app.inject({
+      method: "PATCH",
+      url: "/workmaps/wm_mock_1",
+      payload: { deleteGuardrailIds: ["G6"] },
+    });
+    expect(WorkMap.parse(patched.json()).guardrails.some((g) => g.id === "G6")).toBe(false);
   });
 });
 

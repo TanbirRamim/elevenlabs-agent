@@ -192,3 +192,75 @@ describe("debrief endpoints", () => {
     expect(session.answeredQuestions.some((a) => a.question.includes("correction"))).toBe(true);
   });
 });
+
+describe("debrief failure paths", () => {
+  it("a failed rebuild does not keep the answer, so a retry records it once", async () => {
+    const { app, session, sessionId, generate } = await setup();
+    const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
+    const first = EndSessionResponse.parse(end.json()).openQuestions[0];
+    if (!first) throw new Error("no open question");
+    const before = session.answeredQuestions.length;
+    // The draft call fails -> the rebuild throws -> 422.
+    generate.mockRejectedValueOnce(new Error("workmap@1: max_tokens"));
+    const payload = { questionId: first.id, segmentIds: ["seg_1"] };
+    const url = `/sessions/${sessionId}/debrief/answer`;
+    const failed = await app.inject({ method: "POST", url, payload });
+    expect(failed.statusCode).toBe(422);
+    expect(session.answeredQuestions).toHaveLength(before);
+
+    const retried = await app.inject({ method: "POST", url, payload });
+    expect(retried.statusCode).toBe(200);
+    expect(DebriefStatus.parse(retried.json()).asked).toBe(1);
+    expect(session.answeredQuestions).toHaveLength(before + 1);
+  });
+
+  it("a teach-back model failure is a 502 with an ApiError body", async () => {
+    const store = createMemoryStore();
+    const app = await buildApp({
+      env,
+      store,
+      llm: fakeLlm,
+      debriefSeams: {
+        buildDeps: { generate: async () => draft(0.6) },
+        teachBackText: async () => {
+          throw new Error("teachback@1: refusal");
+        },
+      },
+    });
+    const { id } = (
+      await app.inject({ method: "POST", url: "/sessions", payload: { mode: "capture" } })
+    ).json<{ id: string }>();
+    const session = store.getSession(id);
+    if (!session) throw new Error("session missing");
+    session.transcript.push({
+      id: "seg_1",
+      tStartMs: 10_000,
+      tEndMs: 14_000,
+      speaker: "expert",
+      text: "Never refund with an open chargeback, we'd pay twice.",
+      offRecord: false,
+    });
+    session.storedFrameIds.push("f_1");
+    expect((await app.inject({ method: "POST", url: `/sessions/${id}/end` })).statusCode).toBe(200);
+    const tb = await app.inject({ method: "POST", url: `/sessions/${id}/teachback` });
+    expect(tb.statusCode).toBe(502);
+    expect(tb.json()).toMatchObject({ code: "llm_failed" });
+  });
+
+  it("without a model key the debrief routes answer 503 llm_unavailable", async () => {
+    const app = await buildApp({ env, llm: null });
+    const { id } = (
+      await app.inject({ method: "POST", url: "/sessions", payload: { mode: "capture" } })
+    ).json<{ id: string }>();
+    for (const [url, payload] of [
+      [`/sessions/${id}/end`, undefined],
+      [`/sessions/${id}/debrief/answer`, { questionId: "q", segmentIds: ["s"] }],
+      [`/sessions/${id}/teachback`, undefined],
+      [`/sessions/${id}/teachback/confirm`, { tMs: 0, confirmed: true }],
+    ] as const) {
+      const res = await app.inject({ method: "POST", url, ...(payload ? { payload } : {}) });
+      expect(res.statusCode, url).toBe(503);
+      expect(res.json()).toMatchObject({ code: "llm_unavailable" });
+    }
+  });
+});
