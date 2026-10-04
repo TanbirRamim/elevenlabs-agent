@@ -71,6 +71,20 @@ describe("judgeAction (unit)", () => {
     expect(verdict).toBeNull();
   });
 
+  it("sends the judge the case, not the customer's name or email", async () => {
+    const parse = vi.fn(async (_req: unknown) => ({
+      stop_reason: "end_turn",
+      parsed_output: { decision: "ALLOW", ruleIds: [] },
+    }));
+    const llm = { client: { beta: { messages: { parse } } }, model: "test" } as unknown as LlmDeps;
+    const action = n1Action();
+    await judgeAction(llm, action, fraudGuardrailNoRule(), { log });
+    const sent = JSON.stringify(parse.mock.calls[0]?.[0]);
+    expect(sent).toContain("without my permission");
+    expect(sent).not.toContain(action.ticket.customer.email);
+    expect(sent).not.toContain(action.ticket.customer.name);
+  });
+
   it("times out to an explicit timeout_allow", async () => {
     const verdict = await judgeAction(fakeLlm, n1Action(), fraudGuardrailNoRule(), {
       decide: () => new Promise(() => {}),

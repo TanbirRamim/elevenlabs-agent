@@ -12,6 +12,10 @@ const JudgeOutput = z.object({
   expectedOutcome: Outcome.optional(),
 });
 
+function customerFacts({ plan, vip, accountAgeDays }: PendingAction["ticket"]["customer"]) {
+  return { plan, vip, accountAgeDays };
+}
+
 export interface JudgeDeps {
   timeoutMs?: number;
   /** Test seam; defaults to the guardJudge route. */
@@ -38,7 +42,12 @@ export async function judgeAction(
         {
           type: "text",
           text: JSON.stringify({
-            action: { ticket: a.ticket, outcome: a.outcome, amountEur: a.amountEur },
+            action: {
+              // The case, not the person: no customer name or email leaves for the judge.
+              ticket: { ...a.ticket, customer: customerFacts(a.ticket.customer) },
+              outcome: a.outcome,
+              amountEur: a.amountEur,
+            },
             guardrails: g.map(({ id, type, condition, action: gAction }) => ({
               id,
               type,
