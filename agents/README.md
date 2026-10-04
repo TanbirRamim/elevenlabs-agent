@@ -47,6 +47,11 @@ Control protocol (sent by the web app with `sendUserMessage`, hidden from the tr
 | `[DEBRIEF] <json>` | Task ended. Run the debrief with these open questions. |
 | `[TEACHBACK] <text>` | Read this explanation back and ask the expert to confirm or correct it. |
 | `[INTERVENE] <json>` | Tutor only: a pre-save guard blocked an action. Coach using the cited quote. |
-| `[PREDICT] <json>` | Tutor only: ask the new hire to predict the decision at this step. |
+| `[PREDICT] <json>` | Tutor only: ask the new hire to predict the decision at this step. Carries `expertReason` and `guardrailQuote` for confirming or correcting the answer. |
+| `[EXPLAIN] <json>` | Tutor only, once per ticket after the new hire predicted: explain the step the way the expert did, quoting `expertReason`, then go quiet. |
 
 Screen events arrive with `sendContextualUpdate` as `[SCREEN mm:ss] ...` and never require a reply.
+When the Tutor's voice session connects, the web app also sends the published Work Map's Markdown
+(`GET /workmaps/:id/markdown`, capped at 16,000 characters) with `sendContextualUpdate` as
+`[WORKMAP]\n<markdown>`. The Tutor stores it silently; the dashboard knowledge base stays the
+long-term copy.

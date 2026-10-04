@@ -5,8 +5,11 @@ export {
   CONTROL_PREFIXES,
   formatControl,
   formatScreenUpdate,
+  formatWorkMapContext,
   isControlMessage,
   mmss,
+  WORKMAP_MAX_CHARS,
+  WORKMAP_PREFIX,
 } from "./protocol";
 export type { UseVoiceOptions, Voice, VoiceAgent, VoiceLine, VoiceStatus } from "./useVoice";
 export { useVoice } from "./useVoice";

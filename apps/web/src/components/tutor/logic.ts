@@ -145,13 +145,75 @@ export function matchJudgment(map: WorkMap, ticket: PublicTicket): JudgmentMatch
   };
 }
 
-/** Payload of `[PREDICT]` (agents/tutor.md). */
+/**
+ * The expert's own words for a judgment point: the step's reason when a step lists the
+ * guardrail, else the guardrail's evidence quote. Always a real quote from the map.
+ */
+export function expertReason(match: JudgmentMatch): string {
+  return match.step?.reason.text ?? match.guardrail.evidence.quote.text;
+}
+
+/**
+ * Payload of `[PREDICT]` (agents/tutor.md). Carries the expert's reason so the tutor can
+ * confirm or correct the learner's answer in the expert's words (never before they answer).
+ */
 export function predictPayload(match: JudgmentMatch, ticketId: string) {
   return {
     stepId: match.predictId,
     ticketId,
     guardrailId: match.guardrail.id,
     condition: match.guardrail.condition,
+    expertReason: expertReason(match),
+    guardrailQuote: match.guardrail.evidence.quote.text,
+  };
+}
+
+/** The learner's answer to a `[PREDICT]`, when they chose one on screen. */
+export interface PredictionAnswer {
+  predictedOutcome: Outcome;
+  correct: boolean;
+}
+
+/**
+ * Payload of `[EXPLAIN]` (agents/tutor.md): the step to explain the way the expert did it.
+ * Sent once the learner has committed to a prediction, so the explanation never gives the
+ * answer away first.
+ */
+export function explainPayload(
+  match: JudgmentMatch,
+  ticketId: string,
+  expertName: string,
+  answer: PredictionAnswer | null,
+) {
+  return {
+    ticketId,
+    stepId: match.predictId,
+    stepTitle: match.step?.title ?? match.guardrail.condition,
+    expertReason: expertReason(match),
+    expertName,
+    expectedOutcome: match.expectedOutcome,
+    ...(answer
+      ? { learnerPredicted: answer.predictedOutcome, learnerCorrect: answer.correct }
+      : {}),
+  };
+}
+
+/**
+ * Rate limit for per-ticket tutor messages: `take(key)` is true the first time a key is seen,
+ * false after that, so a re-opened or re-answered ticket never makes the tutor repeat itself.
+ */
+export function oncePerKey() {
+  const seen = new Set<string>();
+  return {
+    take(key: string): boolean {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    },
+    /** Forgets a key whose message could not be delivered, so a later attempt may send it. */
+    release(key: string): void {
+      seen.delete(key);
+    },
   };
 }
 

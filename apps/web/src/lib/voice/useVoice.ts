@@ -47,6 +47,11 @@ export interface Voice {
    * reply. Returns false (and sends nothing) when no voice session is connected.
    */
   sendControl(prefix: ControlPrefix, payload: string | object): boolean;
+  /**
+   * Background context sent immediately with `sendContextualUpdate` (e.g. the Work Map). Never
+   * triggers a reply. Returns false (and sends nothing) when no voice session is connected.
+   */
+  sendContext(text: string): boolean;
   /** Screen context; coalesced to one update per 2 s, newest wins. Never triggers a reply. Dropped while disconnected. */
   sendScreen(summary: string, tMs?: number): void;
   /** Tell the agent the user is busy (typing/clicking) so it holds its turn. No-op while disconnected. */
@@ -154,6 +159,14 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
     },
     [sendUserMessage],
   );
+  const sendContext = useCallback(
+    (text: string): boolean => {
+      if (!connected.current) return false;
+      sendContextualUpdate(text);
+      return true;
+    },
+    [sendContextualUpdate],
+  );
   const sendScreen = useCallback(
     (summary: string, tMs?: number) =>
       screen.current?.push(formatScreenUpdate(tMs ?? now(), summary)),
@@ -180,6 +193,7 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
       start,
       stop,
       sendControl,
+      sendContext,
       sendScreen,
       markActivity,
       onUserSpeech,
@@ -194,6 +208,7 @@ export function useVoice({ agent, dynamicVariables, clock }: UseVoiceOptions): V
       start,
       stop,
       sendControl,
+      sendContext,
       sendScreen,
       markActivity,
       onUserSpeech,
