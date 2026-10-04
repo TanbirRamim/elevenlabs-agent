@@ -16,6 +16,16 @@ import { type Gap, gapsForDecision, priorityOf, recencyOf } from "./ledger.js";
 
 const ANSWER_WINDOW_MS = 30_000;
 const CANDIDATE_THRESHOLD = 0.6;
+/** Live questions a session must reach (challenge brief); below it the coverage policy runs. */
+const LIVE_QUOTA = 3;
+/** Coverage policy floor: any on-screen gap worth a question (T1 reply guardrail scores 0.5). */
+const QUOTA_THRESHOLD = 0.2;
+/** Coverage policy: an old gap keeps half its weight instead of decaying to nothing. */
+const QUOTA_RECENCY_FLOOR = 0.5;
+/** Re-offer an unasked candidate this long after it was sent (the client's TTL is 45 s). */
+const REOFFER_AFTER_MS = 20_000;
+/** Debrief priority for gaps the live session never got to ask (ahead of the map's own). */
+const SHORTFALL_PRIORITY = 0.95;
 const PhrasedQuestion = z.object({ text: z.string().max(160) });
 
 export interface AnsweredQuestion {
@@ -50,6 +60,8 @@ export interface CuriosityDeps {
   screenAnswers: () => readonly string[];
   log: { warn: (obj: object, msg: string) => void };
   evaluateIntervalMs?: number;
+  /** Live questions to reach before the 0.6 bar and decay apply (default 3; tests: 0). */
+  liveQuota?: number;
   /** Test seam: phrase a gap into question text (default: the curiosity route). */
   phrase?: (gap: Gap, context: PhraseContext) => Promise<string>;
 }
@@ -89,6 +101,7 @@ export function createCuriosityEngine({
   screenAnswers,
   log,
   evaluateIntervalMs = 2000,
+  liveQuota = LIVE_QUOTA,
   phrase,
 }: CuriosityDeps): CuriosityEngine {
   const gaps: Gap[] = [];
@@ -103,7 +116,72 @@ export function createCuriosityEngine({
   let lastOpenedTicketId: string | null = null;
   let phrasing = false;
   let candidateGapId: string | null = null;
+  let candidate: CandidateQuestion | null = null;
+  let candidateSentAtMs = 0;
+  /** Tickets a live question was asked about, and how many were asked. */
+  const askedTickets = new Set<string>();
+  let askedCount = 0;
+  let guardrailAsked = false;
+  /** Gap ids currently written to session.debriefQueue as the live shortfall. */
+  const shortfallIds = new Set<string>();
+  /** Shortfall gaps the debrief already took off the queue (answered): never re-queued or asked. */
+  const consumed = new Set<string>();
   let stopped = false;
+
+  const behindQuota = () => askedCount < liveQuota;
+  const fallbackText = (gap: Gap) =>
+    `On ${gap.ticketId}, what is the ${gap.slot.replace("_", " ")} behind the ${gap.outcome} decision?`;
+
+  /**
+   * Minimum coverage (until the quota is met): one question per decided ticket, a guardrail
+   * first, an old gap keeps half its weight. Screen-answerable gaps still score 0.
+   */
+  function coverageScore(gap: Gap, answers: readonly string[]): number {
+    const fresh = priorityOf(gap, { nowMs: lastTMs, screenAnswers: answers });
+    const floored = priorityOf(gap, {
+      nowMs: Math.min(lastTMs, gap.openedAtMs + (1 - QUOTA_RECENCY_FLOOR) * 60_000),
+      screenAnswers: answers,
+    });
+    let score = Math.max(fresh, floored);
+    if (askedTickets.has(gap.ticketId)) score *= 0.25;
+    if (!guardrailAsked && gap.slot === "guardrail") score = Math.min(1, score * 1.25);
+    return score;
+  }
+
+  /** Keeps the top unasked gaps at the front of the debrief while the live quota is short. */
+  function syncShortfall(open: Gap[], answers: readonly string[]) {
+    for (const id of shortfallIds) {
+      if (!session.debriefQueue.some((q) => q.id === id)) consumed.add(id);
+    }
+    const missing = Math.max(0, liveQuota - askedCount);
+    const top = missing
+      ? open
+          .filter((g) => !consumed.has(g.id))
+          .map((g) => ({ g, s: coverageScore(g, answers) }))
+          .filter((x) => x.s > 0)
+          .sort((a, b) => b.s - a.s)
+          .slice(0, missing)
+          .map((x) => x.g)
+      : [];
+    const want = new Set(top.map((g) => g.id));
+    session.debriefQueue = session.debriefQueue.filter(
+      (q) => !shortfallIds.has(q.id) || want.has(q.id),
+    );
+    for (const id of [...shortfallIds]) if (!want.has(id)) shortfallIds.delete(id);
+    for (const gap of top) {
+      const text = gap.questionText ?? fallbackText(gap);
+      const existing = session.debriefQueue.find((q) => q.id === gap.id);
+      if (existing) existing.text = text;
+      else
+        session.debriefQueue.push({
+          id: gap.id,
+          slot: gap.slot,
+          text,
+          priority: SHORTFALL_PRIORITY,
+        });
+      shortfallIds.add(gap.id);
+    }
+  }
 
   const defaultPhrase = async (gap: Gap, ctx: PhraseContext): Promise<string> => {
     if (!llm) throw new LlmError("refusal", curiosity.version);
@@ -153,7 +231,12 @@ export function createCuriosityEngine({
     for (let i = gaps.length - 1; i >= 0; i -= 1) {
       const gap = gaps[i];
       if (!gap) continue;
-      const dead = recencyOf(gap, now) === 0 && gap.answerSegmentIds.length === 0;
+      // Before the live quota is met an unasked gap stays open (the coverage policy may still
+      // ask it); the shortfall keeps it at the front of the debrief meanwhile.
+      const dead =
+        recencyOf(gap, now) === 0 &&
+        gap.answerSegmentIds.length === 0 &&
+        !(behindQuota() && gap.askedAtMs === undefined);
       if (dead) {
         decayed.push(gap);
         gaps.splice(i, 1);
@@ -161,9 +244,7 @@ export function createCuriosityEngine({
         session.debriefQueue.push({
           id: gap.id,
           slot: gap.slot,
-          text:
-            gap.questionText ??
-            `On ${gap.ticketId}, what is the ${gap.slot.replace("_", " ")} behind the ${gap.outcome} decision?`,
+          text: gap.questionText ?? fallbackText(gap),
           priority: 0.7,
         });
       }
@@ -175,18 +256,32 @@ export function createCuriosityEngine({
     if (stopped || phrasing) return;
     const answers = screenAnswers();
     const open = openGaps();
+    const behind = behindQuota();
+    syncShortfall(open, answers);
     let top: Gap | undefined;
     let topPriority = 0;
     for (const gap of open) {
-      const p = priorityOf(gap, { nowMs: lastTMs, screenAnswers: answers });
+      if (consumed.has(gap.id)) continue;
+      const p = behind
+        ? coverageScore(gap, answers)
+        : priorityOf(gap, { nowMs: lastTMs, screenAnswers: answers });
       if (p > topPriority) {
         top = gap;
         topPriority = p;
       }
     }
-    if (!top || topPriority < CANDIDATE_THRESHOLD || top.id === candidateGapId) return;
+    if (!top || topPriority < (behind ? QUOTA_THRESHOLD : CANDIDATE_THRESHOLD)) return;
+    if (top.id === candidateGapId) {
+      // The expert talked through the pause and the client let it go stale: offer it again.
+      if (behind && candidate && lastTMs - candidateSentAtMs >= REOFFER_AFTER_MS) {
+        candidate = { ...candidate, createdAtMs: lastTMs };
+        candidateSentAtMs = lastTMs;
+        send({ type: "candidate_question", question: candidate });
+      }
+      return;
+    }
     const gap = top;
-    const priority = topPriority;
+    const priority = Math.min(1, topPriority);
     phrasing = true;
     void phraseFn(gap, {
       ticket: ticketsById.get(gap.ticketId),
@@ -210,6 +305,10 @@ export function createCuriosityEngine({
         gap.questionId = question.id;
         gap.questionText = question.text;
         candidateGapId = gap.id;
+        candidate = question;
+        candidateSentAtMs = lastTMs;
+        const shortfall = session.debriefQueue.find((q) => q.id === gap.id);
+        if (shortfall) shortfall.text = question.text;
         send({ type: "candidate_question", question });
       })
       .catch((err: unknown) => {
@@ -266,8 +365,16 @@ export function createCuriosityEngine({
     onQuestionAsked(questionId, tMs) {
       bump(tMs);
       const gap = gaps.find((g) => g.questionId === questionId);
-      if (gap) gap.askedAtMs = tMs;
-      if (candidateGapId === gap?.id) candidateGapId = null;
+      if (!gap || gap.askedAtMs !== undefined) return;
+      gap.askedAtMs = tMs;
+      askedCount += 1;
+      askedTickets.add(gap.ticketId);
+      if (gap.slot === "guardrail") guardrailAsked = true;
+      if (candidateGapId === gap.id) {
+        candidateGapId = null;
+        candidate = null;
+      }
+      syncShortfall(openGaps(), screenAnswers());
     },
     onTranscript(segment) {
       bump(segment.tEndMs);
