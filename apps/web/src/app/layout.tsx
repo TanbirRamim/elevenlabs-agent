@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ShellGate } from "@/components/shell/ShellGate";
 import { THEME_INIT_SCRIPT } from "@/components/shell/theme";
 import "./globals.css";
+import { WakeBanner } from "@/components/shell/WakeBanner";
 
 // UI: Inter (variable, with the optical-size axis so 24px+ headings use the Display cut).
 const sans = Inter({
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Skip to content
         </a>
+        <WakeBanner />
         <ShellGate>{children}</ShellGate>
       </body>
     </html>
