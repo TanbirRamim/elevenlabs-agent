@@ -1,4 +1,7 @@
 import type { OpenQuestion } from "@shadow/schema";
+import { Check } from "lucide-react";
+import type { ReactNode } from "react";
+import { Avatar } from "../ui/Avatar";
 import { cx } from "../ui/cx";
 
 export interface OpenQuestionListProps {
@@ -6,6 +9,8 @@ export interface OpenQuestionListProps {
   answeredIds: readonly string[];
   /** The question Shadow is asking now, if any. */
   currentId: string | null;
+  /** Rendered inside the current question's row, e.g. the answer box. */
+  answer?: ReactNode;
 }
 
 const SLOT_LABEL: Record<OpenQuestion["slot"], string> = {
@@ -15,13 +20,24 @@ const SLOT_LABEL: Record<OpenQuestion["slot"], string> = {
   escalation_contact: "Escalation contact",
 };
 
-/** The debrief questions: answered ones, the one being asked, and the ones still open. */
-export function OpenQuestionList({ questions, answeredIds, currentId }: OpenQuestionListProps) {
+/**
+ * The debrief as a conversation: Shadow's questions in order, the one it is asking now opened
+ * up with the expert's answer box, answered ones checked off, the rest still open.
+ */
+export function OpenQuestionList({
+  questions,
+  answeredIds,
+  currentId,
+  answer,
+}: OpenQuestionListProps) {
   if (questions.length === 0) {
-    return <p className="text-[0.9375rem] text-ink-faint">No open questions.</p>;
+    return <p className="text-ui text-ink-faint">No open questions.</p>;
   }
   return (
-    <ol className="border-y border-rule" aria-label="Debrief questions">
+    <ol
+      className="divide-y divide-rule overflow-hidden rounded-panel border border-rule bg-surface"
+      aria-label="Debrief questions"
+    >
       {questions.map((q, i) => {
         const answered = answeredIds.includes(q.id);
         const current = !answered && q.id === currentId;
@@ -31,39 +47,59 @@ export function OpenQuestionList({ questions, answeredIds, currentId }: OpenQues
             key={q.id}
             aria-current={current ? "step" : undefined}
             className={cx(
-              "relative grid grid-cols-[2rem_1fr] gap-3 border-t border-rule py-4 pr-3 pl-4 first:border-t-0",
-              current && "bg-ask-wash/50",
+              "relative grid grid-cols-[1.75rem_1fr] gap-3 px-4 py-3",
+              current && "bg-ask-wash/60",
             )}
           >
             {current ? (
               <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-ask" />
             ) : null}
-            <span className="pt-0.5 font-mono text-xs text-ink-faint tabular-nums">
-              {String(i + 1).padStart(2, "0")}
+            <span className="pt-0.5">
+              {current ? (
+                <Avatar name="Shadow" shadow size="xs" />
+              ) : answered ? (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-5 items-center justify-center rounded-full bg-ok-wash text-ok"
+                >
+                  <Check className="size-3 stroke-[2.5]" />
+                </span>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="figures inline-flex size-5 items-center justify-center rounded-full border border-rule font-mono text-2xs text-ink-faint"
+                >
+                  {i + 1}
+                </span>
+              )}
             </span>
             <div className="min-w-0">
-              <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                <span className="text-ink-faint">{SLOT_LABEL[q.slot]}</span>
+              <div className="mb-0.5 flex items-center justify-between gap-3 text-xs">
+                <span className={current ? "font-medium text-ask-text" : "text-ink-faint"}>
+                  {current ? "Shadow asks" : SLOT_LABEL[q.slot]}
+                  {current ? (
+                    <span className="font-normal text-ink-faint"> · {SLOT_LABEL[q.slot]}</span>
+                  ) : null}
+                </span>
                 <span
                   className={cx(
-                    "inline-flex items-center gap-1.5",
+                    "shrink-0",
                     answered ? "text-ok" : current ? "text-ask-text" : "text-ink-faint",
                   )}
                 >
-                  {current ? (
-                    <span aria-hidden="true" className="size-1.5 rounded-full bg-ask" />
-                  ) : null}
                   {status}
                 </span>
               </div>
               <p
                 className={cx(
-                  "text-base leading-snug text-pretty",
+                  "text-pretty",
+                  current ? "text-base text-ink" : "text-ui",
                   answered ? "text-ink-muted" : "text-ink",
                 )}
               >
                 {q.text}
               </p>
+              {current && answer ? <div className="mt-3">{answer}</div> : null}
             </div>
           </li>
         );

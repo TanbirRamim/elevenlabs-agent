@@ -1,5 +1,6 @@
 "use client";
 
+import { useConversationInput } from "@elevenlabs/react";
 import type {
   CandidateQuestion,
   DeskEvent,
@@ -7,17 +8,44 @@ import type {
   PendingAction,
   PublicTicket,
 } from "@shadow/schema";
-import { MicOff, ScreenShare, Square } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EyeOff, Mic, Pause, Play, RotateCw, ShieldCheck } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DebriefPanel } from "@/components/debrief/DebriefPanel";
 import type { DebriefVoice } from "@/components/debrief/useDebrief";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { DESK_ROOT_ID, PII_ATTR } from "@/components/desk/types";
+import { GateTimeline } from "@/components/insight/GateTimeline";
+import {
+  EMPTY_GATE_HISTORY,
+  type GateHistory,
+  liveTimelineEnd,
+  recordGateSample,
+} from "@/components/insight/gateHistory";
 import { type InsightNumbers, InsightPanel } from "@/components/insight/InsightPanel";
-import { describeDeskEvent, detectRecordPhrase } from "@/components/session/helpers";
-import { Notice } from "@/components/session/Notice";
-import { SidePanel } from "@/components/session/SidePanel";
-import { Button, cx, KeyboardKey } from "@/components/ui";
+import {
+  Countdown,
+  formatElapsed,
+  ListeningIndicator,
+  PreflightChecklist,
+  type ProcessingStep,
+  ProcessingSteps,
+  type RecordingState,
+  type RedactionState,
+} from "@/components/recording";
+import {
+  describeDeskEvent,
+  detectRecordPhrase,
+  gapRemainingMs,
+  listeningStateFor,
+  questionsInWindow,
+} from "@/components/session/helpers";
+import { LiveRecordingBar, LiveRecordingStatus } from "@/components/session/LiveRecording";
+import { ShadowRail } from "@/components/session/ShadowRail";
+import { TopBarStatus } from "@/components/shell/slots";
+import { Alert, Button, Dialog, KbdCombo } from "@/components/ui";
+import { cx } from "@/components/ui/cx";
+import { publicEnv } from "@/env";
 import { ApiClientError, createSession, getTickets, preSave, uploadRecording } from "@/lib/api";
 import {
   captureFrame,
@@ -34,39 +62,96 @@ import {
   videoToViewportScale,
 } from "@/lib/capture";
 import { useTurnGate } from "@/lib/gate/useTurnGate";
-import { openSessionStream, type SessionStream } from "@/lib/stream";
+import { openSessionStream, QUEUE_LIMIT, type SessionStream, type StreamState } from "@/lib/stream";
 import { DEFAULT_GATE } from "@/lib/turnGate";
 import { useVoice } from "@/lib/voice";
+import {
+  buildPreflight,
+  DeskFrame,
+  HoldStrip,
+  LoadingWorkspace,
+  type ScreenState,
+  ShareEndedNotice,
+  START_BUTTON_ID,
+  StartPanel,
+} from "./parts";
+import { usePreflight } from "./usePreflight";
 
 const FRAME_INTERVAL_MS = 1500;
 const HAMMING_THRESHOLD = 6;
+/** How long Shadow's latest question stays pinned at the top of the rail. */
+const QUESTION_CALLOUT_MS = 30_000;
 
-type Phase = "loading" | "ready" | "capturing" | "ended" | "debrief" | "failed";
+type Phase = "loading" | "ready" | "countdown" | "capturing" | "processing" | "debrief" | "failed";
+
+type LoadError = { offline: boolean; message: string };
+type EndReason = "stopped" | "share_ended";
+
+const SURFACE: Record<string, string> = {
+  browser: "Sharing a browser tab",
+  window: "Sharing a window. Only the desk area is cropped, redacted and kept.",
+  monitor: "Sharing a whole screen. Only the desk area is cropped, redacted and kept.",
+};
+
+const INITIAL_STEPS: ProcessingStep[] = [
+  { id: "recording", label: "Finish the recording", status: "running" },
+  { id: "redaction", label: "Redact personal data", status: "waiting" },
+  { id: "upload", label: "Upload the redacted video", status: "waiting" },
+];
 
 /**
- * Module 1, Capture. Hosts DeskSim, the voice side panel, screen capture, the Turn Gate
- * and off-the-record, then hands over to the debrief after End task.
+ * Module 1, Capture. Preflight, countdown, the recording workspace (DeskSim, the Shadow rail,
+ * the Turn Gate and its live timeline, off the record, pause) and the debrief after Stop.
  * Specs: docs/tasks/tanbir.md TAN-2, TAN-3, TAN-4, TAN-5, TAN-7, TAN-8.
  */
 export function CaptureSession() {
-  const [phase, setPhase] = useState<Phase>("loading");
+  const router = useRouter();
+  const [phase, setPhaseState] = useState<Phase>("loading");
+  const phaseRef = useRef<Phase>("loading");
+  const go = useCallback((p: Phase) => {
+    phaseRef.current = p;
+    setPhaseState(p);
+  }, []);
+
+  const [loadKey, setLoadKey] = useState(0);
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [tickets, setTickets] = useState<PublicTicket[]>([]);
+  const [screen, setScreen] = useState<ScreenState>({ kind: "idle" });
   const [offRecord, setOffRecord] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [candidate, setCandidate] = useState<CandidateQuestion | null>(null);
   // Judge-facing evidence: recent candidates and the pipeline numbers from the API.
   const [candidates, setCandidates] = useState<CandidateQuestion[]>([]);
   const [insight, setInsight] = useState<InsightNumbers | null>(null);
   const [insightOpen, setInsightOpen] = useState(true);
+  const [history, setHistory] = useState<GateHistory>(EMPTY_GATE_HISTORY);
   const [lastInputActivityMs, setLastInputActivityMs] = useState<number | null>(null);
   const [lastScreenChangeMs, setLastScreenChangeMs] = useState<number | null>(null);
+  const [streamState, setStreamState] = useState<StreamState>("connecting");
+  const [steps, setSteps] = useState<ProcessingStep[]>(INITIAL_STEPS);
+  const [endReason, setEndReason] = useState<EndReason | null>(null);
+  const [uploadProblem, setUploadProblem] = useState<string | null>(null);
+  const [redactionLive, setRedactionLive] = useState<RedactionState>("pending");
+  const [intentPending, setIntentPending] = useState(false);
 
   const startedAt = useRef<number | null>(null);
   const clock = useCallback(
     () => (startedAt.current === null ? 0 : Date.now() - startedAt.current),
     [],
   );
+  // Recorded time: session time minus pauses, frozen at Stop.
+  const pausedAt = useRef<number | null>(null);
+  const pausedTotal = useRef(0);
+  const frozen = useRef<number | null>(null);
+  const elapsed = useCallback(() => {
+    if (frozen.current !== null) return frozen.current;
+    if (startedAt.current === null) return 0;
+    const now = Date.now();
+    const pausing = pausedAt.current === null ? 0 : now - pausedAt.current;
+    return Math.max(0, now - startedAt.current - pausedTotal.current - pausing);
+  }, []);
 
   const stream = useRef<SessionStream | null>(null);
   const loop = useRef<FrameLoop | null>(null);
@@ -75,17 +160,26 @@ export function CaptureSession() {
   const media = useRef<MediaStream | null>(null);
   const video = useRef<HTMLVideoElement | null>(null);
   const offRecordRef = useRef(false);
-  const endRef = useRef<() => Promise<void>>(async () => {});
+  const pausedRef = useRef(false);
+  const endRef = useRef<(reason: EndReason) => Promise<void>>(async () => {});
+  const shareEndedRef = useRef<() => void>(() => {});
+  /** Nothing leaves the browser while this is true. */
+  const holding = useCallback(() => offRecordRef.current || pausedRef.current, []);
 
   const voice = useVoice({
     agent: "interviewer",
     dynamicVariables: { expert_name: "Maya" },
     clock,
   });
+  const { setMuted } = useConversationInput();
+  const preflight = usePreflight({ deskReady: phase !== "loading" && phase !== "failed" });
 
   // Load the expert's tickets and create the session.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `loadKey` re-runs the load on "Try again"
   useEffect(() => {
     let cancelled = false;
+    go("loading");
+    setLoadError(null);
     (async () => {
       try {
         const [{ tickets: list }, session] = await Promise.all([
@@ -95,24 +189,29 @@ export function CaptureSession() {
         if (cancelled) return;
         setTickets(list);
         setSessionId(session.id);
-        setPhase("ready");
+        go("ready");
       } catch (err) {
         if (cancelled) return;
-        setProblem(describeError(err));
-        setPhase("failed");
+        setLoadError({
+          offline: err instanceof ApiClientError && err.kind === "network",
+          message: describeError(err),
+        });
+        go("failed");
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [go, loadKey]);
 
   // Session stream: candidates from the Curiosity Engine, vision events for the agent's context.
   useEffect(() => {
     if (!sessionId) return;
     const s = openSessionStream({ sessionId });
     stream.current = s;
+    setStreamState(s.state);
     const offs = [
+      s.onState(setStreamState),
       s.on("candidate_question", (m) => {
         setCandidate(m.question);
         setCandidates((list) =>
@@ -122,7 +221,7 @@ export function CaptureSession() {
       s.on("insight", ({ type: _type, ...numbers }) => setInsight(numbers)),
       s.on("screen_event", (m) => {
         // DOM events are already sent to the agent locally; only vision adds new information.
-        if (m.event.source === "vision" && !offRecordRef.current)
+        if (m.event.source === "vision" && !offRecordRef.current && !pausedRef.current)
           voice.sendScreen(m.event.summary, m.event.tMs);
       }),
     ];
@@ -133,25 +232,57 @@ export function CaptureSession() {
     };
   }, [sessionId, voice.sendScreen]);
 
+  /** Frames and video run only while on the record and not paused. */
+  const applyCapture = useCallback(() => {
+    if (holding()) {
+      loop.current?.pause();
+      recorder.current?.pause();
+    } else {
+      loop.current?.resume();
+      recorder.current?.resume();
+    }
+  }, [holding]);
+
   const setRecord = useCallback(
     (off: boolean) => {
       if (offRecordRef.current === off) return;
       offRecordRef.current = off;
       setOffRecord(off);
       stream.current?.send({ type: "off_record", on: off, tMs: clock() });
-      if (off) {
-        loop.current?.pause();
-        recorder.current?.pause();
-      } else {
-        loop.current?.resume();
-        recorder.current?.resume();
-      }
+      applyCapture();
     },
-    [clock],
+    [clock, applyCapture],
   );
 
-  // Alt+O toggles off the record.
+  const setPause = useCallback(
+    (on: boolean) => {
+      if (pausedRef.current === on || phaseRef.current !== "capturing") return;
+      if (on && offRecordRef.current) return; // off the record already captures nothing
+      pausedRef.current = on;
+      if (on) pausedAt.current = Date.now();
+      else if (pausedAt.current !== null) {
+        pausedTotal.current += Date.now() - pausedAt.current;
+        pausedAt.current = null;
+      }
+      setPaused(on);
+      applyCapture();
+    },
+    [applyCapture],
+  );
+
+  // Paused means the microphone is muted for the voice agent too.
   useEffect(() => {
+    if (voice.status !== "connected") return;
+    try {
+      setMuted(paused);
+    } catch {
+      // No live conversation to mute; nothing is being heard.
+    }
+  }, [paused, voice.status, setMuted]);
+
+  // Alt+O toggles off the record while recording.
+  useEffect(() => {
+    if (phase !== "capturing") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey && e.code === "KeyO") {
         e.preventDefault();
@@ -160,7 +291,7 @@ export function CaptureSession() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setRecord]);
+  }, [phase, setRecord]);
 
   // Forward new transcript lines to the API and react to spoken record commands.
   const sentLines = useRef(0);
@@ -178,7 +309,7 @@ export function CaptureSession() {
           continue; // the command itself is not content
         }
       }
-      if (offRecordRef.current) continue; // nothing said off the record leaves the browser
+      if (holding()) continue; // nothing said off the record or paused leaves the browser
       stream.current?.send({
         type: "transcript",
         segmentId: line.id,
@@ -190,11 +321,11 @@ export function CaptureSession() {
       sentIds.current.add(line.id);
     }
     sentLines.current = lines.length;
-  }, [voice.transcript, setRecord]);
+  }, [voice.transcript, setRecord, holding]);
 
   const onDeskEvent = useCallback(
     (event: DeskEvent) => {
-      if (offRecordRef.current) return;
+      if (holding()) return;
       stream.current?.send({ type: "desk_event", event });
       if (event.type === "input_activity") {
         setLastInputActivityMs(event.tMs);
@@ -204,7 +335,7 @@ export function CaptureSession() {
       const summary = describeDeskEvent(event);
       if (summary) voice.sendScreen(summary, event.tMs);
     },
-    [voice.markActivity, voice.sendScreen],
+    [voice.markActivity, voice.sendScreen, holding],
   );
 
   // Capture mode never blocks: the verdict is logged for the map, the expert's action always goes through.
@@ -217,8 +348,9 @@ export function CaptureSession() {
     }
   }, []);
 
+  const voiceConnected = voice.status === "connected";
   const gate = useTurnGate({
-    enabled: phase === "capturing" && voice.status === "connected",
+    enabled: phase === "capturing" && voiceConnected && !paused,
     clock,
     lastUserSpeechMs: voice.lastUserSpeechMs,
     lastInputActivityMs,
@@ -233,16 +365,74 @@ export function CaptureSession() {
     },
   });
 
-  const start = useCallback(async () => {
-    setProblem(null);
+  // The live "why now" timeline, sampled with every gate evaluation.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one sample per gate tick; the other values are read at that tick
+  useEffect(() => {
+    if (phaseRef.current !== "capturing") return;
+    setHistory((h) =>
+      recordGateSample(h, {
+        ...gate.signals,
+        candidate,
+        decision: gate.decision,
+        asked: gate.asked,
+      }),
+    );
+  }, [gate.signals]);
+
+  /** Asks for the tab. Needs a user gesture, so it runs from a button. */
+  const share = useCallback(async (): Promise<boolean> => {
+    if (media.current?.active) return true;
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setScreen({ kind: "error", message: "This browser cannot share a tab." });
+      return false;
+    }
+    setScreen({ kind: "requesting" });
     try {
-      const screen = await pickScreen({ preferCurrentTab: true, frameRate: 5 });
-      media.current = screen;
+      const s = await pickScreen({ preferCurrentTab: true, frameRate: 5 });
       const v = video.current;
       if (!v) throw new Error("video element missing");
-      v.srcObject = screen;
+      v.srcObject = s;
       await v.play();
+      media.current = s;
+      const track = s.getVideoTracks()[0];
+      track?.addEventListener("ended", () => shareEndedRef.current());
+      const surface = track?.getSettings().displaySurface;
+      setScreen({
+        kind: "sharing",
+        detail: (surface && SURFACE[surface]) ?? "Sharing the screen you picked",
+      });
+      return true;
+    } catch (err) {
+      setScreen(
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? { kind: "denied" }
+          : { kind: "error", message: describeError(err) },
+      );
+      return false;
+    }
+  }, []);
+
+  const requestStart = useCallback(async () => {
+    setProblem(null);
+    setIntentPending(false);
+    if (await share()) go("countdown");
+  }, [share, go]);
+
+  /** After the countdown: frames, the redacted recording and the voice session start. */
+  const begin = useCallback(async () => {
+    if (phaseRef.current !== "countdown") return;
+    const v = video.current;
+    const screenStream = media.current;
+    if (!v || !screenStream?.active) {
+      setScreen({ kind: "ended" });
+      go("ready");
+      return;
+    }
+    try {
       startedAt.current = Date.now();
+      pausedTotal.current = 0;
+      pausedAt.current = null;
+      frozen.current = null;
       // One region for frames and recording: DeskSim only, PII blacked out.
       const region = (): RedactedRegion | null => {
         const root = document.getElementById(DESK_ROOT_ID);
@@ -257,6 +447,7 @@ export function CaptureSession() {
       // The raw tab is never recorded; only the redacted canvas is.
       redacted.current = startRedactedStream(v, { width: 1280, height: 720, getRegion: region });
       recorder.current = redacted.current ? startRecorder(redacted.current.stream) : null;
+      setRedactionLive(redacted.current ? "active" : "off");
       loop.current = startFrameLoop({
         intervalMs: FRAME_INTERVAL_MS,
         hammingThreshold: HAMMING_THRESHOLD,
@@ -282,42 +473,109 @@ export function CaptureSession() {
             phash: f.phash,
           }),
       });
-      screen.getVideoTracks()[0]?.addEventListener("ended", () => void endRef.current());
+      setHistory(EMPTY_GATE_HISTORY);
+      go("capturing");
       await voice.start();
-      setPhase("capturing");
     } catch (err) {
-      setProblem(
-        err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Screen sharing was not allowed. Choose this tab when the browser asks."
-          : describeError(err),
-      );
+      loop.current?.stop();
+      loop.current = null;
+      setProblem(describeError(err));
     }
-  }, [clock, voice.start]);
+  }, [clock, voice.start, go]);
 
-  const end = useCallback(async () => {
-    loop.current?.stop();
-    loop.current = null;
-    // The voice session stays open: Shadow runs the debrief in the same conversation.
-    for (const track of media.current?.getTracks() ?? []) track.stop();
-    setPhase("ended");
-    const rec = recorder.current;
-    recorder.current = null;
-    if (rec && sessionId) {
-      try {
-        const blob = await rec.stop();
-        redacted.current?.stop();
-        redacted.current = null;
-        await uploadRecording(sessionId, blob);
-      } catch (err) {
-        setProblem(`The recording could not be uploaded: ${describeError(err)}`);
+  const cancelCountdown = useCallback(() => {
+    if (phaseRef.current === "countdown") go("ready");
+  }, [go]);
+
+  const setStep = useCallback((id: string, patch: Partial<ProcessingStep>) => {
+    setSteps((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }, []);
+
+  const end = useCallback(
+    async (reason: EndReason) => {
+      if (phaseRef.current !== "capturing") return;
+      frozen.current = elapsed();
+      if (pausedRef.current) {
+        pausedRef.current = false;
+        pausedAt.current = null;
+        setPaused(false);
       }
-    }
-    // Idempotent: also covers "no recorder" and "no session" paths.
-    redacted.current?.stop();
-    redacted.current = null;
-    setPhase("debrief");
-  }, [sessionId]);
+      // The debrief is a conversation the expert takes part in on purpose: it is on the record.
+      setRecord(false);
+      setEndReason(reason);
+      setSteps(INITIAL_STEPS);
+      setUploadProblem(null);
+      go("processing");
+      loop.current?.stop();
+      loop.current = null;
+      // The voice session stays open: Shadow runs the debrief in the same conversation.
+      for (const track of media.current?.getTracks() ?? []) track.stop();
+      media.current = null;
+      setScreen({ kind: "idle" });
+      const rec = recorder.current;
+      recorder.current = null;
+      if (!rec || !sessionId) {
+        const why = "Nothing was recorded: the redacted canvas could not start.";
+        setStep("recording", { status: "skipped", detail: why });
+        setStep("redaction", { status: "skipped" });
+        setStep("upload", { status: "skipped" });
+      } else {
+        try {
+          const blob = await rec.stop();
+          redacted.current?.stop();
+          redacted.current = null;
+          setStep("recording", {
+            status: "done",
+            detail: `${formatElapsed(frozen.current ?? 0)} recorded, ${(blob.size / 1_000_000).toFixed(1)} MB`,
+          });
+          setStep("redaction", {
+            status: "done",
+            detail:
+              "Blacked out in this browser while recording. The raw tab was never stored or sent.",
+          });
+          setStep("upload", { status: "running" });
+          await uploadRecording(sessionId, blob);
+          setStep("upload", { status: "done", detail: "Stored with the session" });
+        } catch (err) {
+          const message = describeError(err);
+          setUploadProblem(message);
+          setSteps((list) =>
+            list.map((s) =>
+              s.status === "running" || s.status === "waiting"
+                ? { ...s, status: s.status === "running" ? "failed" : "skipped", detail: message }
+                : s,
+            ),
+          );
+        }
+      }
+      // Idempotent: also covers "no recorder" and "no session" paths.
+      redacted.current?.stop();
+      redacted.current = null;
+      go("debrief");
+    },
+    [sessionId, elapsed, setRecord, setStep, go],
+  );
   endRef.current = end;
+
+  shareEndedRef.current = () => {
+    if (phaseRef.current === "capturing") {
+      void endRef.current("share_ended");
+      return;
+    }
+    media.current = null;
+    setScreen({ kind: "ended" });
+    if (phaseRef.current === "countdown") go("ready");
+  };
+
+  // Stop every capture resource if the page goes away mid-session.
+  useEffect(
+    () => () => {
+      loop.current?.stop();
+      redacted.current?.stop();
+      for (const track of media.current?.getTracks() ?? []) track.stop();
+    },
+    [],
+  );
 
   const typedSeq = useRef(0);
   const sendTypedLine = useCallback(
@@ -346,7 +604,6 @@ export function CaptureSession() {
   );
   const isSent = useCallback((id: string) => sentIds.current.has(id), []);
 
-  const voiceConnected = voice.status === "connected";
   const debriefVoice = useMemo<DebriefVoice>(
     () => ({
       connected: voiceConnected,
@@ -365,184 +622,356 @@ export function CaptureSession() {
   );
   const onDebriefFinished = useCallback(() => voice.stop(), [voice.stop]);
 
+  // ⌘K "Start a capture session" lands here with ?intent=start: point at the preflight.
+  const onStartIntent = useCallback(() => {
+    setIntentPending(true);
+    router.replace("/capture", { scroll: false });
+  }, [router]);
+  useEffect(() => {
+    if (intentPending && phase === "ready") document.getElementById(START_BUTTON_ID)?.focus();
+  }, [intentPending, phase]);
+
+  const live = phase === "capturing";
+  const recordingState: RecordingState = live
+    ? paused
+      ? "paused"
+      : offRecord
+        ? "off-record"
+        : "recording"
+    : "idle";
+  const voiceState = listeningStateFor(
+    voice.status,
+    voice.mode,
+    voice.agentSpeaking,
+    offRecord || paused,
+  );
+  const askedAt = gate.asked.map((q) => q.atMs);
+  const nowMs = gate.signals.nowMs;
+  const lastAsked = gate.asked.at(-1);
+  const current =
+    live && lastAsked && nowMs - lastAsked.atMs < QUESTION_CALLOUT_MS
+      ? { id: lastAsked.id, text: lastAsked.text, atMs: lastAsked.atMs }
+      : null;
+  const streamDown =
+    sessionId !== null &&
+    (phase === "capturing" || phase === "processing" || phase === "debrief") &&
+    (streamState === "reconnecting" || streamState === "closed");
+
+  const preflightItems = buildPreflight({
+    preflight,
+    screen,
+    onShare: () => void share(),
+  });
+  const blocking =
+    preflight.redaction.status === "failed" || screen.kind === "requesting" || sessionId === null;
+  const voiceMissing = preflight.agent.status === "failed" || preflight.mic.status === "failed";
+
+  const showDesk = phase === "ready" || phase === "countdown" || phase === "capturing";
+  const stage = phase === "processing" || phase === "debrief" ? "debrief" : "recording";
+
   return (
-    <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6">
-      <section aria-label="Workspace" className="flex min-w-0 flex-col gap-4 lg:col-span-8">
-        <PhaseHeader phase={phase}>
-          {phase === "ready" && (
-            <Button onClick={() => void start()}>
-              <ScreenShare aria-hidden="true" />
-              Share this tab and start
-            </Button>
-          )}
-          {phase === "capturing" && (
-            <Button onClick={() => void end()}>
-              <Square aria-hidden="true" />
-              End task
-            </Button>
-          )}
-          {phase === "ended" && (
-            <p aria-live="polite" className="text-[0.9375rem] text-ink-muted">
-              Task ended. Saving the recording before the debrief…
-            </p>
-          )}
-          {phase === "loading" && (
-            <p aria-live="polite" className="text-[0.9375rem] text-ink-muted">
-              Loading tickets…
-            </p>
-          )}
-        </PhaseHeader>
+    <div className="mt-6 flex flex-col gap-4">
+      <Suspense fallback={null}>
+        <StartIntent onStart={onStartIntent} />
+      </Suspense>
 
-        {gate.asked.length > 0 && (
-          <p className="font-mono text-xs text-ink-faint">
-            Gate: {gate.decision.open ? "open" : gate.decision.reason.replaceAll("_", " ")}
-          </p>
-        )}
-        {problem && <Notice>{problem}</Notice>}
+      {phase !== "loading" && phase !== "failed" && phase !== "ready" ? (
+        <TopBarStatus>
+          <LiveRecordingStatus state={recordingState} elapsed={elapsed} />
+          {voice.status === "connected" || voice.status === "connecting" ? (
+            <ListeningIndicator state={voiceState} compact className="hidden sm:inline-flex" />
+          ) : null}
+        </TopBarStatus>
+      ) : null}
 
-        {offRecord && phase !== "debrief" && (
-          <div
-            role="status"
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-control bg-ink px-4 py-3 text-canvas"
-          >
-            <MicOff aria-hidden="true" className="size-4 shrink-0" />
-            <p className="min-w-0 flex-1 text-[0.9375rem] leading-snug">
-              <span className="font-medium">You are off the record.</span> Nothing you do or say is
-              captured for the Work Map until you resume.
-            </p>
-            <span className="inline-flex items-center gap-1 text-sm">
-              <KeyboardKey>Alt</KeyboardKey>
-              <span aria-hidden="true">+</span>
-              <KeyboardKey>O</KeyboardKey>
-              <span className="ml-1 opacity-80">to resume</span>
-            </span>
-          </div>
-        )}
-
-        {phase === "debrief" && sessionId && (
-          <DebriefPanel
-            sessionId={sessionId}
-            voice={debriefVoice}
-            clock={clock}
-            isSent={isSent}
-            sendTypedLine={sendTypedLine}
-            onFinished={onDebriefFinished}
+      {live ? (
+        <div className="sticky top-12 z-10 -my-1 bg-surface py-1">
+          <LiveRecordingBar
+            state={recordingState}
+            elapsed={elapsed}
+            voiceConnected={voiceConnected}
+            onPause={() => setPause(true)}
+            onResume={() => setPause(false)}
+            onStop={() => void end("stopped")}
+            onToggleOffRecord={() => setRecord(!offRecordRef.current)}
           />
-        )}
-        {(phase === "ready" || phase === "capturing" || phase === "ended") && (
-          // DeskSim keeps its own look. The frame only marks the captured region and, off the
-          // record, turns dashed so the paused state reads on the desk itself too.
+        </div>
+      ) : null}
+
+      {phase === "loading" ? <LoadingWorkspace /> : null}
+
+      {phase === "failed" && loadError ? (
+        <Alert
+          tone={loadError.offline ? "offline" : "danger"}
+          title={
+            loadError.offline
+              ? "The Shadow API is not reachable"
+              : "Could not start a capture session"
+          }
+          action={
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<RotateCw />}
+              onClick={() => setLoadKey((k) => k + 1)}
+            >
+              Try again
+            </Button>
+          }
+        >
+          {loadError.offline ? (
+            <>
+              Tried <code className="font-mono text-xs">{publicEnv.apiUrl}</code>. Start the API
+              with <code className="font-mono text-xs">pnpm dev</code>, then try again.
+            </>
+          ) : (
+            loadError.message
+          )}
+        </Alert>
+      ) : null}
+
+      {phase !== "loading" && phase !== "failed" ? (
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_24rem]">
+          <section aria-label="Workspace" className="flex min-w-0 flex-col gap-3">
+            {live && offRecord ? (
+              <HoldStrip
+                icon={<EyeOff />}
+                title="You are off the record."
+                text="Nothing you do or say is captured for the Work Map until you resume."
+                action={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Mic />}
+                    onClick={() => setRecord(false)}
+                    trailing={
+                      <span aria-hidden="true" className="hidden sm:inline-flex">
+                        <KbdCombo keys={["Alt", "O"]} />
+                      </span>
+                    }
+                  >
+                    Back on the record
+                  </Button>
+                }
+              />
+            ) : null}
+            {live && paused ? (
+              <HoldStrip
+                icon={<Pause />}
+                title="Recording paused."
+                text="Your microphone is muted for Shadow and nothing is captured. The timer is stopped."
+                action={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Play />}
+                    onClick={() => setPause(false)}
+                  >
+                    Resume
+                  </Button>
+                }
+              />
+            ) : null}
+            {problem ? (
+              <Alert tone="danger" title="The session could not start">
+                {problem}
+              </Alert>
+            ) : null}
+
+            {showDesk ? (
+              <DeskFrame live={live} holding={offRecord || paused}>
+                <DeskSim
+                  tickets={tickets}
+                  mode="capture"
+                  clock={clock}
+                  onDeskEvent={onDeskEvent}
+                  preSave={onPreSave}
+                />
+              </DeskFrame>
+            ) : null}
+
+            {phase === "processing" ? (
+              <>
+                {endReason === "share_ended" ? <ShareEndedNotice /> : null}
+                <ProcessingSteps
+                  title="Processing the session"
+                  steps={[
+                    ...steps,
+                    { id: "workmap", label: "Draft the Work Map", status: "waiting" },
+                  ]}
+                />
+              </>
+            ) : null}
+
+            {phase === "debrief" && sessionId ? (
+              <>
+                {endReason === "share_ended" ? <ShareEndedNotice /> : null}
+                {uploadProblem ? (
+                  <Alert tone="danger" title="The recording could not be uploaded">
+                    {uploadProblem} The debrief continues without the video.
+                  </Alert>
+                ) : null}
+                <DebriefPanel
+                  sessionId={sessionId}
+                  voice={debriefVoice}
+                  clock={clock}
+                  isSent={isSent}
+                  sendTypedLine={sendTypedLine}
+                  onFinished={onDebriefFinished}
+                  processing={steps}
+                />
+              </>
+            ) : null}
+          </section>
+
           <div
             className={cx(
-              "overflow-x-auto rounded-panel border p-2 transition-colors duration-200",
-              offRecord ? "border-dashed border-ink-faint" : "border-rule bg-sunken",
+              "flex min-w-0 flex-col gap-3 lg:sticky lg:top-[7.25rem] lg:max-h-[calc(100dvh-8.25rem)]",
+              // On phones the start and preflight come before the long desk.
+              (phase === "ready" || phase === "countdown") && "max-lg:order-first",
             )}
           >
-            <div className="min-w-[42rem]">
-              <DeskSim
-                tickets={tickets}
-                mode="capture"
-                clock={clock}
-                onDeskEvent={onDeskEvent}
-                preSave={onPreSave}
+            {phase === "ready" || phase === "countdown" ? (
+              <>
+                <StartPanel
+                  onStart={() => void requestStart()}
+                  disabled={blocking || phase === "countdown"}
+                  busy={screen.kind === "requesting"}
+                  intent={intentPending}
+                  voiceMissing={voiceMissing}
+                  redactionFailed={preflight.redaction.status === "failed"}
+                />
+                <PreflightChecklist
+                  items={preflightItems}
+                  title="Before you record"
+                  onRetry={preflight.recheck}
+                />
+              </>
+            ) : (
+              <ShadowRail
+                stage={stage}
+                voice={voiceState}
+                status={voice.status}
+                offRecord={offRecord}
+                paused={paused}
+                questionsInWindow={questionsInWindow(askedAt, nowMs)}
+                questionBudget={DEFAULT_GATE.maxPer10Min}
+                gapMs={gapRemainingMs(askedAt, nowMs, DEFAULT_GATE.minGapMs)}
+                current={current}
+                transcript={voice.transcript}
+                error={voice.error}
+                redaction={redactionLive}
+                connection={
+                  streamDown ? (
+                    <Alert tone="offline" title="Connection to the Shadow API lost">
+                      Reconnecting to{" "}
+                      <code className="font-mono text-xs">{publicEnv.apiWsUrl}</code>. Up to{" "}
+                      {QUEUE_LIMIT} events wait and are sent when it is back.
+                    </Alert>
+                  ) : null
+                }
+                className="lg:max-h-full"
               />
-            </div>
+            )}
           </div>
-        )}
-        {/* Hidden: the shared-tab stream feeds the frame loop and never renders. */}
-        <video ref={video} muted playsInline className="hidden" />
-      </section>
-      <div className="min-w-0 lg:col-span-4">
-        <SidePanel
-          status={voice.status}
-          mode={voice.mode}
-          agentSpeaking={voice.agentSpeaking}
-          offRecord={offRecord}
-          questionsAsked={gate.asked.length}
-          questionBudget={DEFAULT_GATE.maxPer10Min}
-          transcript={voice.transcript}
-          error={voice.error}
-          onToggleOffRecord={() => setRecord(!offRecordRef.current)}
-        />
-      </div>
-      {phase === "capturing" && (
-        <section aria-label="Insight panel" className="min-w-0 lg:col-span-12">
-          <InsightPanel
-            now={gate.signals.nowMs}
-            signals={gate.signals}
-            decision={gate.decision}
-            candidates={candidates}
-            asked={gate.asked.map((q) => ({
-              id: q.id,
-              text: q.text,
-              atMs: q.atMs,
-              // A signal that never fired has been quiet since the session started.
-              pauseMs: {
-                silence: q.pauseMs.silence ?? q.atMs,
-                inputIdle: q.pauseMs.inputIdle ?? q.atMs,
-                screenIdle: q.pauseMs.screenIdle ?? q.atMs,
-              },
-            }))}
-            insight={insight}
-            offRecord={offRecord}
-            collapsed={!insightOpen}
-            onToggle={() => setInsightOpen((open) => !open)}
-          />
-        </section>
-      )}
+
+          {live ? (
+            <section aria-label="Turn Gate insight" className="min-w-0 lg:col-span-2">
+              <InsightPanel
+                now={nowMs}
+                signals={gate.signals}
+                decision={gate.decision}
+                candidates={candidates.filter((c) => !gate.asked.some((q) => q.id === c.id))}
+                asked={gate.asked.map((q) => ({
+                  id: q.id,
+                  text: q.text,
+                  atMs: q.atMs,
+                  // A signal that never fired has been quiet since the session started.
+                  pauseMs: {
+                    silence: q.pauseMs.silence ?? q.atMs,
+                    inputIdle: q.pauseMs.inputIdle ?? q.atMs,
+                    screenIdle: q.pauseMs.screenIdle ?? q.atMs,
+                  },
+                }))}
+                insight={insight}
+                offRecord={offRecord}
+                paused={paused}
+                collapsed={!insightOpen}
+                onToggle={() => setInsightOpen((open) => !open)}
+                timeline={
+                  voiceConnected ? (
+                    <GateTimeline
+                      title="Why now: the Turn Gate, live"
+                      endMs={liveTimelineEnd(history.nowMs)}
+                      nowMs={history.nowMs}
+                      speech={history.speech}
+                      typing={history.typing}
+                      screen={history.screen}
+                      offRecord={history.offRecord}
+                      asking={history.asking}
+                      questions={history.questions}
+                      dropped={history.dropped}
+                    />
+                  ) : (
+                    <p className="text-ui text-ink-faint">
+                      The Turn Gate runs while the voice agent is connected, so there is no timeline
+                      yet.
+                    </p>
+                  )
+                }
+              />
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+
+      <Dialog
+        open={phase === "countdown"}
+        onOpenChange={(open) => {
+          // Escape or a click outside skips the count, like the Skip button.
+          if (!open) void begin();
+        }}
+        title="Recording is about to start"
+        hideTitle
+        hideClose
+        size="sm"
+      >
+        <div className="flex flex-col items-center gap-4 px-6 pt-8 pb-6">
+          <Countdown from={3} onDone={() => void begin()} />
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-ink-muted">
+            <span className="inline-flex items-center gap-1">
+              <ShieldCheck aria-hidden="true" className="size-3.5 stroke-[1.75] text-ok" />
+              Redaction on
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <EyeOff aria-hidden="true" className="size-3.5 stroke-[1.75]" />
+              Off the record any time with <KbdCombo keys={["Alt", "O"]} />
+            </span>
+          </div>
+          <Button size="sm" variant="ghost" onClick={cancelCountdown}>
+            Cancel
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Hidden: the shared-tab stream feeds the frame loop and never renders. */}
+      <video ref={video} muted playsInline className="hidden" />
     </div>
   );
 }
 
-const PHASE_STEPS = [
-  { key: "ready", label: "Ready" },
-  { key: "capturing", label: "Capturing" },
-  { key: "ended", label: "Saving" },
-  { key: "debrief", label: "Debrief" },
-] as const satisfies readonly { key: Phase; label: string }[];
-
-/** Where the session is, as the real sequence it is, with the one action that moves it on. */
-function PhaseHeader({ phase, children }: { phase: Phase; children: ReactNode }) {
-  const current = PHASE_STEPS.findIndex((s) => s.key === phase);
-  return (
-    <div className="flex flex-col gap-4 border-y border-rule py-4 sm:flex-row sm:items-center sm:justify-between">
-      <ol aria-label="Session phase" className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        {PHASE_STEPS.map((step, i) => {
-          const isCurrent = i === current;
-          const isDone = current > i;
-          return (
-            <li
-              key={step.key}
-              aria-current={isCurrent ? "step" : undefined}
-              className={cx(
-                "inline-flex items-baseline gap-1.5 text-[0.9375rem]",
-                isCurrent ? "text-ink" : isDone ? "text-ink-muted" : "text-ink-faint",
-              )}
-            >
-              <span className="font-mono text-xs tabular-nums">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span
-                className={cx(
-                  isCurrent &&
-                    "font-medium underline decoration-1 underline-offset-[6px] decoration-ink",
-                )}
-              >
-                {step.label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      <div className="flex min-h-11 items-center">{children}</div>
-    </div>
-  );
+/** Reads `?intent=start` (from the ⌘K palette). Inside Suspense, as `useSearchParams` requires. */
+function StartIntent({ onStart }: { onStart: () => void }) {
+  const intent = useSearchParams().get("intent");
+  useEffect(() => {
+    if (intent === "start") onStart();
+  }, [intent, onStart]);
+  return null;
 }
 
 function describeError(err: unknown): string {
   if (err instanceof ApiClientError) {
-    if (err.kind === "network")
-      return "The Shadow API is not reachable. Is it running (pnpm api:public or pnpm dev)?";
+    if (err.kind === "network") return "The Shadow API is not reachable. Is it running (pnpm dev)?";
     return `The Shadow API returned an error (${err.status ?? "?"}${err.code ? `, ${err.code}` : ""}).`;
   }
   return err instanceof Error ? err.message : String(err);

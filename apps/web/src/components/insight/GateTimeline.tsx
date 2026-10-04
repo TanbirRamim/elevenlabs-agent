@@ -207,10 +207,7 @@ export function GateTimeline(props: GateTimelineProps) {
       <div className="mt-3 grid grid-cols-[3.75rem_1fr] gap-x-3 sm:grid-cols-[7rem_1fr]">
         <ul aria-hidden="true" className="flex flex-col">
           {LANES.map((l) => (
-            <li
-              key={l.key}
-              className="flex h-8 items-center text-xs text-ink-muted sm:text-[0.8125rem]"
-            >
+            <li key={l.key} className="flex h-8 items-center text-xs text-ink-muted sm:text-ui">
               <span className="sm:hidden">{l.short}</span>
               <span className="hidden sm:inline">{l.long}</span>
             </li>
@@ -286,7 +283,7 @@ export function GateTimeline(props: GateTimelineProps) {
                 <span
                   key={`offl-${o.startMs}`}
                   aria-hidden="true"
-                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-center font-mono text-[0.6875rem] leading-tight text-ink-muted"
+                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-center font-mono text-2xs leading-tight text-ink-muted"
                   style={{ left: pct((o.startMs + o.endMs) / 2) }}
                 >
                   Off the
@@ -330,16 +327,13 @@ export function GateTimeline(props: GateTimelineProps) {
                 <p className="font-mono text-xs text-ink-faint">
                   Dropped at {clock(d.atMs)}, never asked
                 </p>
-                <p className="mt-1.5 text-[0.9375rem] leading-snug text-ink">“{d.text}”</p>
+                <p className="mt-1.5 text-sm text-ink">“{d.text}”</p>
                 <p className="mt-2 text-sm text-ink-muted">{d.reason}.</p>
               </Marker>
             ))}
           </div>
 
-          <div
-            aria-hidden="true"
-            className="relative mt-1 h-5 font-mono text-[0.6875rem] text-ink-faint"
-          >
+          <div aria-hidden="true" className="relative mt-1 h-5 font-mono text-2xs text-ink-faint">
             {ticks.map((t, i) => (
               <span
                 key={t}
@@ -405,7 +399,7 @@ function QuestionTip({ q, index }: { q: TimelineQuestion; index: number }) {
           <Badge tone={q.slot === "guardrail" ? "guard" : "muted"}>{SLOT_LABEL[q.slot]}</Badge>
         ) : null}
       </div>
-      <p className="mt-1.5 text-[0.9375rem] leading-snug text-ink">“{q.text}”</p>
+      <p className="mt-1.5 text-sm text-ink">“{q.text}”</p>
       <p className="mt-2.5 text-sm text-ink-muted">The gate opened after:</p>
       <dl className="mt-1 grid grid-cols-3 gap-2 font-mono text-xs">
         <PauseStat name="Silence" value={pauseText(q.pause.silenceMs)} />
@@ -474,7 +468,7 @@ function Marker({
         <span
           aria-hidden="true"
           className={cx(
-            "inline-flex size-[22px] items-center justify-center rounded-full border font-mono text-[0.6875rem] tabular-nums",
+            "inline-flex size-[22px] items-center justify-center rounded-full border font-mono text-2xs tabular-nums",
             kind === "asked"
               ? "border-ask bg-ask text-ask-ink"
               : "border-ink-faint bg-canvas text-ink-faint",

@@ -60,3 +60,49 @@ export function orbStateFor(
   if (status !== "connected") return "idle";
   return agentSpeaking || mode === "speaking" ? "speaking" : "listening";
 }
+
+export type LiveVoiceState = "listening" | "asking" | "quiet" | "off";
+
+/**
+ * What the ListeningIndicator shows. Without a connected voice session the voice is off. While
+ * Shadow's audio plays it is asking. Off the record or paused it holds every question (quiet);
+ * otherwise it is listening.
+ */
+export function listeningStateFor(
+  status: VoiceStatus,
+  mode: "speaking" | "listening",
+  agentSpeaking: boolean,
+  holding: boolean,
+): LiveVoiceState {
+  if (status !== "connected") return "off";
+  if (agentSpeaking || mode === "speaking") return "asking";
+  return holding ? "quiet" : "listening";
+}
+
+const TEN_MINUTES_MS = 600_000;
+
+/** Questions asked in the ten minutes before `nowMs`: what the Turn Gate's budget counts. */
+export function questionsInWindow(askedAtMs: readonly number[], nowMs: number): number {
+  return askedAtMs.filter((t) => t <= nowMs && nowMs - t < TEN_MINUTES_MS).length;
+}
+
+/** Milliseconds until the gate's minimum gap after the last question has passed; 0 when it has. */
+export function gapRemainingMs(
+  askedAtMs: readonly number[],
+  nowMs: number,
+  minGapMs: number,
+): number {
+  const last = askedAtMs.at(-1);
+  if (last === undefined) return 0;
+  return Math.max(0, minGapMs - (nowMs - last));
+}
+
+/**
+ * Maps the voice SDK's input volume (mean of the 100 to 8000 Hz frequency bins, 0..1; speech
+ * sits around 0.1 to 0.4) to a meter level, and eases the fall so the meter does not flicker.
+ * Rises are immediate so speech onsets show at once.
+ */
+export function micLevel(volume: number, previous = 0): number {
+  const raw = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume * 2.5)) : 0;
+  return raw >= previous ? raw : previous * 0.6 + raw * 0.4;
+}

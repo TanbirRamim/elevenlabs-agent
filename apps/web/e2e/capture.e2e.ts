@@ -1,7 +1,7 @@
 import { API_URL } from "./env";
 import { expect, test } from "./fixtures";
 
-test("capture loads the expert tickets into DeskSim and shows the side panel", async ({
+test("capture loads the expert tickets into DeskSim and shows the preflight", async ({
   page,
   request,
 }) => {
@@ -17,11 +17,21 @@ test("capture loads the expert tickets into DeskSim and shows the side panel", a
   }
   await expect(page.getByText("Select a ticket to begin (capture mode).")).toBeVisible();
 
-  // Side panel: voice not started (no ElevenLabs session), off-the-record control present.
-  await expect(page.getByText("Not started")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Go off the record/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Conversation" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Share this tab and start" })).toBeVisible();
+  // Preflight: the stubbed voice agent fails honestly with a fix, screen share waits for the
+  // expert, redaction is ready, and the session can still start (without voice).
+  const checks = page.getByRole("list", { name: "Preflight checks" });
+  const agent = checks.getByRole("listitem").filter({ hasText: "Voice agent" });
+  await expect(agent).toContainText("Needs attention");
+  await expect(agent).toContainText("voice_disabled_in_e2e");
+  await expect(checks.getByRole("listitem").filter({ hasText: "Redaction" })).toContainText(
+    "Ready",
+  );
+  await expect(checks.getByRole("button", { name: "Share this tab" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+  await expect(page.getByText(/Without voice, Shadow follows the desk silently/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start session" })).toBeEnabled();
+  // Nothing records before Start: no recording controls, no off-the-record toggle yet.
+  await expect(page.getByRole("toolbar", { name: "Recording controls" })).toHaveCount(0);
 
   const t3 = tickets.find((t) => t.id === "T3");
   if (!t3) throw new Error("seed has no expert ticket T3");
@@ -32,7 +42,7 @@ test("capture loads the expert tickets into DeskSim and shows the side panel", a
   await expect(page.getByRole("button", { name: "Refund", exact: true })).toBeEnabled();
 });
 
-// Regression: voice sends before "Share this tab and start" used to throw
+// Regression: voice sends before the session starts used to throw
 // "No active conversation"; useVoice now drops them while disconnected.
 test("capture: working the desk before voice starts raises no page errors", async ({ page }) => {
   const errors: string[] = [];
@@ -45,4 +55,10 @@ test("capture: working the desk before voice starts raises no page errors", asyn
   await page.getByRole("button", { name: "Hold / request info", exact: true }).click();
   await expect(page.getByText(/^Committed:/)).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("capture: ?intent=start from the command menu focuses Start session", async ({ page }) => {
+  await page.goto("/capture?intent=start");
+  await expect(page.getByRole("button", { name: "Start session" })).toBeFocused();
+  await expect(page).toHaveURL(/\/capture$/);
 });

@@ -1,5 +1,6 @@
+import { Check, PencilLine } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button } from "../ui";
+import { Avatar, Button } from "../ui";
 
 export interface TeachBackCardProps {
   /** Null while the teach-back is being prepared. */
@@ -29,57 +30,68 @@ export function TeachBackCard(props: TeachBackCardProps) {
       aria-labelledby="teachback-title"
       className="overflow-hidden rounded-panel border border-rule bg-surface"
     >
-      <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">
-        <h3 id="teachback-title" className="text-sm font-medium text-ink-muted">
-          {recheck ? "Re-check" : "Teach-back"}
-        </h3>
+      <header className="flex min-h-11 items-center justify-between gap-3 border-b border-rule px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Avatar name="Shadow" shadow size="xs" />
+          <h3 id="teachback-title" className="text-ui font-semibold text-ink">
+            {recheck ? "Re-check" : "Teach-back"}
+          </h3>
+          <span className="hidden text-xs text-ink-faint sm:inline">
+            {recheck ? "the corrected rule, in one sentence" : "how Shadow understood your work"}
+          </span>
+        </div>
         {round > 0 && (
-          <span className="font-mono text-xs text-ink-faint">
+          <span className="figures shrink-0 font-mono text-xs text-ink-faint">
             {round} {round === 1 ? "correction" : "corrections"} applied
           </span>
         )}
-      </div>
+      </header>
 
-      <div className="px-5 py-6 sm:px-6">
+      <div className="px-4 py-4">
         {text === null ? (
-          <p className="text-[0.9375rem] text-ink-faint" aria-live="polite">
+          <p className="text-ui text-ink-faint" aria-live="polite">
             Shadow is putting together what it learned…
           </p>
         ) : (
-          <blockquote className="max-w-[40ch] text-base leading-snug text-pretty text-ink">
+          <blockquote className="max-w-prose border-l-2 border-ask pl-3 text-base text-pretty text-ink">
             {text}
           </blockquote>
         )}
       </div>
 
       {text !== null && mode === "reading" && (
-        <div className="flex flex-col gap-3 border-t border-rule bg-sunken/60 px-5 py-4">
-          <p className="text-[0.9375rem] text-ink-muted">
+        <div className="flex flex-col gap-3 border-t border-rule bg-sunken px-4 py-3">
+          <p className="text-ui text-ink-muted">
             Is that how it works? Say yes or tell Shadow what is wrong, or use the buttons.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={props.onConfirm} disabled={busy}>
+            <Button onClick={props.onConfirm} disabled={busy} icon={<Check />}>
               {busy ? "Saving…" : "Yes, that's right"}
             </Button>
             <Button
               variant="secondary"
               onClick={props.onCorrect}
               disabled={busy || correctionsLeft === 0}
+              icon={<PencilLine />}
             >
               Correct it
             </Button>
           </div>
-          {correctionsLeft === 0 && (
-            <p className="text-sm text-ink-faint">
+          {correctionsLeft === 0 ? (
+            <p className="text-xs text-ink-faint">
               Both corrections are used. Confirm to continue; anything else can be fixed on the Work
               Map page.
+            </p>
+          ) : (
+            <p className="text-xs text-ink-faint">
+              {correctionsLeft} {correctionsLeft === 1 ? "correction" : "corrections"} left
             </p>
           )}
         </div>
       )}
 
       {text !== null && mode === "correcting" && (
-        <div className="flex flex-col gap-3 border-t border-rule bg-sunken/60 px-5 py-4">
+        <div className="flex flex-col gap-3 border-t border-rule bg-sunken px-4 py-3">
           {props.correction}
           <Button
             variant="ghost"
