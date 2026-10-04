@@ -24,7 +24,6 @@ import {
   type RecordingState,
 } from "@/components/recording";
 import {
-  describeDeskEvent,
   detectRecordPhrase,
   listeningStateFor,
   questionsInWindow,
@@ -196,8 +195,9 @@ export function CaptureSession() {
       s.on("candidate_question", (m) => setCandidate(m.question)),
       s.on("insight", ({ type: _type, ...numbers }) => setInsight(numbers)),
       s.on("screen_event", (m) => {
-        // DOM events are already sent to the agent locally; only vision adds new information.
-        if (m.event.source === "vision" && !offRecordRef.current && !pausedRef.current)
+        // Vision-first: the agent learns the screen from what the API saw in the frames (DOM
+        // events arrive here only when the API runs with CAPTURE_SIGNALS=vision+desk).
+        if (!offRecordRef.current && !pausedRef.current)
           voice.sendScreen(m.event.summary, m.event.tMs);
       }),
     ];
@@ -302,16 +302,15 @@ export function CaptureSession() {
   const onDeskEvent = useCallback(
     (event: DeskEvent) => {
       if (holding()) return;
+      // Ground truth for the vision/DOM agreement metric; the screen itself reaches the agent
+      // through vision, as it would for any app shared on screen.
       stream.current?.send({ type: "desk_event", event });
       if (event.type === "input_activity") {
         setLastInputActivityMs(event.tMs);
         voice.markActivity();
-        return;
       }
-      const summary = describeDeskEvent(event);
-      if (summary) voice.sendScreen(summary, event.tMs);
     },
-    [voice.markActivity, voice.sendScreen, holding],
+    [voice.markActivity, holding],
   );
 
   // Capture mode never blocks: the verdict is logged for the map, the expert's action always goes through.
