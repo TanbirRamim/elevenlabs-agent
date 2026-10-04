@@ -22,7 +22,7 @@ describe("WorkMapView with the sample map", () => {
     const judgmentCalls = sampleWorkMap.steps.filter((s) => s.judgmentCall).length;
     expect(screen.getAllByText("Judgment call").length).toBeGreaterThanOrEqual(judgmentCalls);
     expect(screen.getByText("90%")).toBeTruthy();
-    expect(screen.getByText("Not yet confirmed by Maya")).toBeTruthy();
+    expect(screen.getByText("Confirmed at 11:45")).toBeTruthy();
   });
 
   it("shows a step's verbatim quote, decision and linked guardrails when clicked", async () => {
