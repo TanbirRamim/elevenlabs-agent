@@ -2,7 +2,7 @@
 
 Hugging Face Docker Spaces are now paid, so `docs/DEPLOY_SPACE.md` is optional. This guide runs the
 whole backend (Fastify API plus Presidio) on Render's **free Docker web service**. The web app
-stays on Vercel.
+runs on Cloudflare Workers (`docs/DEPLOY_CLOUDFLARE.md`).
 
 | | |
 | --- | --- |
@@ -72,7 +72,7 @@ What this means for the demo on the free tier:
 5. Check it: `node infra/space/smoke.mjs https://shadow-api-<suffix>.onrender.com` must print
    `PASS`. Wait about 3 minutes after a cold start before expecting redacted (not
    `[redaction unavailable]`) transcripts.
-6. Point the web app at it: in Vercel set `NEXT_PUBLIC_API_URL=https://shadow-api-<suffix>.onrender.com`
+6. Point the web app at it: in the web Worker's build variables set `NEXT_PUBLIC_API_URL=https://shadow-api-<suffix>.onrender.com`
    and `NEXT_PUBLIC_API_WS_URL=wss://shadow-api-<suffix>.onrender.com` (`apps/web/src/env.ts`;
    inlined at build time), then redeploy the web app.
 

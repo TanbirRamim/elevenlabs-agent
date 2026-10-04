@@ -21,3 +21,7 @@ apps/edge/dist/
 apps/edge/worker-configuration.d.ts
 apps/web/cloudflare-env.d.ts
 prodsmoke-shots/
+
+# Written by `next dev` for coding agents; not part of the product
+apps/web/AGENTS.md
+apps/web/CLAUDE.md

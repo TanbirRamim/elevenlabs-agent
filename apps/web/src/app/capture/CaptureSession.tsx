@@ -89,7 +89,6 @@ const INITIAL_STEPS: ProcessingStep[] = [
 /**
  * Module 1, Capture. Preflight, countdown, the recording workspace (DeskSim, the Singoda AI rail,
  * the Turn Gate and its live timeline, off the record, pause) and the debrief after Stop.
- * Specs: docs/tasks/tanbir.md TAN-2, TAN-3, TAN-4, TAN-5, TAN-7, TAN-8.
  */
 export function CaptureSession() {
   const router = useRouter();

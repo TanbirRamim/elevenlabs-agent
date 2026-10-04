@@ -48,7 +48,7 @@ function stageIndex(state: DebriefState): number {
 /**
  * Module 1, after Stop: the conversation with Singoda AI about what it could not see, its
  * teach-back, and the prediction proof.
- * Specs: docs/tasks/tanbir.md TAN-7, TAN-8; docs/IMPLEMENTATION_PLAN.md §6.7.
+ * Spec: docs/IMPLEMENTATION_PLAN.md §6.7.
  */
 export function DebriefPanel({ onFinished, processing, ...options }: DebriefPanelProps) {
   const debrief = useDebrief(options);

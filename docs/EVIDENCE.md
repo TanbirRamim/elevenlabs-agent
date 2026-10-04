@@ -1,6 +1,6 @@
 # Evidence
 
-Each requirement from [IMPLEMENTATION_PLAN §1](IMPLEMENTATION_PLAN.md): where it is built, how it is checked, and its status.
+Each requirement from [IMPLEMENTATION_PLAN §1](IMPLEMENTATION_PLAN.md): where it is built, how it is checked, and its status. For a requirement-by-requirement check against the challenge brief on the live site, see [Brief compliance](#brief-compliance).
 
 **Measured on `main` at commit `9897f32`, 2026-10-04,** from a fresh clone, run from the repo root:
 
@@ -140,6 +140,47 @@ Why the misses:
 2. **Live Capture → Map → Teach.** `node scripts/smoke-real.mjs --api https://shadow-api-8hvl.onrender.com` with live Claude: capture with 29 vision events, 5 candidate questions, 3 asked; `/end` built the map; 8 debrief answers (p50 27 ms); teach-back confirmed; evidence verified (4 steps, 11 guardrails, 0 failed evidence); N1 refund BLOCK; mastery report.
 3. **Guard judge live.** N1 refund BLOCK in the pipeline run; the copilot ran with the judge on; the production smoke holds N1 with G4,G1 in about 3.3 s.
 4. **Production smoke.** `pnpm smoke:prod` against https://shadow-web.tanbirramim420.workers.dev: 13/13 pass. It runs every 30 minutes in [`prod-smoke.yml`](../.github/workflows/prod-smoke.yml).
+
+## Brief compliance
+
+Checked on 2026-10-04 against [`challenge-brief.pdf`](challenge-brief.pdf) (all 8 pages). Live means a headless Chromium run against <https://shadow-web.tanbirramim420.workers.dev> (API `shadow-api-8hvl.onrender.com`, `/health` 200), with fake camera, microphone and screen. Fake media carries no speech, so anything that needs a spoken answer is marked PARTIAL unless the live pipeline run above covers it.
+
+**Status key:** WORKS LIVE = seen working on the deployed site. PARTIAL = built and tested in code, but only part of it was seen live, or it deviates from the brief's wording. MISSING = not built.
+
+| # | Brief requirement (page) | Status | Evidence | Smallest fix |
+| --- | --- | --- | --- | --- |
+| 1 | Capture: the expert shares their screen; an ElevenLabs agent listens in a side panel (p3) | WORKS LIVE | `/capture` → Start session: tab share via `getDisplayMedia`, API WebSocket `/sessions/<id>/stream` and the ElevenLabs conversation socket open; REC timer, Pause, Off the record, Stop. Pre-flight: microphone, "Interviewer agent, signed session ready", redaction ready | None. It shares the sandbox helpdesk tab, not an arbitrary desktop, by design (redaction needs the DOM) |
+| 2 | A frame every 1–2 s to a vision model, turned into events (p3, p5) | PARTIAL | Code: dHash change filter sends a frame only when the screen changes ([`frameLoop.ts`](../apps/web/src/lib/capture/frameLoop.ts)), vision on redacted frames ([`frames.ts`](../apps/api/src/pipeline/frames.ts)). Live, 35 s on a mostly still desk: 1 `frame`, 5 `desk_event`, 5 `screen_event`, 5 `contextual_update` | Say on screen and in the pitch that frames are sampled every 1–2 s but sent only on change, and that DOM events add exact timing |
+| 3 | Agent stays quiet while the expert types, reads or talks; asks at natural pauses (p3, p4 Q1) | PARTIAL | Turn Gate thresholds and 7 unit tests (R1 above); live: 1 `candidate_question`, 1 `question_asked`, 2 agent responses in 35 s | Record one real 5-minute capture with speech and keep the insight-panel timeline as evidence |
+| 4 | Required: ≥ 3 questions in a real task, each at a pause, about something on screen, ≥ 1 guardrail (p3) | PARTIAL | Scripted replay proves it with the real `decide()` (`script.test.ts`); live pipeline run asked 3 of 5 candidates. No recorded live session with a human speaking | Same as #3: one recorded live session |
+| 5 | Debrief: asks what is still unclear, explains the process back, expert confirms or corrects (p3) | PARTIAL | After Stop, `/capture` shows "Singoda AI · Debrief" with Questions / Teach-back / Predictions tabs; recording uploaded (PUT 204). Headless it stayed on "Building the draft Work Map…" after 12 s. Live pipeline run: 8 debrief answers, teach-back confirmed | Show build progress with an expected duration; record one live debrief |
+| 6 | Required: ≥ 3 follow-ups not answered live, ends with a confirmed teach-back (p4) | PARTIAL | Done rule (≥ 3 answers, coverage ≥ 0.9, confirmed teach-back) in [`routes/debrief.ts`](../apps/api/src/routes/debrief.ts), tested; live pipeline run passed | One recorded live debrief |
+| 7 | Work Map: clickable timeline; each step shows screen moment, decision, reason in the expert's words, guardrails (p3) | WORKS LIVE | `/map/latest`: 4 clickable steps ("Jump to step N at mm:ss"), session ribbon, decision, quote with timestamp, guardrails G1–G6 typed Limit / Exception / Stop and ask / Never, coverage, confirmed teach-back | None for the view |
+| 8 | Required: every step and guardrail links to a screen moment and the expert's own words (p4) | PARTIAL | Enforced by the schema and the evidence verifier (R3 above). But the map published on the live API is the seeded sample (`wm_mock_1`): no frame or clip renders ("this is sample data"), and G6 shows "No step" | Run one real capture on production and publish it, so `/map/latest` shows real frames and clips |
+| 9 | Teach: new hire works a case on their own screen, tutor explains steps the expert's way, asks them to predict (p4) | WORKS LIVE | `/teach`: unseen tickets N1, N2; voice tutor starts; `[PREDICT]` panel on open. The tutor watches desk actions (DOM events), not screen frames | None for the demo. Brief says "watches the screen the same way": mention that Teach uses desk events |
+| 10 | Tutor steps in before a guardrail is broken and replays the expert's screen moment (p4) | WORKS LIVE | N1 → Refund: "Paused by Singoda AI · Refund was not saved", G4, G1 (`POST /guard/presave` BLOCK, 2.85 s); "Maya would stop here. Why do you think?", Maya's quote, "Play Maya's clip 07:03–07:13", "Take Maya's route" | Clip plays only when the map has a recording: publish a real capture (#8) |
+| 11 | Required: judge processes an unseen case; tutor catches ≥ 1 wrong decision before save and explains it with the expert's reasoning (p4) | WORKS LIVE | As #10; the blocked save is never committed (`DeskSim.test.tsx`, `intercept.e2e.ts`) | None |
+| 12 | End of Teach: what they mastered and what to practise next (p4) | WORKS LIVE | "Finish session" → Mastery report: Independent / Assisted / Missed, "Practice next", "Watch Maya's clip" (`GET /sessions/<id>/mastery` 200) | None |
+| 13 | Apprentice Test Q2, what to ask: picks the question that reveals a reason or guardrail, not one the screen answers (p4) | PARTIAL | `priority = slotWeight × surprise × (1 − screenAnswerable) × recency`, tested ("never proposes a gap whose answer is visible on screen"); phrasing faked in tests, live pipeline used real Claude | Show the chosen candidate and its score in the insight panel during the demo |
+| 14 | Q3, when it has understood (p4) | PARTIAL | Coverage ≥ 0.9, no open question ≥ 0.7, ≥ 3 answers, confirmed teach-back, predicted variants (tested); not seen live headless | One recorded live debrief |
+| 15 | Q4, whether the new hire learned (p4) | WORKS LIVE | Unseen N1 / N2, predict-then-act, guard on every save, computed mastery report | None |
+| 16 | Q5, trust: take something off the record; protect personal data on screen (p4) | PARTIAL | Live UI: "Off the record (Alt O)" during capture; the map shows the off-record span; pre-flight "Personal data on the desk is blacked out in this browser". Presidio server-side and the off-record drop are unit-tested, not exercised live | Toggle off the record once in the recorded session and show the gap in the map |
+| 17 | Built with ElevenLabs: ElevenAgents plays interviewer and tutor, Expressive Mode, chosen LLM, Scribe v2 Realtime (p5) | PARTIAL | Two agents, signed URLs 200 for both, `skip_turn`, `sendContextualUpdate`, `sendUserActivity`, client tool `replay_clip`. Expressive Mode, LLM and Scribe v2 Realtime are dashboard settings recorded in [`agents/README.md`](../agents/README.md), not verifiable from code | None in code; show the dashboard settings in the pitch |
+| 18 | Work Map goes into the tutor's knowledge base (p6) | PARTIAL | `GET /workmaps/:id/markdown` feeds the tutor; live Teach loads `/workmaps/wm_mock_1/markdown`, the sample map (#8) | Publish a real capture (#8) |
+| 19 | Stretch: agent-ready guardrails export (p5) | WORKS LIVE | `/copilot`: "The exported policy", "Download rules.json", "Copy prompt"; `GET /workmaps/published/export`, `POST /copilot/run`, with-map vs no-map comparison | None |
+| 20 | Stretch: two experts, one task, show where they differ (p5) | MISSING | No UI or API route | Out of scope for the remaining time; say so in the pitch |
+| 21 | Stretch: any language (expert in German, tutor teaches in English) (p5) | MISSING | No language setting in the web app or agent configs | Possible as a dashboard change (agent language plus a prompt line), but not built or tested |
+| 22 | Tools hint: tutor looks up guardrails through an MCP server (p6) | MISSING | No MCP server; the tutor gets guardrails through the knowledge base and hidden control messages | Optional hint, not a requirement |
+| 23 | Privacy hint: Presidio redacts transcripts and frames (p6) | PARTIAL | Presidio analyzer, anonymizer and image redactor in the Render image; unit tests fail closed. Not observed live | Show one redacted transcript line in the demo |
+| 24 | Moonshot slide at the end of the pitch (p5) | PARTIAL | `docs/demo-script.md` ends with "People first, then agents" backed by `/copilot`; the slide itself lives outside the repo | Make sure the deck has the slide |
+
+### Top gaps by judge impact
+
+1. **The live Work Map is the seeded sample (`wm_mock_1`).** Judges opening `/map/latest` see "this is sample data" in the frame panel and no clips, which undercuts "every step links to a screen moment" (#8, #10, #18). Fix: record one real capture on production, finish the debrief and publish it.
+2. **No recorded live capture with real speech.** The ≥ 3 questions, debrief and teach-back requirements are proven by tests, a scripted replay and the live pipeline script, not by a recorded human session (#3–#6, #14). Fix: record one session and keep it as the backup video.
+3. **Frame cadence reads as below the brief's 1–2 s** (#2). Fix: explain change-based sending, or show the frame counter in the insight panel.
+4. **Two experts and any language are not built** (#20, #21). Fix: name them honestly as next steps.
+5. **Expressive Mode, LLM choice and Scribe v2 Realtime are dashboard-only** (#17). Fix: a screenshot of the agent settings in the pitch.
 
 ## Remaining gaps
 

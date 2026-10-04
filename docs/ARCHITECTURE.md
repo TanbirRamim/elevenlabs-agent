@@ -230,4 +230,4 @@ If the judge times out, the API returns an explicit `timeout_allow` verdict and 
 
 ## Deployment
 
-Web on Vercel. API, Presidio and storage in Docker on a laptop behind a free Cloudflare quick tunnel. Details and the paid Cloudflare alternative: [DEPLOY.md](DEPLOY.md), [DEPLOY_CLOUDFLARE.md](DEPLOY_CLOUDFLARE.md).
+Web on Cloudflare Workers (OpenNext) at <https://shadow-web.tanbirramim420.workers.dev>. API and Presidio in one Docker image on Render's free web service. Details and the alternatives: [DEPLOY.md](DEPLOY.md), [DEPLOY_CLOUDFLARE.md](DEPLOY_CLOUDFLARE.md).
