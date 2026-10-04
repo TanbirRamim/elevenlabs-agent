@@ -8,6 +8,7 @@ import {
   matchJudgment,
   momentForFrame,
   predictPayload,
+  showPredictFor,
   ticketMatchesRule,
 } from "./logic";
 
@@ -252,5 +253,18 @@ describe("masteryCounts", () => {
     expect(
       masteryCounts([{ status: "assisted" }, { status: "missed" }, { status: "assisted" }]),
     ).toEqual({ independent: 0, assisted: 2, missed: 1 });
+  });
+});
+
+describe("showPredictFor", () => {
+  it("shows the callout for the open ticket's judgment point", () => {
+    expect(showPredictFor("N2", "N2", null)).toBe(true);
+    expect(showPredictFor("N2", "N1", null)).toBe(false);
+    expect(showPredictFor(null, "N2", null)).toBe(false);
+  });
+  it("hides it only while a held save on the same ticket is explained", () => {
+    expect(showPredictFor("N1", "N1", "N1")).toBe(false);
+    // Regression: a held N1 used to hide the predict step on N2 for the rest of the session.
+    expect(showPredictFor("N2", "N2", "N1")).toBe(true);
   });
 });

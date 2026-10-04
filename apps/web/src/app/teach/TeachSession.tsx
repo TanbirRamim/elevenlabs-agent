@@ -30,6 +30,7 @@ import {
   matchJudgment,
   momentForFrame,
   predictPayload,
+  showPredictFor,
 } from "@/components/tutor/logic";
 import { MasteryReport as MasteryReportView } from "@/components/tutor/MasteryReport";
 import { MasteryReportSlot } from "@/components/tutor/MasteryReportSlot";
@@ -474,8 +475,11 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
 
   const predictCallout =
     predict &&
-    openTicketId === predict.ticketId &&
-    intervention?.intervention.payload.ticketId !== predict.ticketId ? (
+    showPredictFor(
+      predict.ticketId,
+      openTicketId,
+      intervention?.intervention.payload.ticketId ?? null,
+    ) ? (
       <PredictPanel
         ticketId={predict.ticketId}
         condition={predict.match.guardrail.condition}

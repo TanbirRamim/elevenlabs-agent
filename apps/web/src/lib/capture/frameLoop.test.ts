@@ -32,7 +32,7 @@ const fiveBits = frame([0x1f]); // distance 5
 const sixBits = frame([0x3f]); // distance 6
 const far = frame([0xff, 0xff, 0xff]); // distance 24
 
-function setup(script: (Frame | null)[], threshold = 6) {
+function setup(script: (Frame | null)[], threshold = 6, changeThreshold?: number) {
   let now = 0;
   const sent: SentFrame[] = [];
   const changes: number[] = [];
@@ -40,6 +40,7 @@ function setup(script: (Frame | null)[], threshold = 6) {
   const loop = startFrameLoop({
     intervalMs: 1500,
     hammingThreshold: threshold,
+    ...(changeThreshold !== undefined ? { changeThreshold } : {}),
     capture: () => {
       i++;
       return script[i - 1] ?? null;
@@ -78,6 +79,19 @@ describe("startFrameLoop", () => {
     expect(changes).toEqual([3000, 4500, 6000]);
     expect(sent.map((f) => f.tMs)).toEqual([1500, 6000]);
     expect(sent[1]?.frameId).toMatch(/^f2-/);
+    loop.stop();
+  });
+
+  it("ignores encoder flicker below changeThreshold but still reports real changes", () => {
+    // A still desk over compressed video: the hash flickers by a bit or two every frame.
+    const { loop, sent, changes, advance } = setup(
+      [base, oneBit, base, oneBit, base, sixBits, sixBits],
+      6,
+      6,
+    );
+    advance(1500 * 7);
+    expect(changes).toEqual([1500 * 6]);
+    expect(sent.map((f) => f.tMs)).toEqual([1500, 1500 * 6]);
     loop.stop();
   });
 

@@ -19,8 +19,18 @@ export interface FrameLoopOptions {
   hammingThreshold: number;
   capture: () => Frame | null;
   onFrame: (frame: SentFrame) => void;
-  /** Any visible change (distance > 0), whether or not the frame is sent. Feeds the Turn Gate. */
+  /**
+   * A visible change (distance from the last SEEN frame of at least `changeThreshold`), whether
+   * or not the frame is sent. Feeds the Turn Gate.
+   */
   onScreenChange: (tMs: number) => void;
+  /**
+   * Minimum dHash distance between consecutive frames that counts as the screen changing.
+   * Default 1 (any bit). A shared tab arrives as compressed video, so a still, mostly white
+   * desk flickers by a few bits from frame to frame; set this above that noise or the Turn
+   * Gate reads a still screen as "changing" forever.
+   */
+  changeThreshold?: number;
   /** Session clock in ms. */
   clock: () => number;
   timers?: Timers;
@@ -45,6 +55,7 @@ const defaultTimers: Timers = {
  */
 export function startFrameLoop(opts: FrameLoopOptions): FrameLoop {
   const timers = opts.timers ?? defaultTimers;
+  const changeThreshold = Math.max(1, opts.changeThreshold ?? 1);
   let lastSentHash: string | null = null;
   let lastSeenHash: string | null = null;
   let paused = false;
@@ -58,7 +69,8 @@ export function startFrameLoop(opts: FrameLoopOptions): FrameLoop {
     const tMs = opts.clock();
     const phash = dhashFromGray(frame.gray);
 
-    if (lastSeenHash !== null && hamming(phash, lastSeenHash) > 0) opts.onScreenChange(tMs);
+    if (lastSeenHash !== null && hamming(phash, lastSeenHash) >= changeThreshold)
+      opts.onScreenChange(tMs);
     lastSeenHash = phash;
 
     if (lastSentHash !== null && hamming(phash, lastSentHash) < opts.hammingThreshold) return;
