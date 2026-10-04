@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Page } from "@/components/shell/Page";
 import { VoiceProvider } from "@/lib/voice";
 import { TeachSession } from "./TeachSession";
 
@@ -12,17 +11,20 @@ function first(value: string | string[] | undefined): string | null {
   return v && v.length > 0 ? v : null;
 }
 
+/**
+ * No Shadow chrome here (the route is "naked" in the shell): the page IS the standalone DeskSim
+ * ticketing app the new hire works in. Shadow is the floating dock, plus the pause the Shadow
+ * connector puts on a risky save before it commits (docs/CONNECTOR.md).
+ */
 export default async function TeachPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const query = await searchParams;
   return (
-    <Page width="wide">
-      <VoiceProvider>
-        <TeachSession
-          workMapId={first(query.workMap)}
-          expertSessionId={first(query.expertSession)}
-          learnerName={first(query.learner)}
-        />
-      </VoiceProvider>
-    </Page>
+    <VoiceProvider>
+      <TeachSession
+        workMapId={first(query.workMap)}
+        expertSessionId={first(query.expertSession)}
+        learnerName={first(query.learner)}
+      />
+    </VoiceProvider>
   );
 }

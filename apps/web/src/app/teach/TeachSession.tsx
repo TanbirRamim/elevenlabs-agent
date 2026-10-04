@@ -11,13 +11,11 @@ import type {
   WorkMap,
 } from "@shadow/schema";
 import { BookOpen, Map as MapIcon, Radio, RotateCcw } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { DeskCoachProvider, type DeskCoachRender } from "@/components/desk/coach";
 import { DeskSim } from "@/components/desk/DeskSim";
-import { ListeningIndicator } from "@/components/recording";
 import { describeDeskEvent } from "@/components/session/helpers";
-import { TopBarActions, TopBarStatus } from "@/components/shell/slots";
 import { ClipOverlay } from "@/components/tutor/ClipOverlay";
 import { InterventionPanel } from "@/components/tutor/InterventionPanel";
 import {
@@ -33,16 +31,8 @@ import {
 import { MasteryReport as MasteryReportView } from "@/components/tutor/MasteryReport";
 import { MasteryReportSlot } from "@/components/tutor/MasteryReportSlot";
 import { PredictPanel } from "@/components/tutor/PredictPanel";
-import { listeningStateFor, TutorVoicePanel } from "@/components/tutor/TutorVoicePanel";
-import {
-  Alert,
-  Badge,
-  Button,
-  ButtonLink,
-  buttonClasses,
-  PageHeader,
-  Skeleton,
-} from "@/components/ui";
+import { listeningStateFor } from "@/components/tutor/TutorVoicePanel";
+import { Alert, Avatar, Button, ButtonLink, buttonClasses, Skeleton } from "@/components/ui";
 import { formatMs } from "@/components/workmap/format";
 import { publicEnv } from "@/env";
 import {
@@ -53,14 +43,12 @@ import {
   getTickets,
   getWorkMap,
   type LearnerPredictionResponse,
-  preSave,
   submitLearnerPrediction,
 } from "@/lib/api";
+import { shadow } from "@/lib/connector";
 import { openSessionStream, type SessionStream } from "@/lib/stream";
 import { type ControlPrefix, useVoice } from "@/lib/voice";
-
-/** Server-side judge times out at 2.5 s; this covers that plus the network. */
-const GUARD_TIMEOUT_MS = 6000;
+import { TeachDock } from "./TeachDock";
 
 const ReplayClipParams = z.object({ frameId: z.string().min(1) });
 
@@ -110,6 +98,8 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const [reportError, setReportError] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
   const [stats, setStats] = useState<SessionStats>(EMPTY_STATS);
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  const [mapNoticeDismissed, setMapNoticeDismissed] = useState(false);
   const interventionRef = useRef<InterventionState | null>(null);
   interventionRef.current = intervention;
 
@@ -212,7 +202,10 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
       }
       const summary = describeDeskEvent(event);
       if (summary && voiceLiveRef.current) voice.sendScreen(summary, event.tMs);
-      if (event.type === "ticket_opened") openJudgmentPoint(event.ticketId);
+      if (event.type === "ticket_opened") {
+        setOpenTicketId(event.ticketId);
+        openJudgmentPoint(event.ticketId);
+      }
       if (event.type === "action_committed") {
         setStats((st) => ({ ...st, saved: st.saved + 1 }));
         setIntervention((cur) =>
@@ -230,19 +223,10 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   // Teach mode: a BLOCK goes back to DeskSim (it pauses the save) and starts the intervention.
   const onPreSave = useCallback(
     async (action: PendingAction): Promise<GuardVerdict> => {
-      let verdict: GuardVerdict;
-      try {
-        // The session id lets the API score this verdict in the mastery report.
-        verdict = await withTimeout(preSave(action, sessionId ?? undefined), GUARD_TIMEOUT_MS);
-      } catch (err) {
-        warn(
-          `Guard unavailable (${describeError(err)}). ${action.ticket.id} was saved without a check.`,
-        );
-        return { decision: "ALLOW", ruleIds: [], source: "timeout_allow" };
-      }
-      if (verdict.source === "timeout_allow") {
-        warn(`The guard's judge timed out on ${action.ticket.id}; the save was allowed.`);
-      }
+      // The Shadow connector: the one pre-commit call any helpdesk adds (docs/CONNECTOR.md).
+      // It fails open with a warning when Shadow can't answer in time.
+      const verdict = await shadow.check(action, { sessionId });
+      if (verdict.warning) warn(verdict.warning);
       if (verdict.decision === "BLOCK") {
         setStats((st) => ({ ...st, held: st.held + 1 }));
         const built = buildIntervention(mapRef.current, verdict, action.ticket.id, action.outcome);
@@ -344,225 +328,215 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
           />
         );
       }
-      if (predict && predict.ticketId === ticketId) {
-        return (
-          <PredictPanel
-            ticketId={predict.ticketId}
-            condition={predict.match.guardrail.condition}
-            expertName={expertName}
-            voiceLive={voiceLive}
-            pending={predict.pending}
-            chosen={predict.chosen}
-            result={predict.result}
-            error={predict.error}
-            onChoose={(o) => void choosePrediction(o)}
-          />
-        );
-      }
       return null;
     },
-    [intervention, predict, expertName, primary, voiceLive, choosePrediction],
+    [intervention, expertName, primary],
   );
 
-  return (
+  const notices = (
     <>
-      <TopBarStatus>
-        {phase === "ready" ? (
-          <span className="hidden items-center gap-1.5 text-xs text-ink-muted md:inline-flex">
-            <span className="max-w-40 truncate">{learnerName ?? "New hire"}</span>
-            <span aria-hidden="true" className="text-ink-faint">
-              ·
-            </span>
-            <SessionClock since={startedAt.current} />
-          </span>
-        ) : null}
-        <span className="hidden sm:contents">
-          <ListeningIndicator state={listening} />
-        </span>
-        <span className="contents sm:hidden">
-          <ListeningIndicator state={listening} compact />
-        </span>
-      </TopBarStatus>
-      {phase === "ready" ? (
-        <TopBarActions>
-          <Button size="sm" variant="secondary" onClick={() => void finish()} loading={ending}>
-            Finish session
-          </Button>
-        </TopBarActions>
+      {phase === "failed" && problem ? (
+        <Alert
+          tone="offline"
+          title="Can't reach the Shadow API"
+          action={
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<RotateCcw aria-hidden="true" />}
+              onClick={() => setAttempt((a) => a + 1)}
+            >
+              Retry
+            </Button>
+          }
+        >
+          Teach loads the Work Map and tickets from{" "}
+          <span className="font-mono text-xs text-ink">{publicEnv.apiUrl}</span> ({problem}). Start
+          it with <code className="font-mono text-xs text-ink">pnpm dev</code> and retry.
+        </Alert>
+      ) : null}
+      {guardWarnings.map((w, i) => (
+        <Alert
+          // biome-ignore lint/suspicious/noArrayIndexKey: warnings are append-only and never reordered
+          key={i}
+          tone="danger"
+          title="Saved without a guard check"
+        >
+          {w}
+        </Alert>
+      ))}
+      {reportError ? (
+        <Alert
+          tone="danger"
+          title="The mastery report could not be loaded"
+          action={
+            <Button size="sm" variant="secondary" onClick={() => void finish()}>
+              Retry
+            </Button>
+          }
+        >
+          {reportError}.
+        </Alert>
+      ) : null}
+    </>
+  );
+  const hasNotice =
+    (phase === "failed" && problem !== null) || guardWarnings.length > 0 || reportError !== null;
+
+  const predictCallout =
+    predict && openTicketId === predict.ticketId && !intervention ? (
+      <PredictPanel
+        ticketId={predict.ticketId}
+        condition={predict.match.guardrail.condition}
+        expertName={expertName}
+        voiceLive={voiceLive}
+        pending={predict.pending}
+        chosen={predict.chosen}
+        result={predict.result}
+        error={predict.error}
+        onChoose={(o) => void choosePrediction(o)}
+      />
+    ) : null;
+
+  return (
+    <div className="flex h-dvh flex-col bg-canvas">
+      {phase === "loading" ? (
+        <div className="min-h-0 flex-1">
+          <DeskSkeleton />
+        </div>
       ) : null}
 
-      <PageHeader
-        title="Teach"
-        description={`Work new tickets on your own. Shadow checks every save against ${map ? `${expertName}'s` : "the expert's"} Work Map and holds a risky one before it is saved.`}
-        meta={
-          map ? (
-            <>
-              <Badge tone="muted" icon={<MapIcon aria-hidden="true" />}>
-                {map.workflow}
-              </Badge>
-              <Badge tone="muted" className="font-mono">
-                v{map.version}
-              </Badge>
-              <span className="text-xs text-ink-muted">in {expertName}'s words</span>
-            </>
-          ) : phase === "loading" ? (
-            <Skeleton className="h-5 w-48" />
-          ) : null
-        }
-      />
+      {phase === "failed" ? (
+        <div className="mx-auto w-full max-w-xl px-4 py-10">{notices}</div>
+      ) : null}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_17.5rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <section aria-label="Practice desk" className="flex min-w-0 flex-col gap-3">
-          {phase === "failed" && problem ? (
-            <Alert
-              tone="offline"
-              title="Can't reach the Shadow API"
-              action={
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon={<RotateCcw aria-hidden="true" />}
-                  onClick={() => setAttempt((a) => a + 1)}
-                >
-                  Retry
-                </Button>
-              }
-            >
-              Teach loads the Work Map and tickets from{" "}
-              <span className="font-mono text-xs text-ink">{publicEnv.apiUrl}</span> ({problem}).
-              Start it with <code className="font-mono text-xs text-ink">pnpm dev</code> and retry.
-            </Alert>
-          ) : null}
-          {mapMissing && phase !== "loading" ? <NoMapNotice missing={mapMissing} /> : null}
-          {guardWarnings.map((w, i) => (
-            <Alert
-              // biome-ignore lint/suspicious/noArrayIndexKey: warnings are append-only and never reordered
-              key={i}
-              tone="danger"
-              title="Saved without a guard check"
-            >
-              {w}
-            </Alert>
-          ))}
-          {reportError ? (
-            <Alert
-              tone="danger"
-              title="The mastery report could not be loaded"
-              action={
-                <Button size="sm" variant="secondary" onClick={() => void finish()}>
-                  Retry
-                </Button>
-              }
-            >
-              {reportError}.
-            </Alert>
-          ) : null}
-
-          {phase === "loading" ? <DeskSkeleton /> : null}
-          {phase === "ready" ? (
-            tickets.length === 0 ? (
+      {/* The standalone ticketing app: the whole viewport belongs to DeskSim while the learner
+          works; Shadow is only the floating dock, its callouts, and the pause on a held save. */}
+      {phase === "ready" ? (
+        // Bottom padding keeps the app's last row reachable above the floating dock.
+        <div className="relative min-h-0 flex-1 pb-36 sm:pb-[4.75rem]">
+          {tickets.length === 0 ? (
+            <div className="mx-auto w-full max-w-xl px-4 py-10">
               <Alert tone="info" title="No new-hire tickets">
                 The API returned an empty <span className="font-mono text-xs">new_hire</span> ticket
                 set. Check <span className="font-mono text-xs">seed/tickets.json</span>.
               </Alert>
-            ) : (
-              <DeskCoachProvider value={renderCoach}>
-                <DeskSim
-                  tickets={tickets}
-                  mode="teach"
-                  clock={clock}
-                  onDeskEvent={onDeskEvent}
-                  preSave={onPreSave}
-                />
-              </DeskCoachProvider>
-            )
+            </div>
+          ) : (
+            <DeskCoachProvider value={renderCoach}>
+              <DeskSim
+                tickets={tickets}
+                mode="teach"
+                clock={clock}
+                onDeskEvent={onDeskEvent}
+                preSave={onPreSave}
+                chrome="app"
+              />
+            </DeskCoachProvider>
+          )}
+
+          {mapMissing && !mapNoticeDismissed ? (
+            <div className="pointer-events-none absolute inset-x-0 top-14 z-40 flex justify-center px-4">
+              <div className="pointer-events-auto w-full max-w-2xl shadow-overlay">
+                <NoMapNotice missing={mapMissing} onDismiss={() => setMapNoticeDismissed(true)} />
+              </div>
+            </div>
           ) : null}
-          {phase === "ended" && report ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 rounded-panel border border-rule bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+
+          <TeachDock
+            learnerName={learnerName}
+            since={startedAt.current}
+            saved={stats.saved}
+            total={tickets.length}
+            held={stats.held}
+            voiceState={listening}
+            voice={{
+              status: voice.status,
+              mode: voice.mode,
+              error: voice.error,
+              transcript: voice.transcript,
+              onStart: () => void voice.start(),
+              onStop: voice.stop,
+            }}
+            expertName={map?.expertName ?? "the expert"}
+            onFinish={() => void finish()}
+            finishing={ending}
+            callout={predictCallout}
+            notice={hasNotice ? notices : undefined}
+          />
+        </div>
+      ) : null}
+
+      {/* At Finish, Shadow takes the page over: the ticketing app gives way to the mastery
+          report, like capture's debrief. */}
+      {phase === "ended" && report ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-8 motion-safe:animate-fade-in sm:py-10">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Avatar name="Shadow" shadow size="md" className="mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink">Session complete</p>
-                  <p className="figures text-ui text-ink-muted">
-                    {formatMs(clock())} · {stats.saved} {stats.saved === 1 ? "save" : "saves"} ·{" "}
-                    {stats.held} held by Shadow
+                  <p className="text-xs font-medium text-ink-muted">
+                    Shadow · Mastery report
+                    {map ? (
+                      <>
+                        {" "}
+                        · {map.workflow} <span className="font-mono">v{map.version}</span>
+                      </>
+                    ) : null}
+                  </p>
+                  <h1 className="mt-0.5 text-xl font-semibold text-balance text-ink">
+                    Session complete
+                  </h1>
+                  <p className="figures mt-0.5 text-ui text-ink-muted">
+                    {learnerName ?? "New hire"} · {formatMs(clock())} · {stats.saved}{" "}
+                    {stats.saved === 1 ? "save" : "saves"} · {stats.held} held by Shadow
                     {stats.predicted > 0
                       ? ` · ${stats.predictedRight} of ${stats.predicted} predictions right`
                       : ""}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {map ? (
-                    <ButtonLink
-                      href={`/map/${map.id}`}
-                      variant="secondary"
-                      size="sm"
-                      icon={<MapIcon aria-hidden="true" />}
-                    >
-                      Open the Work Map
-                    </ButtonLink>
-                  ) : null}
-                  {/* A full load: a new session needs fresh state and a new session id. */}
-                  <a href="/teach" className={buttonClasses({ size: "sm" })}>
-                    <RotateCcw aria-hidden="true" />
-                    Start a new session
-                  </a>
-                </div>
               </div>
-              {map ? (
-                <MasteryReportView
-                  report={report}
-                  workMap={map}
-                  onPlayClip={(item) =>
-                    setReplay({
-                      frameId: item.frameId,
-                      ref: {
-                        moment: { tMs: item.tMs, frameId: item.frameId, clip: item.clip },
-                        quote: item.quote,
-                        title: item.title,
-                      },
-                    })
-                  }
-                />
-              ) : (
-                <MasteryReportSlot report={report} />
-              )}
-            </div>
-          ) : null}
-        </section>
-
-        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-16 lg:self-start">
-          <TutorVoicePanel
-            status={voice.status}
-            mode={voice.mode}
-            error={voice.error}
-            transcript={voice.transcript}
-            onStart={() => void voice.start()}
-            onStop={voice.stop}
-            expertName={map?.expertName ?? "the expert"}
-          />
-          {phase === "ready" || phase === "ended" ? (
-            <section
-              aria-labelledby="teach-stats"
-              className="overflow-hidden rounded-panel border border-rule bg-surface"
-            >
-              <h2
-                id="teach-stats"
-                className="flex h-9 items-center border-b border-rule px-4 text-xs font-medium text-ink-muted"
-              >
-                This session
-              </h2>
-              <dl className="grid grid-cols-3 gap-px bg-rule">
-                <MiniStat label="Saved" value={`${stats.saved}/${tickets.length}`} />
-                <MiniStat label="Held" value={String(stats.held)} />
-                <MiniStat
-                  label="Predicted"
-                  value={stats.predicted > 0 ? `${stats.predictedRight}/${stats.predicted}` : "–"}
-                />
-              </dl>
-            </section>
-          ) : null}
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {map ? (
+                  <ButtonLink
+                    href={`/map/${map.id}`}
+                    variant="secondary"
+                    size="sm"
+                    icon={<MapIcon aria-hidden="true" />}
+                  >
+                    Open the Work Map
+                  </ButtonLink>
+                ) : null}
+                {/* A full load: a new session needs fresh state and a new session id. */}
+                <a href="/teach" className={buttonClasses({ size: "sm" })}>
+                  <RotateCcw aria-hidden="true" />
+                  Start a new session
+                </a>
+              </div>
+            </header>
+            {map ? (
+              <MasteryReportView
+                report={report}
+                workMap={map}
+                onPlayClip={(item) =>
+                  setReplay({
+                    frameId: item.frameId,
+                    ref: {
+                      moment: { tMs: item.tMs, frameId: item.frameId, clip: item.clip },
+                      quote: item.quote,
+                      title: item.title,
+                    },
+                  })
+                }
+              />
+            ) : (
+              <MasteryReportSlot report={report} />
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
+
       <ClipOverlay
         frameId={replay?.frameId ?? null}
         moment={replay?.ref ?? null}
@@ -570,7 +544,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         expertSessionId={expertSessionId}
         onClose={() => setReplay(null)}
       />
-    </>
+    </div>
   );
 }
 
@@ -586,7 +560,13 @@ const EMPTY_STATS: SessionStats = { saved: 0, held: 0, predicted: 0, predictedRi
 /** Why there is no map: nothing is published, or the `?workMap=` id was not found. */
 type MapMissing = { kind: "published" } | { kind: "id"; id: string } | null;
 
-function NoMapNotice({ missing }: { missing: Exclude<MapMissing, null> }) {
+function NoMapNotice({
+  missing,
+  onDismiss,
+}: {
+  missing: Exclude<MapMissing, null>;
+  onDismiss: () => void;
+}) {
   return (
     <div className="flex flex-col gap-3 rounded-panel border border-rule bg-surface px-4 py-3.5 sm:flex-row sm:items-start">
       <span
@@ -622,33 +602,12 @@ function NoMapNotice({ missing }: { missing: Exclude<MapMissing, null> }) {
           >
             Open the sample map
           </ButtonLink>
+          <Button size="sm" variant="ghost" onClick={onDismiss}>
+            Practise anyway
+          </Button>
         </div>
       </div>
     </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5 bg-surface px-4 py-2.5">
-      <dt className="text-2xs text-ink-faint">{label}</dt>
-      <dd className="figures text-sm font-semibold text-ink">{value}</dd>
-    </div>
-  );
-}
-
-/** Elapsed session time, ticking once a second, for the top bar. */
-function SessionClock({ since }: { since: number | null }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <time className="figures font-mono" title="Session time">
-      <span className="sr-only">Session time </span>
-      {formatMs(since === null ? 0 : now - since)}
-    </time>
   );
 }
 
@@ -701,22 +660,6 @@ async function loadMap(workMapId: string | null): Promise<{
     }
     throw err;
   }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`no answer within ${ms / 1000} s`)), ms);
-    promise.then(
-      (v) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      (e: unknown) => {
-        clearTimeout(timer);
-        reject(e);
-      },
-    );
-  });
 }
 
 function describeError(err: unknown): string {

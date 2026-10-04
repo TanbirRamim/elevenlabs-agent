@@ -28,7 +28,8 @@ describe("nav", () => {
   it("renders capture with no chrome at all", () => {
     expect(isNakedRoute("/capture")).toBe(true);
     expect(isNakedRoute("/capture/")).toBe(true);
-    expect(isNakedRoute("/teach")).toBe(false);
+    expect(isNakedRoute("/teach")).toBe(true);
+    expect(isNakedRoute("/map")).toBe(false);
     expect(isNakedRoute("/")).toBe(false);
   });
 

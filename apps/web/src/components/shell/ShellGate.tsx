@@ -9,7 +9,7 @@ import { isBareRoute, isNakedRoute } from "./nav";
 
 /**
  * Picks the frame for a route: marketing pages (/, /demo) get the slim site header, the
- * capture page gets no chrome at all (it plays a standalone ticketing product with Shadow
+ * capture and teach pages get no chrome at all (they play a standalone ticketing product with Shadow
  * floating over it), every other in-app route gets the AppShell. All share the toasts.
  */
 export function ShellGate({ children }: { children: ReactNode }) {
