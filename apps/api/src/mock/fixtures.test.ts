@@ -15,6 +15,15 @@ describe("mock fixtures", () => {
     expect(questions.T4?.priority).toBeGreaterThanOrEqual(0.6);
   });
 
+  it("the map carries N1's fraud guardrail G4 with no machine rule (the judge's case)", () => {
+    const { workMap } = loadMockFixtures();
+    const g4 = workMap.guardrails.find((g) => g.id === "G4");
+    expect(g4?.evidence.quote.text).toMatch(/without my permission/);
+    // Spoken, not mechanized: only the guard judge can catch it on a published map.
+    expect(g4?.machineRule).toBeUndefined();
+    expect(workMap.steps.find((s) => s.id === "S4")?.guardrailIds).toContain("G4");
+  });
+
   it("cross-fixture ids resolve", () => {
     const { endSession, workMap, mastery } = loadMockFixtures();
     expect(endSession.workMapId).toBe(workMap.id);
