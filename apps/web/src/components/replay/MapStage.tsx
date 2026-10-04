@@ -11,6 +11,7 @@ import { cx } from "../ui/cx";
 import { sampleWorkMap } from "../workmap/fixture";
 import { StepTimeline } from "../workmap/StepTimeline";
 import type { MapFrame } from "./frame";
+import { focusClass } from "./ReplayDesk";
 
 const noop = () => {};
 
@@ -23,7 +24,7 @@ export function MapStage({ frame }: { frame: MapFrame }) {
   const latest = frame.stepIds.at(-1) ?? null;
   return (
     <div className="grid gap-4 lg:grid-cols-12">
-      <div className="flex min-w-0 flex-col gap-4 lg:col-span-7">
+      <div className={cx("flex min-w-0 flex-col gap-4 lg:col-span-7", focusClass(true))}>
         <div className="rounded-panel border border-rule bg-surface p-4">
           <CoverageMeter coverage={frame.coverage} answered={frame.answered} done={frame.done} />
         </div>
@@ -104,7 +105,7 @@ export function MapStage({ frame }: { frame: MapFrame }) {
 
       <Panel
         id="draft"
-        className="lg:col-span-5"
+        className={cx("lg:col-span-5", focusClass(false))}
         title="Work Map, drafting"
         meta={
           <span className="figures">

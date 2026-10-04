@@ -261,24 +261,37 @@ export function mapAt(script: ReplayScript, playMs: number): MapFrame {
 
 export interface TeachFrame {
   desk: DeskView;
-  /** Jonas's spoken prediction, once he has made it. */
-  prediction: Outcome | null;
+  /** The predict callout on N2: Jonas's pick once he has said it, Maya's answer once shown. */
+  predict: { chosen: Outcome | null; revealed: boolean } | null;
   showIntervention: boolean;
   resolvedOutcome: Outcome | null;
   showMastery: boolean;
+  saved: number;
+  held: number;
 }
 
 export function teachAt(script: ReplayScript, playMs: number): TeachFrame {
   const t = script.teach;
-  const chapter = chapterAt(script, playMs);
   const committed: Record<string, Outcome> = {};
-  let selectedId: string | null = playMs >= chapter.startMs + 200 ? t.ticketId : null;
+  let selectedId: string | null = null;
   let phase: DeskView["phase"] = "idle";
   let pressed: Outcome | null = null;
   const pressedAt = (at: number, outcome: Outcome) => {
     if (playMs >= at && playMs < at + PRESS_MS) pressed = outcome;
   };
 
+  // N2 first: a judgment point, so Shadow asks Jonas to predict before he acts.
+  if (playMs >= t.openN2AtMs) selectedId = t.predict.ticketId;
+  pressedAt(t.commitN2AtMs, t.predict.chosen);
+  if (playMs >= t.commitN2AtMs) {
+    committed[t.predict.ticketId] = t.predict.chosen;
+    phase = "committed";
+  }
+  // Then N1: he presses Refund and the guard pauses the save.
+  if (playMs >= t.openN1AtMs) {
+    selectedId = t.ticketId;
+    phase = "idle";
+  }
   pressedAt(t.pressRefundAtMs, t.attempted);
   if (playMs >= t.pressRefundAtMs) phase = playMs >= t.blockedAtMs ? "blocked" : "checking";
   pressedAt(t.pressRerouteAtMs, t.rerouted);
@@ -286,19 +299,8 @@ export function teachAt(script: ReplayScript, playMs: number): TeachFrame {
     committed[t.ticketId] = t.rerouted;
     phase = "committed";
   }
-  if (playMs >= t.openN2AtMs) {
-    selectedId = "N2";
-    phase = "idle";
-  }
-  pressedAt(t.commitN2AtMs, "handoff_legal");
-  if (playMs >= t.commitN2AtMs) {
-    committed.N2 = "handoff_legal";
-    phase = "committed";
-  }
 
-  const predictionLine = script.captions.find(
-    (c) => c.speaker === "jonas" && c.startMs >= chapter.startMs,
-  );
+  const predicting = playMs >= t.predictAtMs && playMs < t.openN1AtMs;
   return {
     desk: {
       tickets: t.tickets,
@@ -309,10 +311,17 @@ export function teachAt(script: ReplayScript, playMs: number): TeachFrame {
       phase,
       blockedRuleIds: phase === "blocked" ? t.verdict.ruleIds : [],
     },
-    prediction: predictionLine && playMs >= predictionLine.startMs ? t.attempted : null,
+    predict: predicting
+      ? {
+          chosen: playMs >= t.predictChosenAtMs ? t.predict.chosen : null,
+          revealed: playMs >= t.predictResultAtMs,
+        }
+      : null,
     showIntervention: playMs >= t.interventionAtMs && playMs < t.masteryAtMs,
     resolvedOutcome: playMs >= t.pressRerouteAtMs ? t.rerouted : null,
     showMastery: playMs >= t.masteryAtMs,
+    saved: Object.keys(committed).length,
+    held: playMs >= t.blockedAtMs ? 1 : 0,
   };
 }
 
@@ -325,6 +334,7 @@ export function momentsOf(script: ReplayScript): number[] {
   const set = new Set<number>([0]);
   for (const c of script.chapters) set.add(c.startMs);
   for (const c of script.captions) set.add(c.startMs);
+  set.add(script.teach.predictResultAtMs);
   set.add(script.teach.blockedAtMs);
   set.add(script.teach.pressRerouteAtMs);
   return [...set].filter((t) => t < script.durationMs).sort((a, b) => a - b);
