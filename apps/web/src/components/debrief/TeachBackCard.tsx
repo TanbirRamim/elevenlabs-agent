@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Button } from "../ui";
 
 export interface TeachBackCardProps {
   /** Null while the teach-back is being prepared. */
@@ -26,54 +27,50 @@ export function TeachBackCard(props: TeachBackCardProps) {
   return (
     <section
       aria-labelledby="teachback-title"
-      className="space-y-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+      className="overflow-hidden rounded-panel border border-rule bg-surface"
     >
-      <div className="flex items-center justify-between gap-2">
-        <h3 id="teachback-title" className="text-sm font-medium">
+      <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">
+        <h3 id="teachback-title" className="text-sm font-medium text-ink-muted">
           {recheck ? "Re-check" : "Teach-back"}
         </h3>
         {round > 0 && (
-          <span className="text-xs text-neutral-500">
+          <span className="font-mono text-xs text-ink-faint">
             {round} {round === 1 ? "correction" : "corrections"} applied
           </span>
         )}
       </div>
 
-      {text === null ? (
-        <p className="text-sm text-neutral-500" aria-live="polite">
-          Shadow is putting together what it learned…
-        </p>
-      ) : (
-        <blockquote className="border-l-2 border-sky-400 pl-3 text-sm leading-relaxed">
-          {text}
-        </blockquote>
-      )}
+      <div className="px-5 py-6 sm:px-6">
+        {text === null ? (
+          <p className="text-[0.9375rem] text-ink-faint" aria-live="polite">
+            Shadow is putting together what it learned…
+          </p>
+        ) : (
+          <blockquote className="max-w-[40ch] font-display text-[1.375rem] leading-snug text-pretty text-ink sm:text-[1.5rem]">
+            {text}
+          </blockquote>
+        )}
+      </div>
 
       {text !== null && mode === "reading" && (
-        <div className="space-y-2">
-          <p className="text-sm text-neutral-600 dark:text-neutral-300">
+        <div className="flex flex-col gap-3 border-t border-rule bg-sunken/60 px-5 py-4">
+          <p className="text-[0.9375rem] text-ink-muted">
             Is that how it works? Say yes or tell Shadow what is wrong, or use the buttons.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={props.onConfirm}
-              disabled={busy}
-              className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-            >
+            <Button onClick={props.onConfirm} disabled={busy}>
               {busy ? "Saving…" : "Yes, that's right"}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="secondary"
               onClick={props.onCorrect}
               disabled={busy || correctionsLeft === 0}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-neutral-700"
             >
               Correct it
-            </button>
+            </Button>
           </div>
           {correctionsLeft === 0 && (
-            <p className="text-xs text-neutral-500">
+            <p className="text-sm text-ink-faint">
               Both corrections are used. Confirm to continue; anything else can be fixed on the Work
               Map page.
             </p>
@@ -82,16 +79,17 @@ export function TeachBackCard(props: TeachBackCardProps) {
       )}
 
       {text !== null && mode === "correcting" && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-3 border-t border-rule bg-sunken/60 px-5 py-4">
           {props.correction}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={props.onCancelCorrection}
             disabled={busy}
-            className="text-sm text-neutral-600 underline disabled:opacity-40 dark:text-neutral-300"
+            className="self-start"
           >
             Back, it was right after all
-          </button>
+          </Button>
         </div>
       )}
     </section>

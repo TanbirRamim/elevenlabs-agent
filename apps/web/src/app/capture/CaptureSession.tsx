@@ -7,13 +7,16 @@ import type {
   PendingAction,
   PublicTicket,
 } from "@shadow/schema";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MicOff, ScreenShare, Square } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DebriefPanel } from "@/components/debrief/DebriefPanel";
 import type { DebriefVoice } from "@/components/debrief/useDebrief";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { DESK_ROOT_ID, PII_ATTR } from "@/components/desk/types";
 import { describeDeskEvent, detectRecordPhrase } from "@/components/session/helpers";
+import { Notice } from "@/components/session/Notice";
 import { SidePanel } from "@/components/session/SidePanel";
+import { Button, cx, KeyboardKey } from "@/components/ui";
 import { ApiClientError, createSession, getTickets, preSave, uploadRecording } from "@/lib/api";
 import {
   captureFrame,
@@ -352,44 +355,59 @@ export function CaptureSession() {
   const onDebriefFinished = useCallback(() => voice.stop(), [voice.stop]);
 
   return (
-    <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-      <section className="min-w-0">
-        <div className="mb-3 flex flex-wrap items-center gap-3">
+    <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6">
+      <section aria-label="Workspace" className="flex min-w-0 flex-col gap-4 lg:col-span-8">
+        <PhaseHeader phase={phase}>
           {phase === "ready" && (
-            <button
-              type="button"
-              onClick={() => void start()}
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
-            >
+            <Button onClick={() => void start()}>
+              <ScreenShare aria-hidden="true" />
               Share this tab and start
-            </button>
+            </Button>
           )}
           {phase === "capturing" && (
-            <button
-              type="button"
-              onClick={() => void end()}
-              className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700"
-            >
+            <Button onClick={() => void end()}>
+              <Square aria-hidden="true" />
               End task
-            </button>
+            </Button>
           )}
           {phase === "ended" && (
-            <p className="text-sm text-neutral-600 dark:text-neutral-300">
+            <p aria-live="polite" className="text-[0.9375rem] text-ink-muted">
               Task ended. Saving the recording before the debrief…
             </p>
           )}
-          {phase === "loading" && <p className="text-sm text-neutral-500">Loading tickets…</p>}
-          {gate.asked.length > 0 && (
-            <p className="text-xs text-neutral-500">
-              Gate: {gate.decision.open ? "open" : gate.decision.reason.replaceAll("_", " ")}
+          {phase === "loading" && (
+            <p aria-live="polite" className="text-[0.9375rem] text-ink-muted">
+              Loading tickets…
             </p>
           )}
-        </div>
-        {problem && (
-          <p className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
-            {problem}
+        </PhaseHeader>
+
+        {gate.asked.length > 0 && (
+          <p className="font-mono text-xs text-ink-faint">
+            Gate: {gate.decision.open ? "open" : gate.decision.reason.replaceAll("_", " ")}
           </p>
         )}
+        {problem && <Notice>{problem}</Notice>}
+
+        {offRecord && phase !== "debrief" && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-control bg-ink px-4 py-3 text-canvas"
+          >
+            <MicOff aria-hidden="true" className="size-4 shrink-0" />
+            <p className="min-w-0 flex-1 text-[0.9375rem] leading-snug">
+              <span className="font-medium">You are off the record.</span> Nothing you do or say is
+              captured for the Work Map until you resume.
+            </p>
+            <span className="inline-flex items-center gap-1 text-sm">
+              <KeyboardKey>Alt</KeyboardKey>
+              <span aria-hidden="true">+</span>
+              <KeyboardKey>O</KeyboardKey>
+              <span className="ml-1 opacity-80">to resume</span>
+            </span>
+          </div>
+        )}
+
         {phase === "debrief" && sessionId && (
           <DebriefPanel
             sessionId={sessionId}
@@ -401,27 +419,86 @@ export function CaptureSession() {
           />
         )}
         {(phase === "ready" || phase === "capturing" || phase === "ended") && (
-          <DeskSim
-            tickets={tickets}
-            mode="capture"
-            clock={clock}
-            onDeskEvent={onDeskEvent}
-            preSave={onPreSave}
-          />
+          // DeskSim keeps its own look. The frame only marks the captured region and, off the
+          // record, turns dashed so the paused state reads on the desk itself too.
+          <div
+            className={cx(
+              "overflow-x-auto rounded-panel border p-2 transition-colors duration-300",
+              offRecord ? "border-dashed border-ink-faint" : "border-rule bg-sunken",
+            )}
+          >
+            <div className="min-w-[42rem]">
+              <DeskSim
+                tickets={tickets}
+                mode="capture"
+                clock={clock}
+                onDeskEvent={onDeskEvent}
+                preSave={onPreSave}
+              />
+            </div>
+          </div>
         )}
         {/* Hidden: the shared-tab stream feeds the frame loop and never renders. */}
         <video ref={video} muted playsInline className="hidden" />
       </section>
-      <SidePanel
-        status={voice.status}
-        mode={voice.mode}
-        offRecord={offRecord}
-        questionsAsked={gate.asked.length}
-        questionBudget={DEFAULT_GATE.maxPer10Min}
-        transcript={voice.transcript}
-        error={voice.error}
-        onToggleOffRecord={() => setRecord(!offRecordRef.current)}
-      />
+      <div className="min-w-0 lg:col-span-4">
+        <SidePanel
+          status={voice.status}
+          mode={voice.mode}
+          agentSpeaking={voice.agentSpeaking}
+          offRecord={offRecord}
+          questionsAsked={gate.asked.length}
+          questionBudget={DEFAULT_GATE.maxPer10Min}
+          transcript={voice.transcript}
+          error={voice.error}
+          onToggleOffRecord={() => setRecord(!offRecordRef.current)}
+        />
+      </div>
+    </div>
+  );
+}
+
+const PHASE_STEPS = [
+  { key: "ready", label: "Ready" },
+  { key: "capturing", label: "Capturing" },
+  { key: "ended", label: "Saving" },
+  { key: "debrief", label: "Debrief" },
+] as const satisfies readonly { key: Phase; label: string }[];
+
+/** Where the session is, as the real sequence it is, with the one action that moves it on. */
+function PhaseHeader({ phase, children }: { phase: Phase; children: ReactNode }) {
+  const current = PHASE_STEPS.findIndex((s) => s.key === phase);
+  return (
+    <div className="flex flex-col gap-4 border-y border-rule py-4 sm:flex-row sm:items-center sm:justify-between">
+      <ol aria-label="Session phase" className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        {PHASE_STEPS.map((step, i) => {
+          const isCurrent = i === current;
+          const isDone = current > i;
+          return (
+            <li
+              key={step.key}
+              aria-current={isCurrent ? "step" : undefined}
+              className={cx(
+                "inline-flex items-baseline gap-1.5 text-[0.9375rem]",
+                isCurrent ? "text-ink" : isDone ? "text-ink-muted" : "text-ink-faint",
+              )}
+            >
+              <span className="font-mono text-xs tabular-nums">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span
+                className={cx(
+                  isCurrent &&
+                    "font-medium underline decoration-1 underline-offset-[6px] decoration-ink",
+                )}
+              >
+                {step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="flex min-h-11 items-center">{children}</div>
     </div>
   );
 }

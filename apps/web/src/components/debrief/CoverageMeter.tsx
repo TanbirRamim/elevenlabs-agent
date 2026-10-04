@@ -1,3 +1,6 @@
+import { Badge } from "../ui";
+import { cx } from "../ui/cx";
+
 export interface CoverageMeterProps {
   /** 0..1 */
   coverage: number;
@@ -13,20 +16,29 @@ export function CoverageMeter({ coverage, answered, done, target = 0.9 }: Covera
   const pct = Math.round(Math.min(1, Math.max(0, coverage)) * 100);
   const targetPct = Math.round(target * 100);
   return (
-    <section aria-labelledby="coverage-label" className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 id="coverage-label" className="text-sm font-medium">
-          Coverage
-        </h3>
-        <span className="text-sm tabular-nums text-neutral-600 dark:text-neutral-300">
-          {pct}%
+    <section aria-labelledby="coverage-label">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h3 id="coverage-label" className="text-sm font-medium text-ink-muted">
+            Coverage
+          </h3>
+          <p className="mt-1 text-sm text-ink-faint">
+            {answered} debrief {answered === 1 ? "answer" : "answers"}, target {targetPct}%
+          </p>
+        </div>
+        <span className="flex items-center gap-3">
           {done && (
-            <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+            <Badge tone="ok" dot>
               Done
-            </span>
+            </Badge>
           )}
+          <span className="font-display text-[2.25rem] leading-none tracking-[-0.02em] tabular-nums">
+            {pct}
+            <span className="text-xl text-ink-faint">%</span>
+          </span>
         </span>
       </div>
+      {/* A precise rule, not a pill: hairline track, 2px fill, a tick at the target. */}
       <div
         role="progressbar"
         aria-labelledby="coverage-label"
@@ -34,23 +46,29 @@ export function CoverageMeter({ coverage, answered, done, target = 0.9 }: Covera
         aria-valuemax={100}
         aria-valuenow={pct}
         aria-valuetext={`${pct}% covered, target ${targetPct}%`}
-        className="relative h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
+        className="relative mt-4 h-3"
       >
+        <div aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-rule-strong" />
         <div
-          className={`h-full rounded-full transition-[width] duration-500 ${
-            done ? "bg-emerald-500" : "bg-sky-500"
-          }`}
-          style={{ width: `${pct}%` }}
+          aria-hidden="true"
+          className={cx(
+            "absolute inset-x-0 top-1/2 h-0.5 origin-left transition-transform duration-500 ease-arrive",
+            done ? "bg-ok" : "bg-ink",
+          )}
+          style={{ transform: `translateY(-50%) scaleX(${pct / 100})` }}
         />
         <div
           aria-hidden="true"
-          className="absolute inset-y-0 w-px bg-neutral-500"
+          className="absolute inset-y-0 w-px bg-ink-muted"
           style={{ left: `${targetPct}%` }}
         />
       </div>
-      <p className="text-xs text-neutral-500">
-        {answered} debrief {answered === 1 ? "answer" : "answers"} · target {targetPct}%
-      </p>
+      <div aria-hidden="true" className="relative mt-1 h-4 font-mono text-xs text-ink-faint">
+        <span className="absolute left-0">0</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${targetPct}%` }}>
+          {targetPct}
+        </span>
+      </div>
     </section>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
+import { Notice } from "../session/Notice";
+import { Button, ButtonLink } from "../ui";
 import { AnswerBox } from "./AnswerBox";
 import { ConfirmedBadge } from "./ConfirmedBadge";
 import { CoverageMeter } from "./CoverageMeter";
@@ -37,10 +38,12 @@ export function DebriefPanel({ onFinished, ...options }: DebriefPanelProps) {
   const busy = state.phase === "error";
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h2 className="text-lg font-semibold">Debrief</h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">
+    <div className="flex flex-col gap-8">
+      <header className="max-w-[40rem]">
+        <h2 className="font-display text-[2rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink">
+          Debrief
+        </h2>
+        <p className="mt-2 text-[1.0625rem] leading-relaxed text-pretty text-ink-muted">
           {phaseHint(view)}
           {!voice.connected && view.phase !== "idle" && view.phase !== "confirmed" && (
             <> Voice is not connected, so type your answers and use the buttons.</>
@@ -49,34 +52,29 @@ export function DebriefPanel({ onFinished, ...options }: DebriefPanelProps) {
       </header>
 
       {state.phase === "error" && (
-        <div
+        <Notice
           role="alert"
-          className="space-y-2 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+          actions={
+            <>
+              <Button size="sm" onClick={debrief.retry}>
+                Try again
+              </Button>
+              {state.canSkip && (
+                <Button size="sm" variant="secondary" onClick={debrief.skip}>
+                  {state.op === "predictions" ? "Finish without it" : "Continue without it"}
+                </Button>
+              )}
+            </>
+          }
         >
           <p>{state.message}</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={debrief.retry}
-              className="rounded-md bg-red-700 px-3 py-1.5 font-medium text-white"
-            >
-              Try again
-            </button>
-            {state.canSkip && (
-              <button
-                type="button"
-                onClick={debrief.skip}
-                className="rounded-md border border-red-300 px-3 py-1.5 font-medium dark:border-red-800"
-              >
-                {state.op === "predictions" ? "Finish without it" : "Continue without it"}
-              </button>
-            )}
-          </div>
-        </div>
+        </Notice>
       )}
 
       {(view.phase === "idle" || view.phase === "ending") && (
-        <p className="text-sm text-neutral-500">Building the draft Work Map…</p>
+        <p aria-live="polite" className="text-[0.9375rem] text-ink-faint">
+          Building the draft Work Map…
+        </p>
       )}
 
       {ctx && (
@@ -84,8 +82,8 @@ export function DebriefPanel({ onFinished, ...options }: DebriefPanelProps) {
       )}
 
       {ctx && (view.phase === "asking" || ctx.questions.length > 0) && (
-        <section aria-labelledby="questions-title" className="space-y-3">
-          <h3 id="questions-title" className="text-sm font-medium">
+        <section aria-labelledby="questions-title" className="flex flex-col gap-3">
+          <h3 id="questions-title" className="text-sm font-medium text-ink-muted">
             Open questions
           </h3>
           <OpenQuestionList
@@ -153,14 +151,13 @@ export function DebriefPanel({ onFinished, ...options }: DebriefPanelProps) {
       )}
 
       {view.phase === "confirmed" && (
-        <section className="flex flex-wrap items-center gap-3">
+        <section className="flex flex-col gap-4 border-t border-rule pt-6 sm:flex-row sm:items-center sm:justify-between">
           <ConfirmedBadge confirmedAtMs={view.ctx.teachBackConfirmedAtMs} />
-          <Link
+          <ButtonLink
             href={`/map/${encodeURIComponent(view.ctx.workMapId)}?session=${encodeURIComponent(sessionId)}`}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
           >
             Open the Work Map
-          </Link>
+          </ButtonLink>
         </section>
       )}
     </div>
