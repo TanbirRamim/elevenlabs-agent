@@ -1,7 +1,13 @@
 "use client";
 
 import type { CandidateQuestion } from "@shadow/schema";
+import { ChevronDown, ChevronUp, EyeOff, Pause } from "lucide-react";
+import type { ReactNode } from "react";
 import type { GateDecision, GateSignals } from "@/lib/turnGate";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { cx } from "../ui/cx";
+import { Stat, StatGroup } from "../ui/Stat";
 import { formatAgo, formatClock, formatMs, formatPercent, formatSeconds } from "./format";
 import { reasonSentence } from "./reasons";
 
@@ -30,18 +36,19 @@ export interface InsightPanelProps {
   asked: AskedQuestion[];
   insight: InsightNumbers | null;
   offRecord: boolean;
+  /** Recording is paused: the gate is not running, so its last decision is not live. */
+  paused?: boolean;
+  /** The live "why now" chart (a GateTimeline), drawn at the top of the body. */
+  timeline?: ReactNode;
   collapsed?: boolean;
   onToggle?: () => void;
 }
 
-const label = "text-xs font-medium uppercase tracking-wide text-neutral-500";
-const numeral = "font-semibold tabular-nums text-neutral-900 dark:text-neutral-50";
-const card =
-  "rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900";
+const PAUSED_SENTENCE = "Recording is paused: Shadow holds every question";
 
 /**
  * Judge-facing panel: why Shadow spoke or stayed quiet. Pure props in, UI out; no network.
- * Designed for a second screen: large numerals, muted labels, neutral palette, dark mode.
+ * Dense and tokenised so it reads on a projector in both schemes.
  */
 export function InsightPanel({
   now,
@@ -51,137 +58,174 @@ export function InsightPanel({
   asked,
   insight,
   offRecord,
+  paused = false,
+  timeline,
   collapsed = false,
   onToggle,
 }: InsightPanelProps) {
+  const sentence = paused ? PAUSED_SENTENCE : reasonSentence(decision);
   return (
     <aside
       aria-label="Insight panel"
-      className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
+      className="flex flex-col overflow-hidden rounded-panel border border-rule bg-surface"
     >
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Insight</h2>
-          <DecisionChip decision={decision} />
+      <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-rule px-4 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="text-ui font-semibold text-ink">Insight</h2>
+          <span className="hidden text-xs text-ink-faint sm:inline">Why Shadow asks or waits</span>
+          {paused ? (
+            <Badge tone="muted" icon={<Pause aria-hidden="true" />}>
+              Paused
+            </Badge>
+          ) : (
+            <DecisionChip decision={decision} />
+          )}
           {offRecord ? (
-            <span className="rounded-md bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-100 dark:bg-neutral-200 dark:text-neutral-900">
+            <Badge tone="muted" icon={<EyeOff aria-hidden="true" />}>
               Off the record
-            </span>
+            </Badge>
           ) : null}
         </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-sm ${numeral}`}>{formatClock(now)}</span>
+        <div className="flex items-center gap-2">
+          <span className="figures font-mono text-ui text-ink-muted">{formatClock(now)}</span>
           {onToggle ? (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={onToggle}
               aria-expanded={!collapsed}
               aria-controls="insight-panel-body"
-              className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+              icon={collapsed ? <ChevronDown /> : <ChevronUp />}
             >
               {collapsed ? "Expand" : "Collapse"}
-            </button>
+            </Button>
           ) : null}
         </div>
       </header>
 
       {collapsed ? (
-        <p className="text-sm text-neutral-500">{reasonSentence(decision)}</p>
+        <p className="px-4 py-2.5 text-ui text-ink-muted">{sentence}</p>
       ) : (
-        <div id="insight-panel-body" className="flex flex-col gap-4">
-          <section className={card} aria-labelledby="insight-decision">
-            <h3 id="insight-decision" className={label}>
-              Gate decision
-            </h3>
-            <p className="mt-1 text-xl font-semibold">{reasonSentence(decision)}</p>
+        <div id="insight-panel-body" className="flex flex-col">
+          <section
+            aria-labelledby="insight-decision"
+            className="flex flex-col gap-3 border-b border-rule px-4 py-3"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h3 id="insight-decision" className="text-xs font-medium text-ink-muted">
+                Gate decision
+              </h3>
+              <span className="text-xs text-ink-faint">evaluated every 250 ms</span>
+            </div>
+            <p
+              className={cx(
+                "text-sm font-semibold",
+                !paused && decision.open ? "text-ask-text" : "text-ink",
+              )}
+            >
+              {sentence}
+            </p>
+            {timeline}
           </section>
 
-          <section className={card} aria-labelledby="insight-signals">
-            <h3 id="insight-signals" className={label}>
-              Gate signals
-            </h3>
-            <dl className="mt-2 divide-y divide-neutral-200 dark:divide-neutral-800">
-              <SignalRow name="Expert speech" value={formatAgo(now, signals.lastUserSpeechMs)} />
-              <SignalRow
-                name="Input activity"
-                value={formatAgo(now, signals.lastInputActivityMs)}
-              />
-              <SignalRow name="Screen change" value={formatAgo(now, signals.lastScreenChangeMs)} />
-              <SignalRow name="Shadow" value={signals.agentSpeaking ? "speaking" : "quiet"} />
-              <SignalRow name="Recording" value={signals.offRecord ? "off the record" : "on"} />
-            </dl>
-          </section>
+          <div className="grid grid-cols-1 divide-y divide-rule lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+            <Block id="insight-signals" title="Gate signals">
+              <dl className="divide-y divide-rule">
+                <SignalRow name="Expert speech" value={formatAgo(now, signals.lastUserSpeechMs)} />
+                <SignalRow
+                  name="Input activity"
+                  value={formatAgo(now, signals.lastInputActivityMs)}
+                />
+                <SignalRow
+                  name="Screen change"
+                  value={formatAgo(now, signals.lastScreenChangeMs)}
+                />
+                <SignalRow name="Shadow" value={signals.agentSpeaking ? "speaking" : "quiet"} />
+                <SignalRow name="Recording" value={signals.offRecord ? "off the record" : "on"} />
+              </dl>
+            </Block>
 
-          <section className={card} aria-labelledby="insight-candidates">
-            <h3 id="insight-candidates" className={label}>
-              Candidates ({candidates.length})
-            </h3>
-            {candidates.length === 0 ? (
-              <p className="mt-2 text-sm text-neutral-500">No open question right now.</p>
-            ) : (
-              <ul className="mt-2 flex flex-col gap-3">
-                {candidates.map((c) => (
-                  <li key={c.id} className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm">{c.text}</span>
-                      <span className={`text-sm ${numeral}`}>{c.priority.toFixed(2)}</span>
-                    </div>
-                    <PriorityBar priority={c.priority} />
-                    <p className="text-xs text-neutral-500">
-                      {slotLabel(c.slot)}
-                      {c.aboutTicketId ? ` · ${c.aboutTicketId}` : ""}
-                      {` · ${formatAgo(now, c.createdAtMs)}`}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+            <Block id="insight-candidates" title="Candidates" count={candidates.length}>
+              {candidates.length === 0 ? (
+                <p className="text-ui text-ink-faint">No open question right now.</p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {candidates.map((c) => (
+                    <li key={c.id} className="flex flex-col gap-1.5">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-ui text-ink">{c.text}</span>
+                        <span className="figures font-mono text-ui text-ink">
+                          {c.priority.toFixed(2)}
+                        </span>
+                      </div>
+                      <PriorityBar priority={c.priority} />
+                      <p className="text-xs text-ink-faint">
+                        {slotLabel(c.slot)}
+                        {c.aboutTicketId ? ` · ${c.aboutTicketId}` : ""}
+                        {` · ${formatAgo(now, c.createdAtMs)}`}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Block>
 
-          <section className={card} aria-labelledby="insight-asked">
-            <h3 id="insight-asked" className={label}>
-              Asked ({asked.length})
-            </h3>
-            {asked.length === 0 ? (
-              <p className="mt-2 text-sm text-neutral-500">Shadow has not asked anything yet.</p>
-            ) : (
-              <ol className="mt-2 flex flex-col gap-3">
-                {asked.map((q) => (
-                  <li key={q.id} className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm">{q.text}</span>
-                      <span className={`text-sm ${numeral}`}>{formatClock(q.atMs)}</span>
-                    </div>
-                    <p className="text-xs text-neutral-500">
-                      silence {formatSeconds(q.pauseMs.silence)} · no input{" "}
-                      {formatSeconds(q.pauseMs.inputIdle)} · screen still{" "}
-                      {formatSeconds(q.pauseMs.screenIdle)}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
+            <Block id="insight-asked" title="Asked" count={asked.length}>
+              {asked.length === 0 ? (
+                <p className="text-ui text-ink-faint">Shadow has not asked anything yet.</p>
+              ) : (
+                <ol className="flex flex-col gap-3">
+                  {asked.map((q) => (
+                    <li key={q.id} className="grid grid-cols-[3rem_1fr] gap-x-2">
+                      <span className="figures pt-px font-mono text-xs text-ask-text">
+                        {formatClock(q.atMs)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-ui text-ink">{q.text}</p>
+                        <p className="mt-0.5 font-mono text-2xs text-ink-faint">
+                          silence {formatSeconds(q.pauseMs.silence)} · no input{" "}
+                          {formatSeconds(q.pauseMs.inputIdle)} · screen still{" "}
+                          {formatSeconds(q.pauseMs.screenIdle)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Block>
+          </div>
 
-          <section aria-labelledby="insight-numbers">
+          <section aria-labelledby="insight-numbers" className="border-t border-rule p-4">
             <h3 id="insight-numbers" className="sr-only">
               Pipeline numbers
             </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatTile
-                name="Vision p90"
+            <StatGroup>
+              <Stat
+                label="Vision p90"
                 value={insight ? formatMs(insight.visionLatencyMsP90) : "—"}
+                note="frame to screen event"
               />
-              <StatTile
-                name="Unreadable frames"
+              <Stat
+                label="Unreadable frames"
                 value={insight ? String(insight.visionUnreadableFrames) : "—"}
+                note="vision could not read"
               />
-              <StatTile
-                name="DOM ↔ vision"
+              <Stat
+                label="DOM ↔ vision"
                 value={insight ? formatPercent(insight.domVisionAgreement) : "—"}
+                note="agreement"
               />
-              <StatTile name="Open gaps" value={insight ? String(insight.openGaps) : "—"} />
-            </div>
+              <Stat
+                label="Open gaps"
+                value={insight ? String(insight.openGaps) : "—"}
+                note="left for the debrief"
+              />
+            </StatGroup>
+            {insight === null ? (
+              <p className="mt-2 text-xs text-ink-faint">
+                These fill in when the API reports its first numbers for this session.
+              </p>
+            ) : null}
           </section>
         </div>
       )}
@@ -189,25 +233,45 @@ export function InsightPanel({
   );
 }
 
-function DecisionChip({ decision }: { decision: GateDecision }) {
-  const tone = decision.open
-    ? "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950"
-    : "bg-amber-500 text-amber-950 dark:bg-amber-400";
+function Block({
+  id,
+  title,
+  count,
+  children,
+}: {
+  id: string;
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
   return (
-    <span
-      data-testid="gate-chip"
-      className={`rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${tone}`}
-    >
+    <section aria-labelledby={id} className="min-w-0 px-4 py-3">
+      <h3 id={id} className="mb-2 flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+        {title}
+        {count !== undefined ? (
+          <span className="figures rounded-control bg-sunken px-1.5 font-mono text-2xs text-ink-muted">
+            {count}
+          </span>
+        ) : null}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function DecisionChip({ decision }: { decision: GateDecision }) {
+  return (
+    <Badge data-testid="gate-chip" tone={decision.open ? "ask" : "muted"} dot>
       {decision.open ? "Open" : "Closed"}
-    </span>
+    </Badge>
   );
 }
 
 function SignalRow({ name, value }: { name: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between py-1.5">
-      <dt className="text-sm text-neutral-500">{name}</dt>
-      <dd className={`text-lg ${numeral}`}>{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <dt className="text-ui text-ink-muted">{name}</dt>
+      <dd className="figures font-mono text-ui text-ink">{value}</dd>
     </div>
   );
 }
@@ -216,24 +280,12 @@ function PriorityBar({ priority }: { priority: number }) {
   const width = `${Math.round(Math.min(1, Math.max(0, priority)) * 100)}%`;
   return (
     // The numeric priority sits next to the bar, so the bar itself is decoration.
-    <div
-      aria-hidden="true"
-      className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
-    >
+    <div aria-hidden="true" className="h-1 w-full overflow-hidden rounded-pill bg-rule">
       <div
         data-testid="priority-bar"
-        className="h-full rounded-full bg-neutral-700 dark:bg-neutral-300"
+        className="h-full rounded-pill bg-ink-muted"
         style={{ width }}
       />
-    </div>
-  );
-}
-
-function StatTile({ name, value }: { name: string; value: string }) {
-  return (
-    <div className={card}>
-      <p className={label}>{name}</p>
-      <p className={`mt-1 text-3xl ${numeral}`}>{value}</p>
     </div>
   );
 }

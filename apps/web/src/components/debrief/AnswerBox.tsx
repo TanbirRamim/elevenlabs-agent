@@ -1,11 +1,18 @@
 "use client";
 
-import { type FormEvent, useId, useState } from "react";
-import { Notice } from "../session/Notice";
-import { Button } from "../ui";
+import { Mic, Send } from "lucide-react";
+import { type FormEvent, type KeyboardEvent, useId, useState } from "react";
+import { Alert, Button, KbdCombo, Textarea } from "../ui";
+
+/** Rendered only in the browser (the debrief starts after a session), so navigator is there. */
+function modKey(): string {
+  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+    ? "⌘"
+    : "Ctrl";
+}
 
 export interface AnswerBoxProps {
-  /** Label for the typed answer, e.g. "Type your answer". */
+  /** Label for the typed answer, e.g. "Your answer". */
   label: string;
   submitLabel: string;
   /** Spoken lines collected so far; 0 hides the spoken-answer button. */
@@ -19,7 +26,7 @@ export interface AnswerBoxProps {
 
 /**
  * The expert's answer: spoken (collected from the transcript) or typed, so the debrief works
- * without a live voice session.
+ * without a live voice session. ⌘/Ctrl Enter sends.
  */
 export function AnswerBox(props: AnswerBoxProps) {
   const { label, submitLabel, spokenCount, busy, voiceConnected, onSubmitSpoken, onSubmitTyped } =
@@ -27,42 +34,69 @@ export function AnswerBox(props: AnswerBoxProps) {
   const [text, setText] = useState("");
   const [failed, setFailed] = useState(false);
   const id = useId();
+  const hintId = useId();
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
+  const send = () => {
     if (!text.trim() || busy) return;
     const ok = onSubmitTyped(text);
     setFailed(!ok);
     if (ok) setText("");
   };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    send();
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      send();
+    }
+  };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id} className="text-[0.9375rem] font-medium text-ink">
+    <form onSubmit={submit} className="flex flex-col gap-2">
+      <div className="flex flex-col gap-0.5">
+        <label htmlFor={id} className="text-ui font-medium text-ink">
           {label}
         </label>
-        {voiceConnected && (
-          <p className="text-sm text-ink-muted">
-            Answer out loud; Shadow moves on when you are done. Or type below.
-          </p>
-        )}
+        <p id={hintId} className="flex items-center gap-1.5 text-xs text-ink-muted">
+          {voiceConnected ? (
+            <>
+              <Mic aria-hidden="true" className="size-3.5 shrink-0 stroke-[1.75] text-ask-text" />
+              Answer out loud; Shadow moves on when you are done. Or type below.
+            </>
+          ) : (
+            "Voice is not connected, so type your answer."
+          )}
+        </p>
       </div>
-      <textarea
+      <Textarea
         id={id}
+        aria-describedby={hintId}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={onKeyDown}
         rows={3}
         disabled={busy}
-        className="w-full resize-y rounded-control border border-rule-strong bg-surface px-3 py-2.5 text-[0.9375rem] leading-relaxed text-ink placeholder:text-ink-faint transition-colors hover:border-ink-faint disabled:opacity-60"
+        className="resize-y"
       />
       {failed && (
-        <Notice role="alert">
-          The answer could not be sent. Check the connection to the Shadow API and try again.
-        </Notice>
+        <Alert tone="danger" title="The answer could not be sent">
+          Check the connection to the Shadow API and try again.
+        </Alert>
       )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={busy || !text.trim()}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="submit"
+          disabled={busy || !text.trim()}
+          loading={busy}
+          icon={<Send />}
+          trailing={
+            <span aria-hidden="true" className="hidden sm:inline-flex">
+              <KbdCombo keys={[modKey(), "Enter"]} />
+            </span>
+          }
+        >
           {busy ? "Saving…" : submitLabel}
         </Button>
         {spokenCount > 0 && (

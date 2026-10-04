@@ -17,9 +17,8 @@ export function ConfirmedBadge({ confirmedAtMs }: ConfirmedBadgeProps) {
     );
   }
   return (
-    <Badge tone="ok">
-      <Check aria-hidden="true" className="size-4" />
-      Confirmed at <time className="font-mono tabular-nums">{mmss(confirmedAtMs)}</time>
+    <Badge tone="ok" icon={<Check aria-hidden="true" />}>
+      Confirmed at <time className="figures font-mono">{mmss(confirmedAtMs)}</time>
     </Badge>
   );
 }

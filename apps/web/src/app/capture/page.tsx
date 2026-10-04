@@ -11,7 +11,7 @@ export default function CapturePage() {
     <Page width="wide">
       <PageHeader
         title="Capture"
-        description="Triage the tickets the way you always do and think aloud. Shadow stays quiet while you work and asks short questions at natural pauses."
+        description="Work the queue as you always do and think aloud. Shadow follows quietly and asks short questions at natural pauses."
       />
       <VoiceProvider>
         <CaptureSession />
