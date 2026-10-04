@@ -6,10 +6,11 @@ import { loadTickets } from "@shadow/guard/fixtures";
 import type { Ticket } from "@shadow/schema";
 import Fastify from "fastify";
 import type { Env } from "./env.js";
+import { createLlm } from "./llm/structured.js";
 import { loadMockFixtures } from "./mock/fixtures.js";
 import { registerMockRoutes } from "./mock/routes.js";
 import { createMockStreamHooks } from "./mock/stream.js";
-import { createFramePipeline } from "./privacy/frames.js";
+import { createFrameProcessor } from "./pipeline/frames.js";
 import { createPresidioRedactor, identityRedactor } from "./privacy/presidio.js";
 import { createPresidioImageRedactor } from "./privacy/presidioImage.js";
 import { registerGuardRoutes } from "./routes/guard.js";
@@ -73,7 +74,7 @@ export async function buildApp({
   if (env.MOCK_AI === "1") {
     // Fixture mode: no Claude or Presidio calls anywhere (HAR-3). The real
     // debrief/workmap/mastery routes (HAR-9, HAR-12) will register in the else branch.
-    // No storeFrame either: frames cannot be redacted without Presidio, so none are stored.
+    // No frameSink either: frames cannot be redacted without Presidio, so none are stored.
     const fixtures = loadMockFixtures();
     registerMockRoutes(app, store, fixtures);
     registerSessionRoutes(app, store, {
@@ -85,14 +86,26 @@ export async function buildApp({
       url: env.PRESIDIO_IMAGE_REDACTOR_URL,
       log: app.log,
     });
+    // Without a key, frames are stored (redacted) but never shown to a model.
+    const llm = env.ANTHROPIC_API_KEY ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL) : null;
     registerSessionRoutes(app, store, {
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,
         anonymizerUrl: env.PRESIDIO_ANONYMIZER_URL,
         log: app.log,
       }),
-      ...(objectStorage
-        ? { storeFrame: createFramePipeline(redactImage, objectStorage, app.log) }
+      ...(objectStorage || llm
+        ? {
+            frameSink: (session, send) =>
+              createFrameProcessor({
+                session,
+                send,
+                llm,
+                redactImage,
+                storage: objectStorage,
+                log: app.log,
+              }),
+          }
         : {}),
     });
   }
