@@ -1,9 +1,11 @@
 "use client";
 
 import type { Step } from "@shadow/schema";
+import { cx } from "../ui";
 import { formatMs } from "./format";
 import { JudgmentBadge } from "./primitives";
 
+/** The steps in order, hung from a numbered rail. Judgment calls are marked on the rail too. */
 export function StepTimeline({
   steps,
   selectedId,
@@ -14,38 +16,53 @@ export function StepTimeline({
   onSelect: (id: string) => void;
 }) {
   return (
-    <ol
-      aria-label="Steps"
-      className="relative space-y-1 border-l border-neutral-200 pl-5 dark:border-neutral-800"
-    >
+    <ol aria-label="Steps" className="relative flex flex-col">
+      {/* The rail the steps hang from. */}
+      <span
+        aria-hidden="true"
+        className="absolute top-4 bottom-4 left-[15px] w-px bg-rule-strong"
+      />
       {steps.map((step) => {
         const selected = step.id === selectedId;
         return (
-          <li key={step.id} className="relative">
+          <li key={step.id} className="relative pl-12">
             <span
               aria-hidden="true"
-              className={`absolute -left-[26px] top-3 h-2.5 w-2.5 rounded-full border-2 ${
+              className={cx(
+                "absolute top-3 left-0 inline-flex size-[31px] items-center justify-center rounded-full border font-mono text-xs tabular-nums transition-colors duration-150",
                 selected
-                  ? "border-neutral-900 bg-neutral-900 dark:border-neutral-100 dark:bg-neutral-100"
-                  : "border-neutral-400 bg-white dark:border-neutral-500 dark:bg-neutral-950"
-              }`}
-            />
+                  ? "border-ink bg-ink text-canvas"
+                  : step.judgmentCall
+                    ? "border-signal bg-signal-wash text-signal-text"
+                    : "border-rule-strong bg-canvas text-ink-muted",
+              )}
+            >
+              {String(step.order).padStart(2, "0")}
+            </span>
             <button
               type="button"
               onClick={() => onSelect(step.id)}
               aria-current={selected ? "step" : undefined}
-              className={`w-full rounded px-3 py-2 text-left transition hover:bg-neutral-100 dark:hover:bg-neutral-900 ${
-                selected ? "bg-neutral-100 dark:bg-neutral-900" : ""
-              }`}
+              className={cx(
+                "my-1 w-full rounded-panel border px-4 py-3 text-left transition-colors duration-150",
+                selected
+                  ? "border-rule-strong bg-surface"
+                  : "border-transparent hover:border-rule hover:bg-surface/60",
+              )}
             >
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-xs tabular-nums text-neutral-500">
-                  {step.order}. <time>{formatMs(step.moment.tMs)}</time>
+              <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <span className="font-mono text-xs text-ink-faint tabular-nums">
+                  <span className="sr-only">Step {step.order}, </span>
+                  <time>{formatMs(step.moment.tMs)}</time>
                 </span>
                 {step.judgmentCall && <JudgmentBadge />}
-              </div>
-              <div className="mt-0.5 font-medium">{step.title}</div>
-              <div className="mt-0.5 text-sm text-neutral-500">{step.decision}</div>
+              </span>
+              <span className="mt-1.5 block text-[1.0625rem] leading-snug font-medium text-ink">
+                {step.title}
+              </span>
+              <span className="mt-1 block text-[0.9375rem] leading-relaxed text-ink-muted">
+                {step.decision}
+              </span>
             </button>
           </li>
         );
