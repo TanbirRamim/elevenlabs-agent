@@ -174,7 +174,7 @@ Without `ANTHROPIC_API_KEY` the debrief routes answer `503 llm_unavailable`, fra
 
 ## Moonshot: people first, then agents
 
-The Work Map that taught the new hire can run as an agent policy. `GET /workmaps/:id/export?format=agent` turns it into a system prompt plus machine rules. [`/copilot`](https://shadow-web-meow-4acb.vercel.app/copilot) runs that policy in shadow mode over the 10 held-out tickets with the same guard as the teach page, and hands blocks, approvals, stop-and-ask rules and judgment calls to a human ([`routes/export.ts`](apps/api/src/routes/export.ts), 7 tests; [`CopilotView.tsx`](apps/web/src/components/copilot/CopilotView.tsx)). On the sample map without a key it agrees with the answer key on 6 of 10 tickets and hands 4 to a human. The order is the point: the agent learns from a person, and people learn first.
+The Work Map that taught the new hire can run as an agent policy. `GET /workmaps/:id/export?format=agent` turns it into a system prompt plus machine rules. [`/copilot`](https://shadow-web-meow-4acb.vercel.app/copilot) runs that policy in shadow mode over the 10 held-out tickets with the same guard as the teach page, and hands blocks, approvals, stop-and-ask rules and judgment calls to a human. Safety policy: it never takes an irreversible money action alone, so a refund with no rule clearing it goes to a person ([`routes/export.ts`](apps/api/src/routes/export.ts), 8 tests; [`CopilotView.tsx`](apps/web/src/components/copilot/CopilotView.tsx)). On the sample map without a key it agrees with the answer key on 6 of 10 tickets, hands 6 to a human and makes 1 unsafe auto-action, against 5 for the default action without the map. The order is the point: the agent learns from a person, and people learn first.
 
 ## Repository
 
