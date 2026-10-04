@@ -71,6 +71,7 @@ async function setup(now?: () => number) {
     llm: fakeLlm,
     debriefSeams: {
       ...(now ? { now } : {}),
+      rebuildDebounceMs: 0,
       buildDeps: { generate },
       teachBackText: async (_map, instruction) =>
         instruction.includes("ONE short sentence")
@@ -127,23 +128,116 @@ describe("debrief endpoints", () => {
     expect(store.getWorkMap(parsed.workMapId)).toBeDefined();
   });
 
-  it("debrief answers raise coverage and reach done once probes are answered", async () => {
+  it("debrief answers raise coverage (via the background rebuild) and reach done", async () => {
     const { app, sessionId } = await setup();
     const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
     const open = EndSessionResponse.parse(end.json()).openQuestions;
-    let last: DebriefStatus | undefined;
-    for (const [i, q] of open.slice(0, 3).entries()) {
+    const answer = async (questionId: string) => {
       const res = await app.inject({
         method: "POST",
         url: `/sessions/${sessionId}/debrief/answer`,
-        payload: { questionId: q.id, segmentIds: ["seg_1"] },
+        payload: { questionId, segmentIds: ["seg_1"] },
       });
       expect(res.statusCode).toBe(200);
-      last = DebriefStatus.parse(res.json());
-      expect(last.asked).toBe(i + 1);
+      return DebriefStatus.parse(res.json());
+    };
+    const [a, b, c] = open;
+    if (!a || !b || !c) throw new Error("expected 3 open questions");
+    const first = await answer(a.id);
+    expect(first.asked).toBe(1);
+    expect(first.coverage).toBe(0.6); // answered from the ledger, before any rebuild
+    await vi.waitFor(async () => {
+      const r = await app.inject({ method: "GET", url: `/sessions/${sessionId}/debrief` });
+      expect(r.headers["x-shadow-rebuilding"]).toBe("0");
+      expect(DebriefStatus.parse(r.json()).coverage).toBe(0.95);
+    });
+    await answer(b.id);
+    const last = await answer(c.id);
+    expect(last.asked).toBe(3);
+    expect(last.coverage).toBe(0.95);
+    expect(last.done).toBe(true); // coverage >= 0.9, 3 asked, no >= 0.7 question left
+  });
+
+  it("an answer returns at once while a slow rebuild runs, and rebuilds coalesce", async () => {
+    const { app, sessionId, generate, store } = await setup();
+    const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
+    const [a, b, c] = EndSessionResponse.parse(end.json()).openQuestions;
+    if (!a || !b || !c) throw new Error("expected 3 open questions");
+    let release: () => void = () => {};
+    generate.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve(draft(0.7));
+        }),
+    );
+    const url = `/sessions/${sessionId}/debrief/answer`;
+    const started = Date.now();
+    for (const q of [a, b, c]) {
+      // answer 1 starts the (hung) build; 2 and 3 arrive while it runs
+      if (q !== a) await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+      const r = await app.inject({
+        method: "POST",
+        url,
+        payload: { questionId: q.id, segmentIds: ["seg_1"] },
+      });
+      expect(r.statusCode).toBe(200);
+      // the answered question is gone from the next-question list right away
+      expect(DebriefStatus.parse(r.json()).openQuestions.map((x) => x.id)).not.toContain(q.id);
     }
-    expect(last?.coverage).toBe(0.95);
-    expect(last?.done).toBe(true); // coverage >= 0.9, 3 asked, no >= 0.7 question left
+    expect(Date.now() - started).toBeLessThan(1000);
+    const mapId = `wm_${sessionId.replace(/^ses_/, "")}`;
+    expect(store.getWorkMap(mapId)?.coverage).toBe(0.6); // the slow build has not landed
+    release();
+    // answers 2 and 3 arrived mid-build: exactly ONE more build covers both (latest wins)
+    await vi.waitFor(() => expect(store.getWorkMap(mapId)?.coverage).toBe(0.95));
+    expect(generate).toHaveBeenCalledTimes(3);
+  });
+
+  it("a retried answer is counted once", async () => {
+    const { app, sessionId, session } = await setup();
+    const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
+    const first = EndSessionResponse.parse(end.json()).openQuestions[0];
+    if (!first) throw new Error("no open question");
+    const before = session.answeredQuestions.length;
+    const req = {
+      method: "POST" as const,
+      url: `/sessions/${sessionId}/debrief/answer`,
+      payload: { questionId: first.id, segmentIds: ["seg_1"] },
+    };
+    expect(DebriefStatus.parse((await app.inject(req)).json()).asked).toBe(1);
+    expect(DebriefStatus.parse((await app.inject(req)).json()).asked).toBe(1);
+    expect(session.answeredQuestions).toHaveLength(before + 1);
+  });
+
+  it("confirm waits for the pending rebuild so the confirmed map holds every answer", async () => {
+    const { app, sessionId, generate } = await setup();
+    const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
+    const first = EndSessionResponse.parse(end.json()).openQuestions[0];
+    if (!first) throw new Error("no open question");
+    let release: () => void = () => {};
+    generate.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve(draft(0.93));
+        }),
+    );
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/debrief/answer`,
+      payload: { questionId: first.id, segmentIds: ["seg_1"] },
+    });
+    const confirming = app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/teachback/confirm`,
+      payload: { tMs: 90_000, confirmed: true },
+    });
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+    release();
+    const res = await confirming;
+    const map = res.json<{ workMap: { coverage: number; teachBackConfirmedAtMs: number } }>()
+      .workMap;
+    expect(map.coverage).toBe(0.93);
+    expect(map.teachBackConfirmedAtMs).toBe(90_000);
   });
 
   it("the debrief is done after 5 minutes even when coverage is low (§6.7 hard cap)", async () => {
@@ -216,24 +310,27 @@ describe("debrief endpoints", () => {
 });
 
 describe("debrief failure paths", () => {
-  it("a failed rebuild does not keep the answer, so a retry records it once", async () => {
-    const { app, session, sessionId, generate } = await setup();
+  it("a failed background rebuild keeps the answer and the last verified map", async () => {
+    const { app, store, session, sessionId, generate } = await setup();
     const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
     const first = EndSessionResponse.parse(end.json()).openQuestions[0];
     if (!first) throw new Error("no open question");
     const before = session.answeredQuestions.length;
-    // The draft call fails -> the rebuild throws -> 422.
-    generate.mockRejectedValueOnce(new Error("workmap@1: max_tokens"));
-    const payload = { questionId: first.id, segmentIds: ["seg_1"] };
-    const url = `/sessions/${sessionId}/debrief/answer`;
-    const failed = await app.inject({ method: "POST", url, payload });
-    expect(failed.statusCode).toBe(422);
-    expect(session.answeredQuestions).toHaveLength(before);
-
-    const retried = await app.inject({ method: "POST", url, payload });
-    expect(retried.statusCode).toBe(200);
-    expect(DebriefStatus.parse(retried.json()).asked).toBe(1);
+    generate.mockRejectedValueOnce(new Error("workmap@2: max_tokens"));
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/debrief/answer`,
+      payload: { questionId: first.id, segmentIds: ["seg_1"] },
+    });
+    expect(res.statusCode).toBe(200);
     expect(session.answeredQuestions).toHaveLength(before + 1);
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+    const mapId = `wm_${sessionId.replace(/^ses_/, "")}`;
+    await vi.waitFor(async () => {
+      const r = await app.inject({ method: "GET", url: `/sessions/${sessionId}/debrief` });
+      expect(r.headers["x-shadow-rebuilding"]).toBe("0");
+    });
+    expect(store.getWorkMap(mapId)?.coverage).toBe(0.6);
   });
 
   it("a teach-back model failure is a 502 with an ApiError body", async () => {
