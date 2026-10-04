@@ -18,7 +18,7 @@ export function CaptureCrop() {
   return (
     <div inert className="flex flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <RecordingStatus state="recording" elapsedMs={191_000} />
+        <RecordingStatus state="recording" elapsedMs={step?.reason.tMs ?? 0} />
         <ListeningIndicator state="asking" />
         <PrivacyIndicator redaction="active" offRecord={false} />
       </div>
@@ -27,7 +27,9 @@ export function CaptureCrop() {
           <Avatar name="Shadow" size="xs" shadow />
           Shadow asks at a pause
         </p>
-        <p className="text-ui text-ink">You refunded that one yourself. Where is your limit?</p>
+        <p className="text-ui text-ink">
+          You sent that one to Security instead of refunding. What tipped it?
+        </p>
         {step ? (
           <blockquote className="mt-2.5 border-l-2 border-rule-strong pl-3 text-ui text-ink-muted">
             “{step.reason.text}”

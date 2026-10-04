@@ -20,7 +20,7 @@ Hack-Nation × ElevenLabs, Challenge 01 "The AI Apprentice" ([brief](docs/challe
 
 ## Watch it work (90 s)
 
-[/demo](https://shadow-web-meow-4acb.vercel.app/demo) plays the whole story in four chapters. It is a replay, and it says so on screen. It is not hand-animated: the replay steps through a scripted session and asks a question only where the real Turn Gate (`decide()` in [`lib/turnGate.ts`](apps/web/src/lib/turnGate.ts)) opens. Tickets come from [`seed/tickets.json`](seed/tickets.json) and the expert's words from the sample Work Map ([`replay/script.ts`](apps/web/src/components/replay/script.ts), 16 tests in [`script.test.ts`](apps/web/src/components/replay/script.test.ts)).
+[/demo](https://shadow-web-meow-4acb.vercel.app/demo) plays the whole story in four chapters. It is a replay, and it says so on screen. It is not hand-animated: the replay steps through a scripted session and asks a question only where the real Turn Gate (`decide()` in [`lib/turnGate.ts`](apps/web/src/lib/turnGate.ts)) opens. Tickets come from [`seed/tickets.json`](seed/tickets.json) and the expert's words from the sample Work Map ([`replay/script.ts`](apps/web/src/components/replay/script.ts), 17 tests in [`script.test.ts`](apps/web/src/components/replay/script.test.ts)).
 
 ## How Shadow answers the Apprentice Test
 

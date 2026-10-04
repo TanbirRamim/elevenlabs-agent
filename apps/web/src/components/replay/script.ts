@@ -25,7 +25,8 @@ import { sampleWorkMap } from "../workmap/fixture";
  * what Maya did (speech, typing, screen changes) and the questions the Curiosity Engine had
  * ready; `simulateCapture` then steps through the session and asks a question only when the real
  * Turn Gate (`decide()` from lib/turnGate) opens. Tickets come from seed/tickets.json and the
- * expert's words from the sample Work Map fixture.
+ * expert's words, with their session timestamps, from the sample Work Map
+ * (seed/fixtures/workmap.json, the map the API serves in MOCK_AI mode).
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -237,6 +238,13 @@ function stepQuote(stepId: string): string {
   return step.reason.text;
 }
 
+/** The expert's words a guardrail was learned from, with the session time she said them. */
+function guardrailQuote(guardrailId: string): { text: string; tMs: number } {
+  const g = sampleWorkMap.guardrails.find((x) => x.id === guardrailId);
+  if (!g) throw new Error(`sample Work Map has no guardrail ${guardrailId}`);
+  return { text: g.evidence.quote.text, tMs: g.evidence.quote.tMs };
+}
+
 export const EXPERT_TICKETS: PublicTicket[] = ["T1", "T2", "T3", "T4"].map(publicTicket);
 export const NEW_HIRE_TICKETS: PublicTicket[] = ["N1", "N2"].map(publicTicket);
 
@@ -244,63 +252,60 @@ export const NEW_HIRE_TICKETS: PublicTicket[] = ["N1", "N2"].map(publicTicket);
 // Capture, in session time
 // ---------------------------------------------------------------------------------------------
 
-const OFF_RECORD: Span[] = sampleWorkMap.offRecordSpans.map(([startMs, endMs]) => ({
-  startMs,
-  endMs,
-}));
+/**
+ * The span Maya took off the record. The replay shows that it happened, never what was said.
+ * It sits between T4 and the debrief, where the sample map cites nothing.
+ */
+const OFF_RECORD: Span[] = [{ startMs: 470_000, endMs: 500_000 }];
 
+// Session times line up with the sample map: each quote's `tMs` falls inside the span where
+// Maya says it (script.test.ts checks this).
 const LINES: ExpertLine[] = [
-  { startMs: 39_500, endMs: 45_000, text: stepQuote("S1"), learns: { kind: "step", id: "S1" } },
+  { startMs: 56_000, endMs: 61_000, text: "Ava, monthly plan, wants her September invoice." },
+  { startMs: 61_500, endMs: 67_500, text: stepQuote("S1"), learns: { kind: "step", id: "S1" } },
   { startMs: 152_000, endMs: 156_000, text: "Same amount, twice, on the same day. A duplicate." },
-  { startMs: 184_400, endMs: 186_000, text: "Refunding one of them." },
   {
-    startMs: 292_000,
-    endMs: 297_000,
+    startMs: 290_500,
+    endMs: 295_500,
     text: "Annual plan, two hundred and forty, and she has already told her bank.",
   },
-  { startMs: 450_000, endMs: 457_000, text: "Changed email, and now a refund. No." },
-  {
-    startMs: 462_000,
-    endMs: 471_000,
-    text: stepQuote("S5"),
-    learns: { kind: "guardrail", id: "G3" },
-  },
-  { startMs: 537_000, endMs: 539_500, text: "Off the record for a minute." },
-  { startMs: 541_000, endMs: 556_000, text: "", offRecord: true },
-  { startMs: 598_000, endMs: 600_000, text: "Back on the record." },
-  { startMs: 611_000, endMs: 614_000, text: "That's the queue. Ending the task." },
+  { startMs: 412_000, endMs: 416_000, text: "Changed email, and now a refund. No." },
+  { startMs: 466_000, endMs: 468_500, text: "Off the record for a minute." },
+  { startMs: 471_000, endMs: 486_000, text: "", offRecord: true },
+  { startMs: 498_000, endMs: 500_000, text: "Back on the record." },
+  { startMs: 511_000, endMs: 514_000, text: "That's the queue. Ending the task." },
 ];
 
 const DESK_BEATS: DeskBeat[] = [
-  { kind: "open", atMs: 38_000, ticketId: "T1" },
+  { kind: "open", atMs: 50_000, ticketId: "T1" },
   {
     kind: "type",
-    startMs: 58_000,
+    startMs: 68_000,
     endMs: 74_000,
     label: "Reply",
-    text: "Invoice macro: Hi Ava, your September invoice is attached again.",
+    text: "Hi Ava, your September invoice is attached again.",
   },
   { kind: "commit", atMs: 76_000, outcome: "reply" },
   { kind: "open", atMs: 150_000, ticketId: "T2" },
   {
     kind: "type",
-    startMs: 168_000,
-    endMs: 176_000,
+    startMs: 160_000,
+    endMs: 168_000,
     label: "Internal note",
-    text: "Duplicate charge. Refund one.",
+    text: "Duplicate charge. Refund the second one.",
   },
-  { kind: "commit", atMs: 184_000, outcome: "refund" },
+  { kind: "commit", atMs: 172_000, outcome: "refund" },
   { kind: "open", atMs: 290_000, ticketId: "T3" },
   {
     kind: "type",
-    startMs: 298_500,
-    endMs: 309_000,
+    startMs: 296_000,
+    endMs: 301_000,
     label: "Internal note",
     text: "Chargeback open. No refund. Billing disputes to review.",
   },
-  { kind: "commit", atMs: 310_000, outcome: "handoff_billing_disputes" },
-  { kind: "open", atMs: 440_000, ticketId: "T4" },
-  { kind: "commit", atMs: 460_000, outcome: "handoff_security" },
+  { kind: "commit", atMs: 316_000, outcome: "handoff_billing_disputes" },
+  { kind: "open", atMs: 410_000, ticketId: "T4" },
+  { kind: "commit", atMs: 421_000, outcome: "handoff_security" },
 ];
 
 const CANDIDATES: CandidateScript[] = [
@@ -309,45 +314,45 @@ const CANDIDATES: CandidateScript[] = [
     ticketId: "T1",
     slot: "reason",
     priority: 0.72,
-    createdAtMs: 76_500,
-    text: "You used the invoice macro there. When would you write your own reply instead?",
+    createdAtMs: 57_000,
+    text: "When is resending the invoice enough, and when would you escalate instead?",
     askMs: 3_000,
-    answer: { text: stepQuote("S2"), durationMs: 6_500, learns: { kind: "step", id: "S2" } },
+    answer: { text: "", durationMs: 0 },
+    dropped: { atMs: 67_600, reason: "Maya answered it aloud before there was a pause" },
   },
   {
     id: "c2",
     ticketId: "T2",
-    slot: "guardrail",
+    slot: "reason",
     priority: 0.81,
-    createdAtMs: 184_800,
-    text: "You refunded that one yourself. Is there an amount where you wouldn’t?",
+    createdAtMs: 172_500,
+    text: "You refunded that one yourself. What made it safe to?",
     askMs: 3_000,
-    answer: { text: stepQuote("S3"), durationMs: 6_000, learns: { kind: "guardrail", id: "G1" } },
+    answer: { text: stepQuote("S2"), durationMs: 6_500, learns: { kind: "step", id: "S2" } },
   },
   {
     id: "c3",
     ticketId: "T3",
     slot: "guardrail",
     priority: 0.88,
-    createdAtMs: 300_000,
+    createdAtMs: 299_000,
     text: "You held that refund instead of sending it. What stopped you?",
     askMs: 3_000,
-    answer: { text: stepQuote("S4"), durationMs: 6_500, learns: { kind: "guardrail", id: "G2" } },
+    answer: { text: stepQuote("S3"), durationMs: 6_500, learns: { kind: "guardrail", id: "G2" } },
   },
   {
     id: "c4",
     ticketId: "T4",
     slot: "guardrail",
     priority: 0.83,
-    createdAtMs: 460_500,
+    createdAtMs: 421_500,
     text: "You sent that one to Security instead of refunding. What tipped it?",
     askMs: 3_000,
-    answer: { text: "", durationMs: 0 },
-    dropped: { atMs: 471_200, reason: "Maya answered it aloud before there was a pause" },
+    answer: { text: stepQuote("S4"), durationMs: 7_000, learns: { kind: "guardrail", id: "G3" } },
   },
 ];
 
-const CAPTURE_END_MS = 620_000;
+const CAPTURE_END_MS = 520_000;
 const SIM_TICK_MS = 100;
 const ANSWER_DELAY_MS = 400;
 const INPUT_THROTTLE_MS = 500;
@@ -553,20 +558,19 @@ export function captureSignalsAt(
 
 /** [session end of the stretch, playback length]. Session starts where the previous one ended. */
 const CAPTURE_STRETCHES: [number, number][] = [
-  [37_000, 2_500], // the problem, then Maya starts the session
-  [46_000, 2_400], // T1 opened, she thinks aloud
-  [75_000, 1_000], // types the reply
-  [90_000, 6_200], // first pause, first question
-  [150_000, 500],
-  [183_000, 1_400], // T2
-  [198_000, 6_000], // a guardrail question
-  [289_000, 500],
-  [298_000, 1_600], // T3 opened
-  [324_000, 8_000], // she types; Shadow holds its question, then asks
-  [446_000, 500],
-  [473_000, 4_800], // T4: she answers before Shadow can ask
-  [536_000, 1_600],
-  [601_000, 2_400], // off the record
+  [50_000, 2_500], // the problem, then Maya starts the session and opens T1
+  [68_000, 5_000], // T1: she thinks aloud and answers Shadow's question before it is asked
+  [150_000, 1_000], // types the reply
+  [172_000, 1_600], // T2: a duplicate, refunded
+  [186_000, 7_500], // first pause, first question
+  [290_000, 600],
+  [298_000, 1_400], // T3 opened
+  [316_000, 8_000], // she types; Shadow holds its question, then asks
+  [410_000, 600],
+  [419_000, 1_500], // T4 opened, routed to Security
+  [436_000, 5_500], // a guardrail question
+  [466_000, 600],
+  [502_000, 2_400], // off the record
   [CAPTURE_END_MS, 1_100],
 ];
 
@@ -625,9 +629,13 @@ const TEACH_LENGTH_MS = 22_000;
 const AGENTS_LENGTH_MS = 5_500;
 
 const TEACH_BACK_TEXT =
-  "First I read the whole ticket. Duplicates under a hundred euros you refund yourself; bigger refunds are checked afterwards. An open chargeback is never refunded. A changed email, or a card used without permission, means stop and hand it to Security. A lawyer or GDPR goes to Legal.";
-const RECHECK_TEXT =
-  "So above a hundred euros, a second person approves the refund before it is sent?";
+  "A normal billing question gets the invoice again. Clear duplicates you refund yourself; refunds over a hundred euros are checked by a lead afterwards. An open chargeback is never refunded, it goes to Billing disputes. A changed email, or a card used without permission, means no refund and straight to Security. GDPR or deleting data goes to Legal.";
+const RECHECK_TEXT = "So above a hundred euros, a lead approves the refund before it is sent?";
+/**
+ * When Maya confirmed the teach-back, in session time. The sample map was saved before a
+ * teach-back (its `teachBackConfirmedAtMs` is null), so the replay keeps its own time here.
+ */
+const TEACH_BACK_CONFIRMED_SESSION_MS = 705_000;
 
 let cached: ReplayScript | null = null;
 
@@ -735,37 +743,61 @@ export function buildReplayScript(): ReplayScript {
     });
   }
 
-  // Map: the debrief.
+  // Map: the debrief. Maya's answers are the guardrail quotes in the sample map, said at the
+  // session times the map cites.
   const m = (ms: number) => mapStart + ms;
-  say(
-    "shadow",
-    "I never saw a fraud case today. If a card was used without the customer’s permission, what do you do?",
-    m(600),
-    m(3_000),
-  );
-  say("maya", "Same as a takeover. I stop, no refund, Security takes it.", m(3_200), m(6_200));
-  say(
-    "shadow",
-    "And when a customer mentions a lawyer, or asks you to delete their data?",
-    m(6_400),
-    m(8_000),
-  );
-  say("maya", stepQuote("S6"), m(8_200), m(11_600));
-  say("shadow", "A VIP asks for a refund. Macro, or your own words?", m(11_800), m(12_800));
-  say("maya", "My own words. A VIP gets a person, never a template.", m(13_000), m(14_400));
+  const debrief = [
+    {
+      gap: {
+        id: "gap-limit",
+        text: "A refund amount Maya would not approve alone",
+        kind: "exception" as const,
+      },
+      ask: "You refunded forty-nine euros yourself. Is there an amount where you wouldn’t?",
+      askSpan: [400, 2_200],
+      answer: guardrailQuote("G1"),
+      answerSpan: [2_400, 5_200],
+    },
+    {
+      gap: {
+        id: "gap-privacy",
+        text: "A request to delete personal data",
+        kind: "unseen" as const,
+      },
+      ask: "I never saw a privacy request today. A customer asks you to delete their data?",
+      askSpan: [5_400, 7_000],
+      answer: guardrailQuote("G6"),
+      answerSpan: [7_200, 10_000],
+    },
+    {
+      gap: {
+        id: "gap-fraud",
+        text: "A card used without the customer’s permission",
+        kind: "unseen" as const,
+      },
+      ask: "No fraud case either. If a card was used without the customer’s permission?",
+      askSpan: [10_200, 12_000],
+      answer: guardrailQuote("G4"),
+      answerSpan: [12_200, 15_200],
+    },
+  ] as const;
+  for (const d of debrief) {
+    say("shadow", d.ask, m(d.askSpan[0]), m(d.askSpan[1]));
+    say("maya", d.answer.text, m(d.answerSpan[0]), m(d.answerSpan[1]));
+  }
   say(
     "shadow",
     "Here is how I understand your process. Tell me what I got wrong.",
-    m(14_600),
-    m(16_700),
+    m(15_400),
+    m(17_200),
   );
   say(
     "maya",
-    "Not afterwards. Over a hundred, a second person approves it before it goes out.",
-    m(16_900),
-    m(18_900),
+    "Not afterwards. Over a hundred, a lead approves it before it goes out.",
+    m(17_400),
+    m(19_000),
   );
-  say("shadow", RECHECK_TEXT, m(19_000), m(20_400));
+  say("shadow", RECHECK_TEXT, m(19_100), m(20_400));
   say("maya", "Yes, that’s right.", m(20_500), m(21_400));
 
   // Teach: Jonas on an unseen case.
@@ -781,7 +813,7 @@ export function buildReplayScript(): ReplayScript {
   say("jonas", "Because it’s over a hundred?", t(8_200), t(9_600));
   say(
     "shadow",
-    "That’s one. Now read the last line: the card was used without permission. Maya treats that as a takeover.",
+    "That’s one. Now read the last line: the card was used without permission. Maya calls that fraud.",
     t(9_800),
     t(13_400),
   );
@@ -803,12 +835,13 @@ export function buildReplayScript(): ReplayScript {
 
   captions.sort((a, b) => a.startMs - b.startMs);
 
-  // The guard's verdict on N1 -> Refund. The machine rule G1 (refund above 100 EUR) fires on the
-  // amount; the judge reads "used without my permission" as the takeover signal in G3, which
+  // The guard's verdict on N1 -> Refund (seed/tickets.json labels it G4, G1). The machine rule G1
+  // (refund above 100 EUR) fires on the amount; G4 (card used without permission / fraud) has no
+  // machine rule in the sample map, so the judge reads "used without my permission" as G4, which
   // blocks and names the route. Most severe first, as packages/guard orders them.
   const verdict: GuardVerdict = {
     decision: "BLOCK",
-    ruleIds: ["G3", "G1"],
+    ruleIds: ["G4", "G1"],
     expectedOutcome: "handoff_security",
     source: "llm_judge",
   };
@@ -821,58 +854,37 @@ export function buildReplayScript(): ReplayScript {
     segments,
     map: {
       coverage: [
-        { atMs: m(0), value: 0.58 },
-        { atMs: m(6_200), value: 0.71 },
-        { atMs: m(11_600), value: 0.84 },
-        { atMs: m(14_400), value: 0.92 },
+        { atMs: m(0), value: 0.6 },
+        { atMs: m(debrief[0].answerSpan[1]), value: 0.7 },
+        { atMs: m(debrief[1].answerSpan[1]), value: 0.8 },
+        { atMs: m(debrief[2].answerSpan[1]), value: sampleWorkMap.coverage },
       ],
-      gaps: [
-        {
-          id: "gap-fraud",
-          text: "A card used without the customer’s permission",
-          kind: "unseen",
-          askAtMs: m(600),
-          answeredAtMs: m(6_200),
-        },
-        {
-          id: "gap-legal",
-          text: "A lawyer, or a request to delete data",
-          kind: "unseen",
-          askAtMs: m(6_400),
-          answeredAtMs: m(11_600),
-        },
-        {
-          id: "gap-vip",
-          text: "Refund replies to VIP customers",
-          kind: "exception",
-          askAtMs: m(11_800),
-          answeredAtMs: m(14_400),
-        },
-      ],
-      steps: [
-        { id: "S1", atMs: m(200) },
-        { id: "S2", atMs: m(500) },
-        { id: "S3", atMs: m(800) },
-        { id: "S4", atMs: m(1_100) },
-        { id: "S5", atMs: m(1_400) },
-        { id: "S6", atMs: m(11_600) },
-      ],
+      gaps: debrief.map((d) => ({
+        ...d.gap,
+        askAtMs: m(d.askSpan[0]),
+        answeredAtMs: m(d.answerSpan[1]),
+      })),
+      steps: [...sampleWorkMap.steps]
+        .sort((a, b) => a.order - b.order)
+        .map((step, i) => ({ id: step.id, atMs: m(200 + i * 300) })),
       teachBack: {
-        showAtMs: m(14_600),
+        showAtMs: m(15_400),
         text: TEACH_BACK_TEXT,
-        correctionAtMs: m(16_900),
-        recheckAtMs: m(19_000),
+        correctionAtMs: m(17_400),
+        recheckAtMs: m(19_100),
         recheckText: RECHECK_TEXT,
         confirmedAtMs: m(21_400),
-        confirmedSessionMs: sampleWorkMap.teachBackConfirmedAtMs ?? 765_000,
+        confirmedSessionMs: TEACH_BACK_CONFIRMED_SESSION_MS,
       },
+      // Each answer's span covers the session time its quote carries in the sample map.
       clock: [
         { playMs: m(0), sessionMs: CAPTURE_END_MS },
-        { playMs: m(21_400), sessionMs: sampleWorkMap.teachBackConfirmedAtMs ?? 765_000 },
-        {
-          playMs: m(MAP_LENGTH_MS),
-          sessionMs: (sampleWorkMap.teachBackConfirmedAtMs ?? 765_000) + 3_000,
-        },
+        ...debrief.flatMap((d) => [
+          { playMs: m(d.answerSpan[0]), sessionMs: d.answer.tMs - 2_000 },
+          { playMs: m(d.answerSpan[1]), sessionMs: d.answer.tMs + 2_000 },
+        ]),
+        { playMs: m(21_400), sessionMs: TEACH_BACK_CONFIRMED_SESSION_MS },
+        { playMs: m(MAP_LENGTH_MS), sessionMs: TEACH_BACK_CONFIRMED_SESSION_MS + 3_000 },
       ],
     },
     teach: {
@@ -893,10 +905,10 @@ export function buildReplayScript(): ReplayScript {
         sessionId: "replay_teach",
         workMapId: sampleWorkMap.id,
         entries: [
-          { stepOrGuardrailId: "G4", status: "independent", ticketId: "N2" },
-          { stepOrGuardrailId: "G3", status: "assisted", ticketId: "N1" },
+          { stepOrGuardrailId: "G6", status: "independent", ticketId: "N2" },
+          { stepOrGuardrailId: "G4", status: "assisted", ticketId: "N1" },
         ],
-        practiceNext: ["G3"],
+        practiceNext: ["G4"],
       },
     },
   };

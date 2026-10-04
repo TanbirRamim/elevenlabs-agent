@@ -88,7 +88,8 @@ export function registerMockRoutes(
     const used = corrections.get(req.params.id) ?? 0;
     if (used >= 2) return reply.code(409).send({ code: "correction_limit" });
     corrections.set(req.params.id, used + 1);
-    const corrected = { ...map, version: map.version + 1 };
+    // Like the real route, a correction rebuilds the map, so it needs confirming again.
+    const corrected = { ...map, version: map.version + 1, teachBackConfirmedAtMs: null };
     store.saveWorkMap(corrected);
     return TeachBackConfirmResponse.parse({
       workMap: corrected,

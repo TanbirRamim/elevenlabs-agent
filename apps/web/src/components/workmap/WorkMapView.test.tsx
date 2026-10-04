@@ -19,9 +19,10 @@ describe("WorkMapView with the sample map", () => {
     for (const step of sampleWorkMap.steps) {
       expect(within(timeline).getByText(step.title)).toBeTruthy();
     }
-    expect(screen.getAllByText("Judgment call").length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText("92%")).toBeTruthy();
-    expect(screen.getByText("Confirmed at 12:45")).toBeTruthy();
+    const judgmentCalls = sampleWorkMap.steps.filter((s) => s.judgmentCall).length;
+    expect(screen.getAllByText("Judgment call").length).toBeGreaterThanOrEqual(judgmentCalls);
+    expect(screen.getByText("90%")).toBeTruthy();
+    expect(screen.getByText("Confirmed at 11:45")).toBeTruthy();
   });
 
   it("shows a step's verbatim quote, decision and linked guardrails when clicked", async () => {
@@ -32,35 +33,42 @@ describe("WorkMapView with the sample map", () => {
     fireEvent.click(screen.getByRole("button", { name: new RegExp(step.title) }));
 
     const detail = screen.getByRole("region", { name: "Step detail" });
-    expect(within(detail).getByText(`“${step.reason.text}”`)).toBeTruthy();
+    // S4's reason is also the evidence quote of its guardrail G3, so it can show twice.
+    expect(within(detail).getAllByText(`“${step.reason.text}”`).length).toBeGreaterThan(0);
     expect(within(detail).getByText(step.decision)).toBeTruthy();
-    expect(within(detail).getByText("05:16")).toBeTruthy();
-    expect(within(detail).getByText("customer has an open chargeback")).toBeTruthy();
+    expect(within(detail).getAllByText("07:11").length).toBeGreaterThan(0);
+    expect(within(detail).getByText("signs of account takeover")).toBeTruthy();
+    expect(within(detail).getByText("card used without permission / fraud")).toBeTruthy();
   });
 
   it("filters the guardrail list by type", async () => {
     await renderFixture();
     const list = () => screen.getByRole("list", { name: "Guardrail list" });
-    expect(within(list()).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(list()).getAllByRole("listitem")).toHaveLength(5);
 
-    fireEvent.click(screen.getByRole("radio", { name: "Never (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Never (2)" }));
     const items = within(list()).getAllByRole("listitem");
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
     expect(
       within(items[0] as HTMLElement).getByText("customer has an open chargeback"),
     ).toBeTruthy();
+    expect(within(items[1] as HTMLElement).getByText("GDPR / data deletion request")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("radio", { name: "Stop and ask (2)" }));
     expect(within(list()).getAllByRole("listitem")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("radio", { name: "All" }));
-    expect(within(list()).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(list()).getAllByRole("listitem")).toHaveLength(5);
   });
 
   it("opens a guardrail's evidence and shows its quote", async () => {
     await renderFixture();
     fireEvent.click(screen.getByRole("button", { name: /signs of account takeover/ }));
-    expect(screen.getByText("“I stop, I don't send anything, Security takes it.”")).toBeTruthy();
+    expect(
+      screen.getAllByText(
+        "“Someone changed my email is an account takeover flag, so no refund and straight to Security.”",
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("hides the clip player without a session id and shows it with one", async () => {
@@ -70,7 +78,7 @@ describe("WorkMapView with the sample map", () => {
 
     await renderFixture("sess_42");
     const video = screen.getByLabelText(/Session clip/);
-    expect(video.getAttribute("src")).toContain("/sessions/sess_42/recording#t=32,44");
+    expect(video.getAttribute("src")).toContain("/sessions/sess_42/recording#t=57,67");
   });
 
   it("disables expert controls in fixture mode", async () => {
