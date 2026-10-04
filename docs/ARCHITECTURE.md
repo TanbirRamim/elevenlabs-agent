@@ -52,7 +52,7 @@ flowchart TB
   OFF --> TXT --> PRT
   OFF --> FR --> PRI
   FR -- "redacted JPEG" --> S3
-  FR -- "vision@1" --> CL
+  FR -- "vision@2" --> CL
   FR -- "decision seen" --> CUR
   WS -- desk_event --> CUR
   CUR -- "curiosity@1" --> CL
@@ -111,7 +111,7 @@ sequenceDiagram
       A->>A: drop frame (not stored, not sent to a model)
     else
       A->>S: store redacted JPEG
-      A->>C: vision@1 on the redacted JPEG (one call in flight)
+      A->>C: vision@2 on the redacted JPEG (one call in flight)
       A-->>W: screen_event, insight
       W->>V: sendContextualUpdate "[SCREEN mm:ss] ..."
     end

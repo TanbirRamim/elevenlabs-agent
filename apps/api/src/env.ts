@@ -29,6 +29,11 @@ const Env = z.object({
   DEMO_FALLBACK_RULES: z.enum(["0", "1"]).default("0"),
   /** Serve fixture data from seed/fixtures instead of calling Claude/Presidio (UI work, tests). */
   MOCK_AI: z.enum(["0", "1"]).default("0"),
+  /**
+   * Capture's screen signal. "vision": frames only (any app); DeskSim DOM events only score the
+   * vision/DOM agreement metric. "vision+desk": DOM events also drive questions and the map.
+   */
+  CAPTURE_SIGNALS: z.enum(["vision", "vision+desk"]).default("vision"),
   S3_ENDPOINT: z.string().url().optional(),
   S3_BUCKET: z.string().default("shadow-frames"),
   S3_ACCESS_KEY: z.string().optional(),
