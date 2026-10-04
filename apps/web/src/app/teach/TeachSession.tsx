@@ -24,6 +24,7 @@ import {
   matchJudgment,
   predictPayload,
 } from "@/components/tutor/logic";
+import { MasteryReport as MasteryReportView } from "@/components/tutor/MasteryReport";
 import { MasteryReportSlot } from "@/components/tutor/MasteryReportSlot";
 import { PredictPanel } from "@/components/tutor/PredictPanel";
 import { TutorVoicePanel } from "@/components/tutor/TutorVoicePanel";
@@ -37,6 +38,7 @@ import {
   getWorkMap,
   type LearnerPredictionResponse,
   preSave,
+  recordingUrl,
   submitLearnerPrediction,
 } from "@/lib/api";
 import { openSessionStream, type SessionStream } from "@/lib/stream";
@@ -340,7 +342,21 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
             onChoose={(o) => void choosePrediction(o)}
           />
         )}
-        {report && <MasteryReportSlot report={report} />}
+        {report &&
+          (map ? (
+            <MasteryReportView
+              report={report}
+              workMap={map}
+              clipUrlFor={({ frameId }) => {
+                const found = findMoment(map, frameId);
+                if (!expertSessionId || !found) return null;
+                const [start, end] = found.moment.clip;
+                return `${recordingUrl(expertSessionId)}#t=${start / 1000},${end / 1000}`;
+              }}
+            />
+          ) : (
+            <MasteryReportSlot report={report} />
+          ))}
         {phase !== "loading" && phase !== "failed" && (
           // DeskSim keeps its own fixed two-column layout; on narrow screens it scrolls inside
           // this frame instead of widening the page.
