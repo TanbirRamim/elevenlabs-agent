@@ -6,6 +6,7 @@ import {
 } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
 import type { StreamHooks } from "../mock/stream.js";
+import type { StoreFrame } from "../privacy/frames.js";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
 import { type RedactText, unavailableRedactor } from "../privacy/presidio.js";
 import { ingestTranscript } from "../privacy/transcript.js";
@@ -15,12 +16,14 @@ export interface SessionStreamDeps {
   hooks?: StreamHooks;
   /** Defaults to the fail-safe placeholder redactor; app.ts wires the real one. */
   redactText?: RedactText;
+  /** Absent (mock mode / no storage): frames are dropped, never stored unredacted. */
+  storeFrame?: StoreFrame;
 }
 
 export function registerSessionRoutes(
   app: FastifyInstance,
   store: Store,
-  { hooks, redactText = unavailableRedactor }: SessionStreamDeps = {},
+  { hooks, redactText = unavailableRedactor, storeFrame }: SessionStreamDeps = {},
 ): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
@@ -95,8 +98,13 @@ export function registerSessionRoutes(
           }
           case "frame":
             if (isOffRecord(session, m.tMs)) return;
-            // Frame pipeline (HAR-5, HAR-6): redact -> store keyframe -> vision -> curiosity.
-            // Spec: docs/IMPLEMENTATION_PLAN.md §6.3.
+            // Vision queue (HAR-6) will consume frames from here as well.
+            void storeFrame?.(session, m).catch((err: unknown) => {
+              req.log.warn(
+                { sessionId: session.id, frameId: m.frameId, err },
+                "frame store failed",
+              );
+            });
             return;
           case "question_asked":
             return;
