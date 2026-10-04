@@ -65,10 +65,12 @@ RUN useradd -m -u 1000 user
 WORKDIR /app
 COPY --from=build --chown=user /out ./
 COPY --chown=user seed ./seed
-# The API keeps sessions as JSONL under <seed>/../infra/data/state (apps/api/src/main.ts).
-# The Space disk is ephemeral: state survives API restarts but not a Space restart,
-# unless S3_* points at durable storage (see docs/DEPLOY_SPACE.md).
-RUN mkdir -p /app/infra/data/state && chown -R user /app/infra
+# The API keeps sessions as JSONL under <seed>/../infra/data/state and, without S3, recordings
+# and frames under <seed>/../infra/data/objects (apps/api/src/main.ts). The Space disk is
+# ephemeral: both survive API restarts but not a Space restart, unless S3_* points at durable
+# storage. What a restart must not lose (the published Work Map and its clips) is committed in
+# seed/boot and restored at startup via SHADOW_BOOT_DIR (see docs/DEPLOY_SPACE.md).
+RUN mkdir -p /app/infra/data/state /app/infra/data/objects && chown -R user /app/infra
 COPY --chmod=755 infra/space/start.sh /usr/local/bin/shadow-start
 
 USER user
@@ -81,7 +83,9 @@ ENV HOME=/home/user \
     API_PORT=7860 \
     PRESIDIO_ANALYZER_URL=http://127.0.0.1:5102 \
     PRESIDIO_ANONYMIZER_URL=http://127.0.0.1:5101 \
-    PRESIDIO_IMAGE_REDACTOR_URL=http://127.0.0.1:5103
+    PRESIDIO_IMAGE_REDACTOR_URL=http://127.0.0.1:5103 \
+    SHADOW_BOOT_DIR=/app/seed/boot \
+    GUARD_JUDGE_TIMEOUT_MS=6000
 EXPOSE 7860
 HEALTHCHECK --start-period=120s CMD node -e "fetch('http://127.0.0.1:7860/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["/usr/bin/tini", "--"]

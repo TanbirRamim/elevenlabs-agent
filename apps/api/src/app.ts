@@ -94,7 +94,7 @@ export async function buildApp({
       : env.ANTHROPIC_API_KEY && env.MOCK_AI !== "1"
         ? createLlm(env.ANTHROPIC_API_KEY, env.SHADOW_MODEL)
         : null;
-  const judge = judgeSeams ? { judge: judgeSeams } : {};
+  const judge = { judge: { timeoutMs: env.GUARD_JUDGE_TIMEOUT_MS, ...judgeSeams } };
   registerGuardRoutes(app, store, fallbackRules, { llm, ...judge });
   registerRecordingRoutes(app, store, objectStorage);
   if (env.MOCK_AI === "1") {
@@ -132,6 +132,7 @@ export async function buildApp({
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,
         anonymizerUrl: env.PRESIDIO_ANONYMIZER_URL,
+        allowList: tickets.map((t) => t.id),
         log: app.log,
       }),
       ...(objectStorage || llm

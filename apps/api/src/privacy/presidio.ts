@@ -25,11 +25,19 @@ const AnonymizeResponse = z.object({ text: z.string() });
 // "@example.test" addresses slip through it. This backstop catches them.
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
+/**
+ * Not identifying on their own, and redacting them erases what the expert said: "the same day",
+ * "this month" and "annual" come back as DATE_TIME and break the Work Map's verbatim quotes.
+ */
+const KEPT_ENTITY_TYPES = new Set(["DATE_TIME"]);
+
 export interface PresidioDeps {
   analyzerUrl?: string | undefined;
   anonymizerUrl?: string | undefined;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  /** Exact strings that are never PII here, e.g. desk ticket ids ("T3" reads as a licence). */
+  allowList?: readonly string[];
   log?: { warn: (obj: object, msg: string) => void };
 }
 
@@ -42,9 +50,12 @@ export function createPresidioRedactor({
   analyzerUrl,
   anonymizerUrl,
   fetchImpl = fetch,
-  timeoutMs = 2500,
+  // Measured live: 2.5 s timed out on the first segments while frame OCR loaded the host.
+  timeoutMs = 10_000,
+  allowList = [],
   log,
 }: PresidioDeps): RedactText {
+  const allowed = new Set(allowList);
   return async (text) => {
     if (!analyzerUrl || !anonymizerUrl) return REDACTION_UNAVAILABLE;
     try {
@@ -60,6 +71,8 @@ export function createPresidioRedactor({
       };
       const results = AnalyzerResults.parse(
         await post(`${analyzerUrl}/analyze`, { text, language: "en" }),
+      ).filter(
+        (r) => !KEPT_ENTITY_TYPES.has(r.entity_type) && !allowed.has(text.slice(r.start, r.end)),
       );
       let redacted = text;
       if (results.length > 0) {

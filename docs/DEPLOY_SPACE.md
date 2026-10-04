@@ -18,7 +18,7 @@ flowchart LR
 | Cost | free (CPU basic: 2 vCPU, 16 GB RAM) |
 | Files | `infra/space/Dockerfile`, `infra/space/start.sh` (process runner), `infra/space/README.md` (Space card), `infra/space/deploy.sh` (bundle + push), `infra/space/smoke.mjs` (check) |
 | Public port | 7860 (the API). Presidio listens on 127.0.0.1 and is never reachable from outside. |
-| Storage | the container disk is wiped on every restart; see [Optional: durable storage](#optional-durable-storage) |
+| Storage | the container disk is wiped on every restart; the published Work Map and its clips come back from `seed/boot` ([Keep the demo map across restarts](#keep-the-demo-map-across-restarts)); everything else needs [durable storage](#optional-durable-storage) |
 
 ## Measured locally
 
@@ -62,7 +62,7 @@ Checked with the built image: `/health` 200, the session WebSocket (`hello` → 
    | `DEMO_FALLBACK_RULES` | `0` |
    | `SHADOW_MODEL` | only if you want a model other than the default `claude-opus-5-5` |
 
-   Not needed on the Space: `ELEVENLABS_*` (only the Vercel app uses them), `DATABASE_URL` (unused), `API_PORT` and `PRESIDIO_*` (set inside the image). Never set `MOCK_AI=1` here; it serves fixture data instead of the real pipeline.
+   Not needed on the Space: `ELEVENLABS_*` (only the Vercel app uses them), `DATABASE_URL` (unused), `API_PORT`, `PRESIDIO_*`, `SHADOW_BOOT_DIR` and `GUARD_JUDGE_TIMEOUT_MS` (set inside the image). The image sets `GUARD_JUDGE_TIMEOUT_MS=6000`: how long a save waits for the LLM guard judge before it is let through as `timeout_allow`. The judge takes about 2.7 s at p50 on a good link and longer from a shared free CPU, and a timed-out judge can miss a rule only the judge catches, so 6 s favours catching the rule over a fast save. Override it as a Space variable if needed. Never set `MOCK_AI=1` here; it serves fixture data instead of the real pipeline.
 
 ## 2. Push the code (every time you want to update the API)
 
@@ -120,10 +120,45 @@ Finally open <https://shadow-web-meow-4acb.vercel.app> and run Capture → Map �
 
 ## What does not persist, and what fails closed
 
-- **Sessions and Work Maps** live as JSONL on the container disk. They survive API restarts inside the container but are **lost when the Space restarts or wakes from sleep**, unless durable storage is configured below. Publish the Work Map in the same window as the demo, or configure storage.
-- **Screen recordings** (upload and replay) need S3-compatible storage. Without it, those routes answer `503 storage_unavailable` and the rest of the app works.
+- **Sessions and Work Maps** live as JSONL on the container disk. They survive API restarts inside the container but are **lost when the Space restarts or wakes from sleep**, unless durable storage is configured below. The exception is the map in `seed/boot`: it is published again at every start ([next section](#keep-the-demo-map-across-restarts)).
+- **Screen recordings and redacted frames** go to S3-compatible storage when configured, otherwise to the container disk (`/app/infra/data/objects`). On disk, an uploaded recording replays (with seeking) until the Space restarts; the recordings in `seed/boot/recordings` are put back at every start.
 - **Screen frames** are redacted by the bundled Presidio image redactor (tesseract OCR) before anything sees them. If redaction fails or times out, the frame is dropped, never stored or sent to Claude.
 - **Transcripts** are redacted by Presidio before they are stored. During the first seconds of a cold start, or if Presidio is down, segments are stored as `[redaction unavailable]` instead of raw text. If Presidio has not answered after 240 s (`PRESIDIO_WAIT_SECONDS`), the API starts anyway with that fail-closed behaviour.
+
+## Keep the demo map across restarts
+
+Judges can open the site at any time, including right after the Space woke up with an empty disk. So the image ships the state they need in `seed/boot` and sets `SHADOW_BOOT_DIR=/app/seed/boot`. At startup the API (`apps/api/src/boot.ts`):
+
+- publishes `seed/boot/workmap.json` if nothing is published yet, after validating it against the `WorkMap` schema and its evidence checks. A map published while the Space is up is never replaced; an invalid file is logged (`boot map rejected`) and the API starts without it;
+- puts every `seed/boot/recordings/<sessionId>.webm` into storage under the key `GET /sessions/<sessionId>/recording` serves, unless one is already there. The published map's `sourceSessionId` stays replayable even though the session itself is gone.
+
+The container log shows what was restored, ids only: `boot map published` (`workMapId`) and `boot recordings restored` (`sessionIds`).
+
+Until the real session is recorded, `seed/boot/workmap.json` is the **sample** map (`wm_mock_1`, a copy of `seed/fixtures/workmap.json`), with no recording. To replace it with the founder's real session:
+
+1. Record Capture → debrief → **Publish** against the Space (or the laptop API) as usual.
+2. Export the published map into the repo. Either the Work Map page → **Export** (it downloads `<id>-v<version>.json`; save it as `seed/boot/workmap.json`), or:
+
+   ```bash
+   API=https://<username>-shadow-api.hf.space
+   curl -fsS "$API/workmaps/published" -o seed/boot/workmap.json
+   ```
+
+3. Export the capture recording, named by the map's `sourceSessionId`:
+
+   ```bash
+   SID=$(node -p "require('./seed/boot/workmap.json').sourceSessionId")
+   mkdir -p seed/boot/recordings
+   curl -fsS "$API/sessions/$SID/recording" -o "seed/boot/recordings/$SID.webm"
+   ```
+
+   Do this before the Space restarts: without durable storage the recording only lives on the container disk until then.
+4. Check the map still validates: `pnpm --filter @shadow/api exec vitest run src/boot.test.ts` covers the loader; for the file itself, start the API locally with `SHADOW_BOOT_DIR=$PWD/seed/boot` (absolute path) and an empty `infra/data/state`, and look for `boot map published` in the log.
+5. Commit `seed/boot` and redeploy: `bash infra/space/deploy.sh --push <your-hf-username>/shadow-api`. Hugging Face only accepts binary files through Git LFS, so the push needs `git lfs` installed once a `.webm` is in `seed/boot` (the script stops with a message if it is missing).
+
+After the redeploy, check: `curl $API/workmaps/published` returns the new map id, and `curl -r 0-99 -o /dev/null -w '%{http_code}\n' $API/sessions/$SID/recording` prints `206`.
+
+The tutor plays clips only when the teach page knows the capture session: open it as `/teach?expertSession=<sourceSessionId>`.
 
 ## Optional: durable storage
 
@@ -133,7 +168,7 @@ Any S3-compatible bucket works. Cloudflare R2's free tier (10 GB) is enough.
 2. **R2** → **Manage API tokens** → **Create API token**. The API calls `CreateBucket` at boot, so the token needs **Admin Read & Write**. With an object-only token the container log shows `s3 unreachable, storage disabled` and storage stays off. (I have not tested R2 against this image; that log line is how to tell.)
 3. Add to the Space: Secrets `S3_ACCESS_KEY`, `S3_SECRET_KEY`; Variables `S3_ENDPOINT` = `https://<account-id>.r2.cloudflarestorage.com`, `S3_BUCKET` = `shadow-frames`.
 
-With storage set, recordings work, redacted frames are kept, and sessions and maps are mirrored to the bucket and restored after a restart.
+With storage set, every recording and redacted frame is kept, and sessions and maps are mirrored to the bucket and restored after a restart. A map restored from the bucket counts as published, so `seed/boot/workmap.json` is then only used when the bucket holds none.
 
 ## Run the image locally
 

@@ -57,7 +57,7 @@ function draft(coverage: number): WorkMapDraft {
   };
 }
 
-async function setup() {
+async function setup(now?: () => number) {
   const store = createMemoryStore();
   // coverage grows as answers come in
   let calls = 0;
@@ -70,6 +70,7 @@ async function setup() {
     store,
     llm: fakeLlm,
     debriefSeams: {
+      ...(now ? { now } : {}),
       buildDeps: { generate },
       teachBackText: async (_map, instruction) =>
         instruction.includes("ONE short sentence")
@@ -143,6 +144,27 @@ describe("debrief endpoints", () => {
     }
     expect(last?.coverage).toBe(0.95);
     expect(last?.done).toBe(true); // coverage >= 0.9, 3 asked, no >= 0.7 question left
+  });
+
+  it("the debrief is done after 5 minutes even when coverage is low (§6.7 hard cap)", async () => {
+    // Live, one rebuild takes 50-120 s, so without the time cap a debrief runs to 8 questions.
+    let t = 0;
+    const { app, sessionId } = await setup(() => t);
+    const end = await app.inject({ method: "POST", url: `/sessions/${sessionId}/end` });
+    const [first, second] = EndSessionResponse.parse(end.json()).openQuestions;
+    if (!first || !second) throw new Error("expected probes");
+    const answer = (questionId: string) =>
+      app
+        .inject({
+          method: "POST",
+          url: `/sessions/${sessionId}/debrief/answer`,
+          payload: { questionId, segmentIds: ["seg_1"] },
+        })
+        .then((r) => DebriefStatus.parse(r.json()));
+    t = 4 * 60_000;
+    expect((await answer(first.id)).done).toBe(false);
+    t = 5 * 60_000;
+    expect((await answer(second.id)).done).toBe(true);
   });
 
   it("answer without end -> 409; unknown question -> 404", async () => {
