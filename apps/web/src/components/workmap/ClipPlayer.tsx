@@ -12,19 +12,20 @@ export function ClipPlayer({ moment, sessionId }: { moment: ScreenMoment; sessio
   const [startMs, endMs] = moment.clip;
   const src = `${recordingUrl(sessionId)}#t=${startMs / 1000},${endMs / 1000}`;
   return (
-    <div>
+    <figure className="overflow-hidden rounded-panel border border-rule bg-sunken">
       {/* biome-ignore lint/a11y/useMediaCaption: the session recording has no caption track; the verbatim quote shown beside the player is its transcript */}
       <video
         key={src}
         controls
         preload="metadata"
         src={src}
-        className="aspect-video w-full rounded border border-neutral-200 bg-black dark:border-neutral-800"
+        className="block aspect-video w-full bg-black"
         aria-label={`Session clip ${formatClip(moment.clip)}`}
       />
-      <p className="mt-1 text-xs text-neutral-500">
-        Clip {formatClip(moment.clip)} of the session recording
-      </p>
-    </div>
+      <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-rule px-3 py-2 text-xs text-ink-muted">
+        <span>Clip of the session recording</span>
+        <span className="font-mono text-ink-faint tabular-nums">{formatClip(moment.clip)}</span>
+      </figcaption>
+    </figure>
   );
 }

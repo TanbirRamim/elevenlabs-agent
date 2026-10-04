@@ -1,3 +1,6 @@
+import { Check } from "lucide-react";
+import type { ReactNode } from "react";
+import { cx } from "../ui/cx";
 import type { PredictionMark, PredictionVariant } from "./machine";
 import { outcomePhrase } from "./speech";
 
@@ -23,19 +26,16 @@ export function PredictionCheck({
   readOnly = false,
 }: PredictionCheckProps) {
   return (
-    <section
-      aria-labelledby="prediction-title"
-      className="space-y-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
-    >
-      <h3 id="prediction-title" className="text-sm font-medium">
+    <section aria-labelledby="prediction-title" className="flex flex-col gap-3">
+      <h3 id="prediction-title" className="text-sm font-medium text-ink-muted">
         Prediction check
       </h3>
       {variants === null ? (
-        <p className="text-sm text-neutral-500" aria-live="polite">
+        <p className="text-[0.9375rem] text-ink-faint" aria-live="polite">
           Shadow is picking tickets it has not seen…
         </p>
       ) : (
-        <ol className="space-y-3">
+        <ol className="border-y border-rule">
           {variants.map((v, i) => {
             const mark = marks[v.id];
             const current = v.id === currentId;
@@ -44,48 +44,43 @@ export function PredictionCheck({
               <li
                 key={v.id}
                 aria-current={current ? "step" : undefined}
-                className={`rounded-md border p-3 text-sm ${
-                  current
-                    ? "border-sky-400 bg-sky-50 dark:border-sky-700 dark:bg-sky-950/40"
-                    : "border-neutral-200 dark:border-neutral-800"
-                }`}
+                className={cx(
+                  "relative border-t border-rule py-4 pr-3 pl-4 first:border-t-0",
+                  current && "bg-signal-wash/50",
+                )}
               >
-                <p className="text-xs text-neutral-500">
+                {current ? (
+                  <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-signal" />
+                ) : null}
+                <p className="font-mono text-xs text-ink-faint">
                   Prediction {i + 1} of {variants.length}
                 </p>
-                <p className="mt-1">{v.description}</p>
-                <p className="mt-1 text-neutral-600 dark:text-neutral-300">
-                  Shadow would <strong>{outcomePhrase(v.predictedOutcome)}</strong>, because of{" "}
-                  {title ? `“${title}”` : `step ${v.becauseStepId}`}.
+                <p className="mt-1.5 text-base leading-snug text-ink">{v.description}</p>
+                <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-muted">
+                  Shadow would{" "}
+                  <strong className="font-medium text-ink">
+                    {outcomePhrase(v.predictedOutcome)}
+                  </strong>
+                  , because of {title ? `“${title}”` : `step ${v.becauseStepId}`}.
                 </p>
-                <fieldset className="mt-2 flex flex-wrap items-center gap-2">
+                <fieldset className="mt-3 flex flex-wrap items-center gap-2">
                   <legend className="sr-only">Is prediction {i + 1} right?</legend>
-                  <button
-                    type="button"
-                    aria-pressed={mark === "right"}
+                  <MarkButton
+                    pressed={mark === "right"}
+                    tone="ok"
                     disabled={readOnly}
                     onClick={() => onMark(v.id, "right")}
-                    className={`rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-default ${
-                      mark === "right"
-                        ? "bg-emerald-700 text-white"
-                        : "border border-neutral-300 dark:border-neutral-700"
-                    }`}
                   >
                     Right
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={mark === "wrong"}
+                  </MarkButton>
+                  <MarkButton
+                    pressed={mark === "wrong"}
+                    tone="stop"
                     disabled={readOnly}
                     onClick={() => onMark(v.id, "wrong")}
-                    className={`rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-default ${
-                      mark === "wrong"
-                        ? "bg-red-700 text-white"
-                        : "border border-neutral-300 dark:border-neutral-700"
-                    }`}
                   >
                     Wrong
-                  </button>
+                  </MarkButton>
                 </fieldset>
               </li>
             );
@@ -93,5 +88,40 @@ export function PredictionCheck({
         </ol>
       )}
     </section>
+  );
+}
+
+/** A right/wrong toggle. Pressed shows the status tone and a check; the label carries the meaning. */
+function MarkButton({
+  pressed,
+  tone,
+  disabled,
+  onClick,
+  children,
+}: {
+  pressed: boolean;
+  tone: "ok" | "stop";
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+      className={cx(
+        "inline-flex min-h-10 items-center gap-1.5 rounded-control border px-3.5 text-sm font-medium transition-colors duration-150 disabled:cursor-default",
+        pressed
+          ? tone === "ok"
+            ? "border-transparent bg-ok-wash text-ok"
+            : "border-transparent bg-stop-wash text-stop"
+          : "border-rule-strong text-ink hover:border-ink disabled:text-ink-faint disabled:hover:border-rule-strong",
+      )}
+    >
+      {pressed ? <Check aria-hidden="true" className="size-4" /> : null}
+      {children}
+    </button>
   );
 }
