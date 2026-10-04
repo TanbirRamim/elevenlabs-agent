@@ -1,7 +1,7 @@
 import type { Outcome, Ticket } from "@shadow/schema";
 import { describe, expect, it } from "vitest";
 import { loadReferenceRules, loadTickets } from "./fixtures.js";
-import { evaluate } from "./index.js";
+import { evaluate, matchesTicket } from "./index.js";
 
 const tickets = loadTickets();
 const rules = loadReferenceRules();
@@ -44,5 +44,27 @@ describe("guard: the demo-critical cases", () => {
 
   it("requires approval for large clean refunds", () => {
     expect(act("H3", "refund").decision).toBe("REQUIRE_APPROVAL");
+  });
+});
+
+describe("matchesTicket", () => {
+  const rule = (id: string) => {
+    const r = rules.find((x) => x.id === id);
+    if (!r) throw new Error(`missing rule ${id}`);
+    return r.machineRule;
+  };
+  const ticket = (id: string) => {
+    const { label: _label, ...t } = byId(id);
+    return t;
+  };
+
+  it("matches on ticket content whatever the action", () => {
+    expect(matchesTicket(rule("G4"), ticket("N1"))).toBe(true);
+    expect(matchesTicket(rule("G6"), ticket("N2"))).toBe(true);
+    expect(matchesTicket(rule("G4"), ticket("N2"))).toBe(false);
+  });
+
+  it("never marks a ticket for an action-only rule (amount over a limit)", () => {
+    expect(matchesTicket(rule("G1"), ticket("N1"))).toBe(false);
   });
 });

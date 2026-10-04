@@ -15,6 +15,19 @@ export interface AnsweredQuestionRecord {
   answerSegmentIds: string[];
 }
 
+/** A learner's answer to a `[PREDICT]`, scored against the map (POST /sessions/:id/predictions). */
+export interface PredictionRecord {
+  ticketId: string;
+  stepId: string;
+  /** The guardrail the prediction was scored against, when the map resolved one. */
+  guardrailId: string | null;
+  predictedOutcome: Outcome;
+  expectedOutcome: Outcome;
+  correct: boolean;
+  tMs: number;
+  at: number;
+}
+
 export interface SessionRecord {
   id: string;
   mode: "capture" | "teach";
@@ -31,6 +44,8 @@ export interface SessionRecord {
   debriefQueue: OpenQuestion[];
   /** Every pre-save verdict in this session (mastery report input, HAR-12). */
   guardVerdicts: { ticketId: string; outcome: Outcome; verdict: GuardVerdict; at: number }[];
+  /** Every scored learner prediction in this session (mastery report input, HAR-12). */
+  predictions: PredictionRecord[];
   offRecord: { on: boolean; spans: [number, number][]; since: number | null };
 }
 
@@ -65,6 +80,7 @@ export function createMemoryStore(): Store {
         answeredQuestions: [],
         debriefQueue: [],
         guardVerdicts: [],
+        predictions: [],
         offRecord: { on: false, spans: [], since: null },
       };
       sessions.set(rec.id, rec);

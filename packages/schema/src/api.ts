@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { Id, SessionMs } from "./common.js";
+import { GuardVerdict } from "./guard.js";
 import { Outcome, Ticket } from "./ticket.js";
-import { OpenQuestion, WorkMap } from "./workmap.js";
+import { Guardrail, MachineRule, OpenQuestion, WorkMap } from "./workmap.js";
 
 /**
  * REST contracts between apps/web (Tanbir) and apps/api (Harshit).
@@ -107,6 +108,69 @@ export const LearnerPredictionResult = z.object({
 });
 
 // GET /sessions/:id/mastery -> MasteryReport (defined in guard.ts)
+
+// GET /workmaps/:id/export?format=agent (HAR-15: the Work Map as an agent policy)
+export const AgentExport = z.object({
+  workMapId: Id,
+  version: z.number().int(),
+  workflow: z.string(),
+  expertName: z.string(),
+  systemPrompt: z.string(),
+  rules: z.object({
+    machine: z.array(z.object({ id: Id, machineRule: MachineRule })),
+    guardrails: z.array(
+      z.object({
+        id: Id,
+        type: Guardrail.shape.type,
+        condition: z.string(),
+        action: z.string(),
+        /** The expert's words the rule came from. */
+        quote: z.string(),
+        machineRule: MachineRule.optional(),
+      }),
+    ),
+  }),
+});
+export type AgentExport = z.infer<typeof AgentExport>;
+
+// POST /copilot/run { workMapId } -> CopilotRun (shadow mode over the held-out tickets)
+export const CopilotRunRequest = z.object({ workMapId: Id });
+export const CopilotTicketResult = z.object({
+  ticketId: Id,
+  subject: z.string(),
+  /** The default action before the Work Map is applied. */
+  proposed: Outcome,
+  /** What the Copilot would do; null when a rule blocks the action and names no route. */
+  decision: Outcome.nullable(),
+  verdict: GuardVerdict.shape.decision,
+  source: GuardVerdict.shape.source,
+  citedGuardrailIds: z.array(Id),
+  expected: Outcome,
+  expectedGuardrailIds: z.array(Id),
+  agrees: z.boolean(),
+  handedToHuman: z.boolean(),
+  handoffReason: z
+    .enum(["stop_and_ask", "judgment_call", "approval_required", "blocked"])
+    .nullable(),
+});
+export type CopilotTicketResult = z.infer<typeof CopilotTicketResult>;
+export const CopilotRun = z.object({
+  workMapId: Id,
+  version: z.number().int(),
+  workflow: z.string(),
+  expertName: z.string(),
+  /** "on": the LLM judge checked each action after the machine rules. */
+  judge: z.enum(["on", "unavailable"]),
+  policy: z.string(),
+  tickets: z.array(CopilotTicketResult),
+  agreement: z.object({
+    agreed: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+    rate: z.number().min(0).max(1).nullable(),
+  }),
+  handedToHuman: z.number().int().nonnegative(),
+});
+export type CopilotRun = z.infer<typeof CopilotRun>;
 
 // Errors: every non-2xx response has this body.
 export const ApiError = z.object({ code: z.string(), message: z.string().optional() });

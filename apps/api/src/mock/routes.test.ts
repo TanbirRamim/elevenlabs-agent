@@ -1,5 +1,6 @@
 import {
   EndSessionResponse,
+  LearnerPredictionResult,
   MasteryReport,
   PredictionVariants,
   ServerMessage,
@@ -48,16 +49,31 @@ describe("mock routes (MOCK_AI=1)", () => {
     expect(last?.coverage).toBeGreaterThanOrEqual(0.9);
   });
 
-  it("serves the workmap and mastery fixtures", async () => {
+  it("serves the workmap fixture and scores predictions and mastery against it", async () => {
     const app = await buildApp({ env: mockEnv });
     const id = await createSession(app);
 
     const map = await app.inject({ method: "GET", url: "/workmaps/wm_mock_1" });
     expect(WorkMap.safeParse(map.json()).success).toBe(true);
 
+    const predicted = await app.inject({
+      method: "POST",
+      url: `/sessions/${id}/predictions`,
+      payload: { ticketId: "N2", stepId: "G6", predictedOutcome: "handoff_legal", tMs: 500 },
+    });
+    expect(LearnerPredictionResult.parse(predicted.json())).toMatchObject({
+      correct: true,
+      expectedOutcome: "handoff_legal",
+    });
+
+    // Computed from the session, not a fixture report.
     const mastery = await app.inject({ method: "GET", url: `/sessions/${id}/mastery` });
-    const parsed = MasteryReport.parse(mastery.json());
-    expect(parsed.sessionId).toBe(id);
+    expect(MasteryReport.parse(mastery.json())).toEqual({
+      sessionId: id,
+      workMapId: "wm_mock_1",
+      entries: [{ stepOrGuardrailId: "G6", status: "independent", ticketId: "N2" }],
+      practiceNext: [],
+    });
   });
 
   it("404s session endpoints for unknown sessions", async () => {

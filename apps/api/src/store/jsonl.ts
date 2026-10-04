@@ -36,6 +36,21 @@ const SessionData = z.object({
       z.object({ ticketId: z.string(), outcome: Outcome, verdict: GuardVerdict, at: z.number() }),
     )
     .default([]),
+  // Likewise for snapshots written before predictions were recorded.
+  predictions: z
+    .array(
+      z.object({
+        ticketId: z.string(),
+        stepId: z.string(),
+        guardrailId: z.string().nullable(),
+        predictedOutcome: Outcome,
+        expectedOutcome: Outcome,
+        correct: z.boolean(),
+        tMs: z.number(),
+        at: z.number(),
+      }),
+    )
+    .default([]),
   offRecord: z.object({
     on: z.boolean(),
     spans: z.array(z.tuple([z.number(), z.number()])),

@@ -1,11 +1,31 @@
-import type { GuardVerdict, MachineRule, PendingAction } from "@shadow/schema";
+import type { GuardVerdict, MachineRule, PendingAction, WorkMap } from "@shadow/schema";
 
 export interface RuleRef {
   id: string;
   machineRule: MachineRule;
 }
 
-const SEVERITY = { BLOCK: 3, REQUIRE_APPROVAL: 2, WARN: 1 } as const;
+/** Effect ranking: the most severe fired rule decides the verdict. */
+export const SEVERITY = { BLOCK: 3, REQUIRE_APPROVAL: 2, WARN: 1 } as const;
+
+/** The machine rules a Work Map carries. Guardrails without a machineRule are left to the judge. */
+export function rulesFromWorkMap(map: Pick<WorkMap, "guardrails">): RuleRef[] {
+  return map.guardrails.flatMap((g) =>
+    g.machineRule ? [{ id: g.id, machineRule: g.machineRule }] : [],
+  );
+}
+
+/**
+ * True when the ticket's own content (tags, text, amount, VIP) meets the rule's conditions,
+ * whatever action is taken. Rules without a tag or phrase condition (e.g. "any refund over
+ * 100") are about the action, not the ticket, so they never mark a ticket as a judgment point.
+ */
+export function matchesTicket(rule: MachineRule, ticket: PendingAction["ticket"]): boolean {
+  const { when } = rule;
+  if (!when.anyTag?.length && !when.bodyMatchesAny?.length) return false;
+  const { action: _action, ...content } = when;
+  return matches({ when: content, effect: rule.effect }, { ticket, outcome: "reply" });
+}
 
 /** True when every condition present in `rule.when` holds for this pending action. */
 export function matches(rule: MachineRule, action: PendingAction): boolean {
