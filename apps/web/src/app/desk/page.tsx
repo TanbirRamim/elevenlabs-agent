@@ -46,19 +46,24 @@ export default function DeskPage() {
     setEvents((prev) => [{ seq: ++seqRef.current, event }, ...prev].slice(0, 100));
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-2xl font-semibold">DeskSim preview</h1>
-      <p className="mt-1 text-neutral-500">
-        Standalone preview of the sandbox helpdesk. In sessions it is embedded by /capture and
-        /teach.
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      <h1 className="font-display text-[2.25rem] leading-[1.1] font-normal tracking-[-0.015em] text-ink sm:text-[2.75rem]">
+        DeskSim preview
+      </h1>
+      <p className="mt-3 max-w-[34rem] text-[1.0625rem] leading-relaxed text-ink-muted">
+        The sandbox helpdesk on its own. In a session, Capture and Teach embed it; here every action
+        is allowed and every desk event is listed below.
       </p>
 
-      <div className="mt-6">
-        {state.kind === "loading" ? <p className="text-lg">Loading tickets…</p> : null}
+      <div className="mt-8">
+        {state.kind === "loading" ? (
+          <p className="text-lg text-ink-muted">Loading tickets…</p>
+        ) : null}
         {state.kind === "error" ? (
-          <p className="rounded border-2 border-red-700 bg-red-50 p-4 text-lg text-red-800">
-            API unreachable at {publicEnv.apiUrl} ({state.message}). Run <code>pnpm dev</code> and
-            reload.
+          <p className="rounded-panel border border-stop/40 bg-stop-wash px-5 py-4 text-lg text-ink">
+            <span className="font-semibold text-stop">API unreachable</span> at{" "}
+            <span className="font-mono text-base">{publicEnv.apiUrl}</span> ({state.message}). Run{" "}
+            <code className="font-mono text-base">pnpm dev</code> and reload.
           </p>
         ) : null}
         {state.kind === "ready" ? (
@@ -72,16 +77,26 @@ export default function DeskPage() {
         ) : null}
       </div>
 
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold">Event log ({events.length})</h2>
-        <ul className="mt-2 flex max-h-96 flex-col gap-1 overflow-y-auto font-mono text-sm">
-          {events.map(({ seq, event }) => (
-            <li key={seq} className="rounded bg-neutral-100 px-2 py-1 dark:bg-neutral-800">
-              <span className="font-bold">{event.type}</span> · {event.tMs} ms ·{" "}
-              {JSON.stringify(event)}
-            </li>
-          ))}
-        </ul>
+      <section className="mt-12 border-t border-rule pt-8" aria-labelledby="event-log">
+        <h2 id="event-log" className="font-display text-[1.75rem] leading-tight text-ink">
+          Event log <span className="font-mono text-base text-ink-faint">{events.length}</span>
+        </h2>
+        {events.length === 0 ? (
+          <p className="mt-3 text-ink-muted">Open a ticket to see events here.</p>
+        ) : (
+          <ol className="mt-4 flex max-h-96 flex-col divide-y divide-rule overflow-y-auto rounded-panel border border-rule bg-surface font-mono text-sm">
+            {events.map(({ seq, event }) => (
+              <li
+                key={seq}
+                className="grid gap-x-4 gap-y-1 px-4 py-2 sm:grid-cols-[6rem_9rem_minmax(0,1fr)]"
+              >
+                <span className="text-ink-faint tabular-nums">{event.tMs} ms</span>
+                <span className="font-semibold text-ink">{event.type}</span>
+                <span className="break-all text-ink-muted">{JSON.stringify(event)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
     </main>
   );

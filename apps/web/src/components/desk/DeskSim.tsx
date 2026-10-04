@@ -98,32 +98,43 @@ export function DeskSim({ tickets, mode, clock, onDeskEvent, preSave }: DeskSimP
       id={DESK_ROOT_ID}
       onClickCapture={markActivity}
       onKeyDownCapture={markActivity}
-      className="grid grid-cols-[minmax(260px,320px)_1fr] gap-6 rounded-lg border-2 border-neutral-300 bg-white p-4 text-neutral-900"
+      className="@container overflow-hidden rounded-panel border border-rule-strong bg-surface text-ink"
     >
-      <TicketQueue
-        tickets={tickets}
-        selectedId={selectedId}
-        committed={committed}
-        onSelect={selectTicket}
-      />
-      {selected ? (
-        <div className="flex min-w-0 flex-col gap-4">
-          <TicketDetail ticket={selected} />
-          <ActionBar
-            phase={phase}
-            committed={committed[selected.id]}
-            refundAmount={refundAmount}
-            onRefundAmountChange={setRefundAmount}
-            onRefundFocus={handleRefundFocus}
-            onRefundBlur={handleRefundBlur}
-            onAction={(outcome) => void commitAction(selected, outcome)}
+      <div className="flex items-baseline justify-between gap-4 border-b border-rule px-4 py-3 sm:px-5">
+        <p className="text-[1.0625rem] font-semibold">Support inbox</p>
+        <p className="font-mono text-sm text-ink-faint">
+          {tickets.length} {tickets.length === 1 ? "ticket" : "tickets"}
+        </p>
+      </div>
+      <div className="grid @3xl:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
+        <div className="border-b border-rule bg-sunken @3xl:border-r @3xl:border-b-0">
+          <TicketQueue
+            tickets={tickets}
+            selectedId={selectedId}
+            committed={committed}
+            onSelect={selectTicket}
           />
         </div>
-      ) : (
-        <p className="self-center text-center text-lg text-neutral-600">
-          Select a ticket to begin ({mode} mode).
-        </p>
-      )}
+        {selected ? (
+          <div className="flex min-w-0 flex-col gap-8 px-4 py-6 sm:px-6 @3xl:px-8 @3xl:py-7">
+            <TicketDetail ticket={selected} />
+            <ActionBar
+              phase={phase}
+              committed={committed[selected.id]}
+              refundAmount={refundAmount}
+              onRefundAmountChange={setRefundAmount}
+              onRefundFocus={handleRefundFocus}
+              onRefundBlur={handleRefundBlur}
+              onAction={(outcome) => void commitAction(selected, outcome)}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-64 flex-col justify-center gap-2 px-6 py-10 @3xl:px-10">
+            <p className="font-display text-[1.75rem] leading-tight text-ink">No ticket open</p>
+            <p className="text-lg text-ink-muted">Select a ticket to begin ({mode} mode).</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
