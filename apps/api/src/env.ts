@@ -20,10 +20,10 @@ const Env = z.object({
    * How long /guard/presave and /copilot/run wait for the LLM judge before a machine ALLOW
    * becomes timeout_allow (§6.8 says 2.5 s; measured live, the judge takes ~2.7 s at p50).
    */
-  GUARD_JUDGE_TIMEOUT_MS: z.coerce.number().int().positive().default(2500),
+  GUARD_JUDGE_TIMEOUT_MS: z.coerce.number().int().positive().default(6000),
   /**
    * Optional directory with workmap.json and recordings/<sessionId>.webm, restored at boot when
-   * nothing is published (seed/boot in the Space image; see docs/DEPLOY_SPACE.md). Empty = unset.
+   * nothing is published. Unset: seed/boot; empty: off (see docs/DEPLOY_SPACE.md).
    */
   SHADOW_BOOT_DIR: z.string().optional(),
   DEMO_FALLBACK_RULES: z.enum(["0", "1"]).default("0"),

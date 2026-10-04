@@ -22,7 +22,13 @@ const app = await buildApp({
   fallbackRules: env.DEMO_FALLBACK_RULES === "1" ? loadReferenceRules() : [],
 });
 // After a wiped disk (Hugging Face Space restart), republish the committed demo map and clips.
-await restoreBootState({ dir: env.SHADOW_BOOT_DIR, store, storage, log: app.log });
+// Unset: restore from seed/boot (the demo map). Empty string: no boot restore.
+await restoreBootState({
+  dir: env.SHADOW_BOOT_DIR ?? join(findSeedDir(), "boot"),
+  store,
+  storage,
+  log: app.log,
+});
 await app.listen({ port: env.API_PORT, host: "0.0.0.0" });
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {

@@ -258,8 +258,8 @@ describe("guard route: judge timeout from GUARD_JUDGE_TIMEOUT_MS", () => {
       .then((r) => r.json());
   }
 
-  it("defaults to the 2.5 s of §6.8", () => {
-    expect(loadEnv({ NODE_ENV: "test" }).GUARD_JUDGE_TIMEOUT_MS).toBe(2500);
+  it("defaults to 6 s so the judge can block N1 (#74)", () => {
+    expect(loadEnv({ NODE_ENV: "test" }).GUARD_JUDGE_TIMEOUT_MS).toBe(6000);
   });
 
   it("a shorter configured timeout cuts the judge off (machine verdict stands)", async () => {
