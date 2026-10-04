@@ -17,6 +17,7 @@
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "eval:guard": "pnpm --filter @shadow/guard eval",
+    "eval:tutor": "turbo run build --filter=@shadow/api^... --output-logs=errors-only && tsx --env-file-if-exists=.env eval/tutor.mts",
     "prepare": "lefthook install || true",
     "cf:build:web": "turbo run build --filter=@shadow/web^... && pnpm --filter @shadow/web cf:build",
     "cf:deploy:web": "turbo run build --filter=@shadow/web^... && pnpm --filter @shadow/web cf:deploy",
