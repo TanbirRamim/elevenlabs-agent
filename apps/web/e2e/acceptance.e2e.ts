@@ -272,6 +272,11 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await page.goto("/teach");
   await page.getByRole("button", { name: "Start voice tutor" }).click();
   await expect(page.getByRole("button", { name: "Stop voice tutor" })).toBeVisible();
+  // Wiring step 4: the Work Map reaches the tutor as context when its voice connects.
+  await expect
+    .poll(() => voice.contextual.filter((c) => c.startsWith("[WORKMAP]\n")).length)
+    .toBe(1);
+  expect(voice.contextual.find((c) => c.startsWith("[WORKMAP]"))).toContain("[G4]");
   await openTicket(page, "N1");
   await page.getByRole("button", { name: "Refund", exact: true }).click();
   const paused = page.getByRole("status").filter({ hasText: "Paused by Singoda AI" });
@@ -293,6 +298,27 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await openTicket(page, "N2");
   await expect(page.getByRole("region", { name: "Predict the decision" })).toBeVisible();
   await expect.poll(() => voice.controls.some((c) => c.prefix === "[PREDICT]")).toBe(true);
+  const predict = voice.controls.find((c) => c.prefix === "[PREDICT]");
+  expect(JSON.parse(predict?.body ?? "{}")).toMatchObject({
+    ticketId: "N2",
+    expertReason: expect.any(String),
+  });
+  // Answering on screen makes the tutor explain the step in the expert's words, once.
+  const predictRegion = page.getByRole("region", { name: "Predict the decision" });
+  await predictRegion
+    .getByRole("group", { name: "Your prediction" })
+    .getByRole("button")
+    .first()
+    .click();
+  await expect.poll(() => voice.controls.some((c) => c.prefix === "[EXPLAIN]")).toBe(true);
+  const explain = voice.controls.find((c) => c.prefix === "[EXPLAIN]");
+  expect(JSON.parse(explain?.body ?? "{}")).toMatchObject({
+    ticketId: "N2",
+    expertName: map.expertName,
+    expertReason: expect.any(String),
+    learnerCorrect: expect.any(Boolean),
+  });
+  expect(voice.controls.filter((c) => c.prefix === "[EXPLAIN]")).toHaveLength(1);
   expect(committedActions(sent)).not.toContainEqual({ ticketId: "N1", outcome: "refund" });
 
   expect(errors).toEqual([]);
