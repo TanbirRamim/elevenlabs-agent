@@ -95,10 +95,10 @@ export const ALL_NAV: readonly NavItem[] = [...PRODUCT_NAV, ...TOOLS_NAV];
 const BARE_ROUTES: readonly string[] = ["/", "/demo"];
 
 /**
- * Routes with no Shadow chrome at all: the capture page plays a standalone ticketing
- * product that owns the whole viewport, with Shadow present only as the floating pill.
+ * Routes with no Shadow chrome at all: capture and teach play a standalone ticketing product
+ * that owns the whole viewport, with Shadow present only as a floating dock.
  */
-const NAKED_ROUTES: readonly string[] = ["/capture"];
+const NAKED_ROUTES: readonly string[] = ["/capture", "/teach"];
 
 export function isBareRoute(pathname: string): boolean {
   return BARE_ROUTES.includes(normalize(pathname));
