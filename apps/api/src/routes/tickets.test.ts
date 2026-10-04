@@ -19,11 +19,22 @@ describe("GET /tickets", () => {
     },
   );
 
-  it("returns the expert tickets T1-T4", async () => {
+  it("returns the expert tickets T1-T10", async () => {
     const app = await buildApp({ env });
     const res = await app.inject({ method: "GET", url: "/tickets?set=expert" });
     const parsed = TicketsResponse.parse(res.json());
-    expect(parsed.tickets.map((t) => t.id)).toEqual(["T1", "T2", "T3", "T4"]);
+    expect(parsed.tickets.map((t) => t.id)).toEqual([
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7",
+      "T8",
+      "T9",
+      "T10",
+    ]);
   });
 
   it("rejects an unknown set with a 400 ApiError", async () => {
