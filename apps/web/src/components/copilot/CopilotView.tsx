@@ -281,7 +281,7 @@ function ResultsTable({ rows, expertName }: { rows: CopilotTicketResult[]; exper
               {r.citedGuardrailIds.length > 0 ? (
                 <span className="flex flex-wrap gap-1.5">
                   {r.citedGuardrailIds.map((id) => (
-                    <Badge key={id} tone="signal" className="font-mono">
+                    <Badge key={id} tone="guard" className="font-mono">
                       {id}
                     </Badge>
                   ))}
@@ -301,7 +301,7 @@ function ResultsTable({ rows, expertName }: { rows: CopilotTicketResult[]; exper
             </td>
             <td className={CELL}>
               <span className={CELL_LABEL}>Agreement</span>
-              <Badge tone={r.agrees ? "ok" : "stop"} dot>
+              <Badge tone={r.agrees ? "ok" : "danger"} dot>
                 {r.agrees ? "Agrees" : "Differs"}
               </Badge>
             </td>
