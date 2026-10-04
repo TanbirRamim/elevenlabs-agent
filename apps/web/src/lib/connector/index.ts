@@ -4,7 +4,7 @@ import { publicEnv } from "../../env";
 import { preSave } from "../api";
 
 /**
- * The Shadow connector: the one integration hook a company's tool adds. Before it commits a
+ * The Singoda AI connector: the one integration hook a company's tool adds. Before it commits a
  * ticket action (refund, reply, escalation…), the tool calls `shadow.check(action)` and acts on
  * the verdict. Watching a screen can never stop a save; only a pre-commit call can. Capture needs
  * no connector at all (screen share only). See docs/CONNECTOR.md.
@@ -36,7 +36,7 @@ export interface ConnectorExchange {
 }
 
 /**
- * - `api`: the Shadow API answered.
+ * - `api`: the Singoda AI API answered.
  * - `browser`: the API did not answer; the fallback rules decided in the browser.
  * - `fail_open`: the API did not answer and there were no rules to fall back on.
  */
@@ -44,7 +44,7 @@ export type CheckVia = "api" | "browser" | "fail_open";
 
 export interface ConnectorVerdict extends GuardVerdict {
   /**
-   * Set when the save was not fully checked (Shadow could not answer, its judge timed out, or
+   * Set when the save was not fully checked (Singoda AI could not answer, its judge timed out, or
    * only the machine rules ran in the browser). The host shows it so nobody believes otherwise.
    */
   warning?: string;
@@ -61,7 +61,7 @@ export interface ShadowConnector {
 }
 
 export interface ConnectorConfig {
-  /** How the verdict is fetched. Default: `POST /guard/presave` on the Shadow API. */
+  /** How the verdict is fetched. Default: `POST /guard/presave` on the Singoda AI API. */
   transport?: CheckTransport;
   timeoutMs?: number;
   /** The URL the transport calls, recorded in the exchange. */
@@ -104,7 +104,7 @@ export function createShadowConnector({
             exchange,
             ...(local.decision === "ALLOW"
               ? {
-                  warning: `Shadow's API is offline (${error}). ${action.ticket.id} passed the machine rules in the browser; judgment-only guardrails were not checked.`,
+                  warning: `Singoda AI's API is offline (${error}). ${action.ticket.id} passed the machine rules in the browser; judgment-only guardrails were not checked.`,
                 }
               : {}),
           };
@@ -116,7 +116,7 @@ export function createShadowConnector({
           latencyMs: elapsed(),
           via: "fail_open",
           exchange,
-          warning: `Shadow unavailable (${error}). ${action.ticket.id} was saved without a check.`,
+          warning: `Singoda AI unavailable (${error}). ${action.ticket.id} was saved without a check.`,
         };
       }
       const latencyMs = elapsed();
@@ -127,7 +127,7 @@ export function createShadowConnector({
           latencyMs,
           via: "api",
           exchange,
-          warning: `Shadow's judge timed out on ${action.ticket.id}; the save was allowed.`,
+          warning: `Singoda AI's judge timed out on ${action.ticket.id}; the save was allowed.`,
         };
       }
       return { ...verdict, latencyMs, via: "api", exchange };
@@ -135,7 +135,7 @@ export function createShadowConnector({
   };
 }
 
-/** The default connector, talking to the Shadow API configured for this app. */
+/** The default connector, talking to the Singoda AI API configured for this app. */
 export const shadow: ShadowConnector = createShadowConnector();
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

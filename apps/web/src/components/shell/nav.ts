@@ -95,8 +95,8 @@ export const ALL_NAV: readonly NavItem[] = [...PRODUCT_NAV, ...TOOLS_NAV];
 const BARE_ROUTES: readonly string[] = ["/", "/demo"];
 
 /**
- * Routes with no Shadow chrome at all: capture and teach play a standalone ticketing product
- * that owns the whole viewport, with Shadow present only as a floating dock.
+ * Routes with no Singoda AI chrome at all: capture and teach play a standalone ticketing product
+ * that owns the whole viewport, with Singoda AI present only as a floating dock.
  */
 const NAKED_ROUTES: readonly string[] = ["/capture", "/teach"];
 
@@ -131,7 +131,7 @@ export type Crumb = { label: string; href?: string };
 export function resolveCrumbs(pathname: string): Crumb[] {
   const p = normalize(pathname);
   const item = findNavItem(p);
-  if (!item) return [{ label: "Shadow" }];
+  if (!item) return [{ label: "Singoda AI" }];
   const rest = p.slice(item.match.length).split("/").filter(Boolean);
   if (rest.length === 0) return [{ label: item.label }];
   const record = decodeURIComponent(rest[0] ?? "");

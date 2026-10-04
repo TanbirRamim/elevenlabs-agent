@@ -136,7 +136,7 @@ function VoiceCheck() {
                     line.role === "agent" ? "font-medium text-ask-text" : "font-medium text-ink"
                   }
                 >
-                  {line.role === "agent" ? "Shadow" : "You"}
+                  {line.role === "agent" ? "Singoda AI" : "You"}
                 </span>
                 <span className="text-ink">{line.text}</span>
               </li>
@@ -152,7 +152,7 @@ function StatusChip({ status, mode }: { status: string; mode: string }) {
   if (status === "connected") {
     return (
       <StatusPill tone="ask" live>
-        {mode === "speaking" ? "Shadow is speaking" : "Listening"}
+        {mode === "speaking" ? "Singoda AI is speaking" : "Listening"}
       </StatusPill>
     );
   }

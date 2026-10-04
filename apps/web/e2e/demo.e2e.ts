@@ -8,7 +8,7 @@ const chapterHeading = (page: import("@playwright/test").Page) =>
 test("demo: autoplays muted, labelled honestly as a replay", async ({ page }) => {
   await page.goto("/demo");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Shadow, in 90 seconds" }),
+    page.getByRole("heading", { level: 1, name: "Singoda AI, in 90 seconds" }),
   ).toBeVisible();
   await expect(page.getByText("Replay of a recorded session")).toBeVisible();
   await expect(page.getByRole("link", { name: "Capture", exact: true }).last()).toHaveAttribute(
@@ -21,17 +21,17 @@ test("demo: autoplays muted, labelled honestly as a replay", async ({ page }) =>
   await expect(page.getByRole("region", { name: "Captions" })).toBeVisible();
 });
 
-test("demo: scrubbing to Act 3 shows Shadow pausing the wrong refund", async ({ page }) => {
+test("demo: scrubbing to Act 3 shows Singoda AI pausing the wrong refund", async ({ page }) => {
   await page.goto("/demo");
   await page.keyboard.press("Space"); // pause the autoplay
   await expect(page.getByRole("button", { name: "Play the replay" })).toBeVisible();
 
   await page.getByRole("slider", { name: "Replay position" }).fill("69000");
   await expect(chapterHeading(page)).toContainText("Teach");
-  const paused = page.getByRole("status").filter({ hasText: "Paused by Shadow" });
+  const paused = page.getByRole("status").filter({ hasText: "Paused by Singoda AI" });
   await expect(paused).toBeVisible();
   await expect(paused).toContainText("G4");
-  await expect(page.getByRole("region", { name: "Shadow intervention" })).toContainText(
+  await expect(page.getByRole("region", { name: "Singoda AI intervention" })).toContainText(
     "Maya would stop here. Why do you think?",
   );
 });
@@ -47,9 +47,9 @@ test("demo: Act 3 asks Jonas to predict on N2 before the N1 intercept", async ({
   await expect(predict).toContainText("Legal");
 });
 
-test("demo: story mode shows Shadow's first question within 8 s", async ({ page }) => {
+test("demo: story mode shows Singoda AI's first question within 8 s", async ({ page }) => {
   await page.goto("/demo");
-  await expect(page.getByText(/^Shadow asks/).first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/^Singoda AI asks/).first()).toBeVisible({ timeout: 8_000 });
 });
 
 test("demo: keyboard controls play, pause, seek and jump chapters", async ({ page }) => {

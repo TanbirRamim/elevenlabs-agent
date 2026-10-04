@@ -89,7 +89,11 @@ describe("DebriefPanel without voice", () => {
 
     await screen.findByText("You refund small charges yourself.");
     fireEvent.click(screen.getByRole("button", { name: "Correct it" }));
-    await typeAnswer(/what did shadow get wrong/i, "Above 500 Legal signs off", "Send correction");
+    await typeAnswer(
+      /what did singoda ai get wrong/i,
+      "Above 500 Legal signs off",
+      "Send correction",
+    );
     await screen.findByText("So above 500 euros, Legal signs off.");
     expect(client.confirmTeachBack).toHaveBeenLastCalledWith("s1", {
       tMs: 1000,

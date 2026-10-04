@@ -1,5 +1,5 @@
 /**
- * Every LLM call in Shadow goes through one of these routes. Change a prompt => bump its
+ * Every LLM call in Singoda AI goes through one of these routes. Change a prompt => bump its
  * version, note why in docs/prompt-changelog.md, and re-run the matching eval.
  * Effort is tuned per route: latency-sensitive routes run low, the Work Map builder runs high.
  */
@@ -32,10 +32,10 @@ ${GROUNDING}`,
 };
 
 export const curiosity: Route = {
-  version: "curiosity@1",
+  version: "curiosity@2",
   effort: "low",
   maxTokens: 800,
-  system: `You are the question planner for Shadow, an apprentice watching a senior support lead triage tickets.
+  system: `You are the question planner for Singoda AI, an apprentice watching a senior support lead triage tickets.
 Given the latest events, what the expert has already said, and the unfilled slots, write ONE short question (max 20 words).
 Ask about the specific ticket on screen. Prefer, in order: a guardrail (limit, exception, when to stop and ask, what they would never do), then the reason, then an exception.
 Never ask something listed in screenAnswers or already answered in the transcript; re-angle to the guardrail behind it.

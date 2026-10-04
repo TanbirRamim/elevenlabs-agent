@@ -54,7 +54,7 @@ export function MapStage({ frame }: { frame: MapFrame }) {
         ) : (
           <Panel
             id="gaps"
-            title="What Shadow did not see live"
+            title="What Singoda AI did not see live"
             meta={
               <span className="figures">
                 {frame.gaps.filter((g) => g.status === "answered").length} of {frame.gaps.length}{" "}

@@ -70,7 +70,7 @@ describe("DeskSim", () => {
       expectedOutcome: "handoff_billing_disputes",
       source: "machine_rule",
     });
-    await screen.findByText(/paused by shadow/i);
+    await screen.findByText(/paused by singoda ai/i);
 
     expect(emitted(onDeskEvent).map((e) => e.type)).not.toContain("action_committed");
     expect(screen.queryByText(/committed:/i)).toBeNull();
@@ -86,13 +86,13 @@ describe("DeskSim", () => {
     fireEvent.click(screen.getByRole("button", { name: /chargeback opened/i }));
     fireEvent.click(screen.getByRole("button", { name: /^refund$/i }));
     first.resolve({ decision: "BLOCK", ruleIds: ["G2"], source: "machine_rule" });
-    await screen.findByText(/paused by shadow/i);
+    await screen.findByText(/paused by singoda ai/i);
 
     fireEvent.click(screen.getByRole("button", { name: /handoff: billing disputes/i }));
     second.resolve({ decision: "ALLOW", ruleIds: [], source: "machine_rule" });
     await screen.findByText(/committed:/i);
 
-    expect(screen.queryByText(/paused by shadow/i)).toBeNull();
+    expect(screen.queryByText(/paused by singoda ai/i)).toBeNull();
     const commits = emitted(onDeskEvent).filter((e) => e.type === "action_committed");
     expect(commits).toHaveLength(1);
     expect(commits[0]).toMatchObject({ ticketId: "T3", outcome: "handoff_billing_disputes" });

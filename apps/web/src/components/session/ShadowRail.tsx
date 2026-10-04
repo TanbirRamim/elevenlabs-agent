@@ -31,7 +31,7 @@ export interface ShadowRailProps {
   questionBudget: number;
   /** Time left in the gate's minimum gap after the last question. */
   gapMs: number;
-  /** The question Shadow is asking now, shown as a callout while it is fresh. */
+  /** The question Singoda AI is asking now, shown as a callout while it is fresh. */
   current: RailQuestion | null;
   transcript: readonly VoiceLine[];
   error: string | null;
@@ -42,24 +42,24 @@ export interface ShadowRailProps {
 }
 
 function caption(p: ShadowRailProps): string {
-  if (p.stage === "ready") return "Shadow joins when the session starts.";
+  if (p.stage === "ready") return "Singoda AI joins when the session starts.";
   if (p.status === "connecting") return "Connecting to the voice agent…";
   if (p.voice === "off")
     return p.stage === "debrief"
-      ? "Voice is not connected. Type your answers to Shadow's questions."
-      : "Voice is not connected. Shadow still follows the desk; you can type in the debrief.";
-  if (p.voice === "asking") return "A natural pause: Shadow asks one short question.";
+      ? "Voice is not connected. Type your answers to Singoda AI's questions."
+      : "Voice is not connected. Singoda AI still follows the desk; you can type in the debrief.";
+  if (p.voice === "asking") return "A natural pause: Singoda AI asks one short question.";
   if (p.voice === "quiet")
     return p.paused
       ? "Paused: your microphone is muted and nothing is captured."
       : "Off the record: nothing you do or say is kept until you resume.";
   return p.stage === "debrief"
-    ? "Shadow asks what it could not learn by watching."
-    : "Following the desk and your voice. Shadow waits for a natural pause.";
+    ? "Singoda AI asks what it could not learn by watching."
+    : "Following the desk and your voice. Singoda AI waits for a natural pause.";
 }
 
 /**
- * The expert-facing rail: what Shadow is doing, the question it is asking, the question
+ * The expert-facing rail: what Singoda AI is doing, the question it is asking, the question
  * budget, privacy state, and the conversation so far.
  */
 export function ShadowRail(props: ShadowRailProps) {
@@ -80,7 +80,7 @@ export function ShadowRail(props: ShadowRailProps) {
 
   return (
     <aside
-      aria-label="Shadow"
+      aria-label="Singoda AI"
       className={cx(
         "flex min-h-0 flex-col overflow-hidden rounded-panel border border-rule bg-surface",
         className,
@@ -89,8 +89,8 @@ export function ShadowRail(props: ShadowRailProps) {
       <header className="flex flex-col gap-2 border-b border-rule px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Avatar name="Shadow" shadow size="sm" />
-            <h2 className="text-ui font-semibold text-ink">Shadow</h2>
+            <Avatar name="Singoda AI" shadow size="sm" />
+            <h2 className="text-ui font-semibold text-ink">Singoda AI</h2>
           </div>
           <ListeningIndicator state={voice} />
         </div>
@@ -126,7 +126,7 @@ export function ShadowRail(props: ShadowRailProps) {
                   <span className="figures font-mono text-ink-muted">{mmss(gapMs)}</span>
                 </>
               ) : (
-                "Shadow asks only at a natural pause, and never while you type or talk."
+                "Singoda AI asks only at a natural pause, and never while you type or talk."
               )}
             </p>
           </div>
@@ -153,7 +153,7 @@ export function ShadowRail(props: ShadowRailProps) {
 function QuestionCallout({ question, speaking }: { question: RailQuestion; speaking: boolean }) {
   return (
     <section
-      aria-label="Shadow's question"
+      aria-label="Singoda AI's question"
       aria-live="polite"
       className="flex gap-3 border-b border-rule bg-ask-wash px-4 py-3 motion-safe:animate-fade-in"
     >
@@ -163,7 +163,7 @@ function QuestionCallout({ question, speaking }: { question: RailQuestion; speak
       />
       <div className="min-w-0">
         <p className="flex items-baseline gap-2 text-xs font-medium text-ask-text">
-          {speaking ? LISTENING_LABEL.asking : "Shadow asked"}
+          {speaking ? LISTENING_LABEL.asking : "Singoda AI asked"}
           <span className="figures font-mono font-normal">{mmss(question.atMs)}</span>
         </p>
         <p className="mt-0.5 text-sm text-pretty text-ink">{question.text}</p>
@@ -207,8 +207,8 @@ function Conversation({
             title={stage === "ready" ? "Nothing said yet" : "Listening"}
             description={
               stage === "ready"
-                ? "Work the queue as you always do and think aloud. Shadow asks short questions at natural pauses, and each line appears here."
-                : "Think aloud while you work. Your words and Shadow's questions appear here."
+                ? "Work the queue as you always do and think aloud. Singoda AI asks short questions at natural pauses, and each line appears here."
+                : "Think aloud while you work. Your words and Singoda AI's questions appear here."
             }
             className="py-3"
           />
@@ -247,7 +247,7 @@ function TranscriptLine({ line, fresh }: { line: VoiceLine; fresh: boolean }) {
       <time className="figures pt-0.5 font-mono text-2xs text-ink-faint">{mmss(line.tMs)}</time>
       <div className="min-w-0">
         <p className={cx("text-xs font-medium", shadow ? "text-ask-text" : "text-ink-muted")}>
-          {shadow ? "Shadow" : "You"}
+          {shadow ? "Singoda AI" : "You"}
         </p>
         <p className="text-ui text-pretty text-ink">{line.text}</p>
       </div>

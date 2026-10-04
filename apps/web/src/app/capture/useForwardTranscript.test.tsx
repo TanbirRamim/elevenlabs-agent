@@ -55,7 +55,7 @@ describe("useForwardTranscript", () => {
     expect(seen).toEqual(["l1", "l2"]);
   });
 
-  it("a spoken yes confirms the teach-back at once, without Shadow speaking again", async () => {
+  it("a spoken yes confirms the teach-back at once, without Singoda AI speaking again", async () => {
     const api = client();
     const agent: VoiceLine = { id: "l1", role: "agent", text: TEACHBACK, tMs: 900 };
     const { rerender } = render(<Harness lines={[]} api={api} />);

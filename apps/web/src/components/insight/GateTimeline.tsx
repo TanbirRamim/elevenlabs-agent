@@ -7,11 +7,11 @@ import { formatSeconds } from "./format";
 
 /**
  * "Why now": a strip chart of the Turn Gate's inputs over a session, with a marker wherever the
- * gate opened and Shadow asked. Pure props in, SVG out; no clocks, no network. Pass `nowMs` to
+ * gate opened and Singoda AI asked. Pure props in, SVG out; no clocks, no network. Pass `nowMs` to
  * draw it live (content after `nowMs` is not drawn yet).
  *
  * Off-the-record spans are drawn as a grey gap, and nothing that happened inside one is drawn:
- * the chart shows only what Shadow kept.
+ * the chart shows only what Singoda AI kept.
  */
 
 export interface TimelineSpan {
@@ -54,7 +54,7 @@ export interface GateTimelineProps {
   /** Screen change instants. */
   screen: number[];
   offRecord?: TimelineSpan[];
-  /** Shadow speaking (asking). */
+  /** Singoda AI speaking (asking). */
   asking?: TimelineSpan[];
   questions: TimelineQuestion[];
   /** Questions withdrawn without being asked. */
@@ -64,7 +64,7 @@ export interface GateTimelineProps {
 }
 
 const LANES = [
-  { key: "shadow", long: "Shadow", short: "Shadow" },
+  { key: "shadow", long: "Singoda AI", short: "Singoda AI" },
   { key: "speech", long: "Expert speech", short: "Speech" },
   { key: "typing", long: "Typing", short: "Typing" },
   { key: "screen", long: "Screen change", short: "Screen" },
@@ -353,7 +353,7 @@ export function GateTimeline(props: GateTimelineProps) {
 
       <div className="sr-only">
         <table>
-          <caption>Questions Shadow asked, and the pause that let each one through</caption>
+          <caption>Questions Singoda AI asked, and the pause that let each one through</caption>
           <thead>
             <tr>
               <th scope="col">Number</th>

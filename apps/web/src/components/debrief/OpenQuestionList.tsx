@@ -7,7 +7,7 @@ import { cx } from "../ui/cx";
 export interface OpenQuestionListProps {
   questions: readonly OpenQuestion[];
   answeredIds: readonly string[];
-  /** The question Shadow is asking now, if any. */
+  /** The question Singoda AI is asking now, if any. */
   currentId: string | null;
   /** Rendered inside the current question's row, e.g. the answer box. */
   answer?: ReactNode;
@@ -21,7 +21,7 @@ const SLOT_LABEL: Record<OpenQuestion["slot"], string> = {
 };
 
 /**
- * The debrief as a conversation: Shadow's questions in order, the one it is asking now opened
+ * The debrief as a conversation: Singoda AI's questions in order, the one it is asking now opened
  * up with the expert's answer box, answered ones checked off, the rest still open.
  */
 export function OpenQuestionList({
@@ -56,7 +56,7 @@ export function OpenQuestionList({
             ) : null}
             <span className="pt-0.5">
               {current ? (
-                <Avatar name="Shadow" shadow size="xs" />
+                <Avatar name="Singoda AI" shadow size="xs" />
               ) : answered ? (
                 <span
                   aria-hidden="true"
@@ -76,7 +76,7 @@ export function OpenQuestionList({
             <div className="min-w-0">
               <div className="mb-0.5 flex items-center justify-between gap-3 text-xs">
                 <span className={current ? "font-medium text-ask-text" : "text-ink-faint"}>
-                  {current ? "Shadow asks" : SLOT_LABEL[q.slot]}
+                  {current ? "Singoda AI asks" : SLOT_LABEL[q.slot]}
                   {current ? (
                     <span className="font-normal text-ink-faint"> · {SLOT_LABEL[q.slot]}</span>
                   ) : null}

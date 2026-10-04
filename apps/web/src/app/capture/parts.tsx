@@ -125,7 +125,7 @@ export function StartPanel({
           New capture session
         </h2>
         <p className="mt-1 text-ui text-pretty text-ink-muted">
-          Shadow records only the support desk, with personal data blacked out. It asks at most{" "}
+          Singoda AI records only the support desk, with personal data blacked out. It asks at most{" "}
           {DEFAULT_GATE.maxPer10Min} short questions per 10 minutes, and only at a pause.
         </p>
       </div>
@@ -153,7 +153,7 @@ export function StartPanel({
         </p>
       ) : voiceMissing ? (
         <p className="text-xs text-ink-muted">
-          Without voice, Shadow follows the desk silently and you answer the debrief by typing.
+          Without voice, Singoda AI follows the desk silently and you answer the debrief by typing.
         </p>
       ) : null}
     </section>
@@ -180,7 +180,7 @@ export function DeskFrame({
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs">
         <span className="font-medium text-ink-muted">
-          {live ? (holding ? "Not capturing" : "Captured area") : "Area Shadow will capture"}
+          {live ? (holding ? "Not capturing" : "Captured area") : "Area Singoda AI will capture"}
         </span>
         <span className="text-ink-faint">Personal data is blacked out before upload</span>
       </div>
@@ -221,7 +221,7 @@ export function HoldStrip({
 
 export function ShareEndedNotice() {
   return (
-    <Alert tone="info" title="Screen sharing ended, so Shadow stopped the session">
+    <Alert tone="info" title="Screen sharing ended, so Singoda AI stopped the session">
       Everything up to that moment is kept. The debrief continues below.
     </Alert>
   );

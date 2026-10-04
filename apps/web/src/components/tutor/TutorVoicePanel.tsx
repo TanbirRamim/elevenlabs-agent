@@ -44,7 +44,7 @@ export function listeningStateFor(
 const DETAIL: Record<VoiceStatus, string> = {
   disconnected: "Start the tutor to talk it through. Saves are checked either way.",
   connecting: "Connecting to the voice tutor…",
-  connected: "Speak any time. Shadow speaks up at judgment points and before a risky save.",
+  connected: "Speak any time. Singoda AI speaks up at judgment points and before a risky save.",
   error: "The voice tutor stopped. Saves are still checked and coaching shows on screen.",
 };
 
@@ -131,9 +131,9 @@ export function TutorVoicePanel({
         {lineCount === 0 ? (
           <ol className="flex flex-col gap-2.5 px-4 pb-4 text-ui text-ink-muted">
             <HowItWorks n={1}>Open a ticket and work it as you normally would.</HowItWorks>
-            <HowItWorks n={2}>At a judgment point, Shadow asks what you would do.</HowItWorks>
+            <HowItWorks n={2}>At a judgment point, Singoda AI asks what you would do.</HowItWorks>
             <HowItWorks n={3}>
-              Before a risky save, Shadow holds it and shows {expertName}'s own words.
+              Before a risky save, Singoda AI holds it and shows {expertName}'s own words.
             </HowItWorks>
           </ol>
         ) : (
@@ -151,8 +151,8 @@ export function TutorVoicePanel({
                   <p className="flex items-center gap-1.5 text-xs font-medium">
                     {line.role === "agent" ? (
                       <>
-                        <Avatar name="Shadow" shadow size="xs" />
-                        <span className="text-ask-text">Shadow</span>
+                        <Avatar name="Singoda AI" shadow size="xs" />
+                        <span className="text-ask-text">Singoda AI</span>
                       </>
                     ) : (
                       <span className="text-ink-muted">You</span>

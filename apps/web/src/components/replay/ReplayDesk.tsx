@@ -10,7 +10,7 @@ import type { DeskView } from "./script";
  * A still of the standalone DeskSim app at one moment of the replay. It is built from DeskSim's
  * own pieces (TicketQueue, TicketDetail, ActionBar) in DeskSim's `chrome="app"` frame, driven by
  * the script instead of by clicks so any moment can be shown directly when the viewer scrubs.
- * Shadow's floating dock (CapturePill or TeachDock, passed as `dock`) sits over the bottom of
+ * Singoda AI's floating dock (CapturePill or TeachDock, passed as `dock`) sits over the bottom of
  * the app the way it does live: the frame's transform makes it the containing block for the
  * dock's `position: fixed`. Nothing in it is interactive (`inert`), because it is a recording.
  */

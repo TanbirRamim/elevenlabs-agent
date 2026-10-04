@@ -20,7 +20,7 @@ export interface TeachBackCardProps {
   correction?: ReactNode;
 }
 
-/** Shadow's explanation of the workflow, read back for the expert to confirm or correct. */
+/** Singoda AI's explanation of the workflow, read back for the expert to confirm or correct. */
 export function TeachBackCard(props: TeachBackCardProps) {
   const { text, recheck, round, maxRounds, mode, busy } = props;
   const correctionsLeft = Math.max(0, maxRounds - round);
@@ -32,12 +32,14 @@ export function TeachBackCard(props: TeachBackCardProps) {
     >
       <header className="flex min-h-11 items-center justify-between gap-3 border-b border-rule px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Avatar name="Shadow" shadow size="xs" />
+          <Avatar name="Singoda AI" shadow size="xs" />
           <h3 id="teachback-title" className="text-ui font-semibold text-ink">
             {recheck ? "Re-check" : "Teach-back"}
           </h3>
           <span className="hidden text-xs text-ink-faint sm:inline">
-            {recheck ? "the corrected rule, in one sentence" : "how Shadow understood your work"}
+            {recheck
+              ? "the corrected rule, in one sentence"
+              : "how Singoda AI understood your work"}
           </span>
         </div>
         {round > 0 && (
@@ -50,7 +52,7 @@ export function TeachBackCard(props: TeachBackCardProps) {
       <div className="px-4 py-4">
         {text === null ? (
           <p className="text-ui text-ink-faint" aria-live="polite">
-            Shadow is putting together what it learned…
+            Singoda AI is putting together what it learned…
           </p>
         ) : (
           <blockquote className="max-w-prose border-l-2 border-ask pl-3 text-base text-pretty text-ink">
@@ -62,7 +64,7 @@ export function TeachBackCard(props: TeachBackCardProps) {
       {text !== null && mode === "reading" && (
         <div className="flex flex-col gap-3 border-t border-rule bg-sunken px-4 py-3">
           <p className="text-ui text-ink-muted">
-            Is that how it works? Say yes or tell Shadow what is wrong, or use the buttons.
+            Is that how it works? Say yes or tell Singoda AI what is wrong, or use the buttons.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={props.onConfirm} disabled={busy} icon={<Check />}>

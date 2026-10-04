@@ -22,7 +22,7 @@ test("nav: Capture link opens the capture page", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Capture", exact: true }).click();
   await expect(page).toHaveURL(/\/capture$/);
-  // Capture is the standalone DeskSim app with Shadow's dock, not a page with a heading (#78).
+  // Capture is the standalone DeskSim app with Singoda AI's dock, not a page with a heading (#78).
   await expect(page.getByRole("region", { name: "Support inbox" })).toBeVisible();
 });
 

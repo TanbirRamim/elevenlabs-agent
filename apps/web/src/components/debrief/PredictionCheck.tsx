@@ -8,7 +8,7 @@ export interface PredictionCheckProps {
   /** Null while the variants are being prepared. */
   variants: readonly PredictionVariant[] | null;
   marks: Readonly<Record<string, PredictionMark>>;
-  /** The prediction Shadow is stating now. */
+  /** The prediction Singoda AI is stating now. */
   currentId: string | null;
   stepTitle: (stepId: string) => string | undefined;
   onMark: (variantId: string, mark: PredictionMark) => void;
@@ -16,7 +16,7 @@ export interface PredictionCheckProps {
   readOnly?: boolean;
 }
 
-/** Prediction proof: Shadow predicts unseen variants; the expert marks each right or wrong. */
+/** Prediction proof: Singoda AI predicts unseen variants; the expert marks each right or wrong. */
 export function PredictionCheck({
   variants,
   marks,
@@ -31,11 +31,11 @@ export function PredictionCheck({
         <h3 id="prediction-title" className="text-ui font-semibold text-ink">
           Prediction check
         </h3>
-        <span className="text-xs text-ink-faint">tickets Shadow has not seen</span>
+        <span className="text-xs text-ink-faint">tickets Singoda AI has not seen</span>
       </div>
       {variants === null ? (
         <p className="text-ui text-ink-faint" aria-live="polite">
-          Shadow is picking tickets it has not seen…
+          Singoda AI is picking tickets it has not seen…
         </p>
       ) : (
         <ol className="divide-y divide-rule overflow-hidden rounded-panel border border-rule bg-surface">
@@ -57,7 +57,7 @@ export function PredictionCheck({
                 </p>
                 <p className="mt-1 text-sm text-ink">{v.description}</p>
                 <p className="mt-1 text-ui text-ink-muted">
-                  Shadow would{" "}
+                  Singoda AI would{" "}
                   <strong className="font-medium text-ink">
                     {outcomePhrase(v.predictedOutcome)}
                   </strong>

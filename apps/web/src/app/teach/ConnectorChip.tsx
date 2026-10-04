@@ -6,7 +6,7 @@ import { cx } from "@/components/ui/cx";
 import type { ConnectorVerdict } from "@/lib/connector";
 
 /**
- * The connector call made visible: "Shadow connector · check · BLOCK · 212 ms · G4", with the
+ * The connector call made visible: "Singoda AI connector · check · BLOCK · 212 ms · G4", with the
  * exact request and response one click away. Prominent on a held save, subtle on an allowed one.
  */
 export function ConnectorChip({
@@ -22,7 +22,7 @@ export function ConnectorChip({
   const where =
     verdict.via === "api" ? "check" : verdict.via === "browser" ? "in browser" : "no answer";
   const parts = [
-    "Shadow connector",
+    "Singoda AI connector",
     where,
     verdict.decision,
     `${verdict.latencyMs} ms`,

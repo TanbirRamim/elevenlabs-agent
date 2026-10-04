@@ -11,13 +11,13 @@ export type ListeningIndicatorProps = {
 };
 
 export const LISTENING_LABEL: Record<ListeningState, string> = {
-  listening: "Shadow is listening",
-  asking: "Shadow is asking",
-  quiet: "Shadow is quiet",
+  listening: "Singoda AI is listening",
+  asking: "Singoda AI is asking",
+  quiet: "Singoda AI is quiet",
   off: "Voice off",
 };
 
-/** What Shadow's voice is doing right now. Brand colour (ask) only when it listens or asks. */
+/** What Singoda AI's voice is doing right now. Brand colour (ask) only when it listens or asks. */
 export function ListeningIndicator({ state, compact = false, className }: ListeningIndicatorProps) {
   const voiced = state === "listening" || state === "asking";
   return (

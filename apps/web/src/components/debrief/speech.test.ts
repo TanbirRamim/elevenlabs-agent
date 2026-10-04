@@ -11,7 +11,7 @@ const agent = (id: string, text = "…"): DebriefLine => ({ id, role: "agent", t
 const user = (id: string, text = "…"): DebriefLine => ({ id, role: "user", text });
 
 describe("collectAnswer", () => {
-  it("collects expert lines until Shadow speaks again", () => {
+  it("collects expert lines until Singoda AI speaks again", () => {
     const lines = [user("l0"), agent("l1"), user("l2"), user("l3"), agent("l4"), user("l5")];
     expect(collectAnswer(lines, 1)).toEqual({
       segmentIds: ["l2", "l3"],
@@ -25,7 +25,7 @@ describe("collectAnswer", () => {
     expect(collectAnswer(lines, 0)).toEqual({ segmentIds: ["l2"], complete: false, endIndex: -1 });
   });
 
-  it("ignores Shadow lines before the answer starts", () => {
+  it("ignores Singoda AI lines before the answer starts", () => {
     const lines = [agent("l1"), agent("l2")];
     expect(collectAnswer(lines, 0)).toEqual({ segmentIds: [], complete: false, endIndex: -1 });
   });

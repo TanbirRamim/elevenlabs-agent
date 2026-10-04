@@ -122,7 +122,7 @@ export interface CaptureFrame {
   sessionMs: number;
   signals: GateSignals;
   decision: GateDecision;
-  /** The question Shadow is holding while the gate is closed. */
+  /** The question Singoda AI is holding while the gate is closed. */
   holding: { text: string; slot: AskedQuestion["slot"]; ticketId: string; sinceMs: number } | null;
   asked: AskedQuestion[];
   /** The question being asked right now, if any. */
@@ -280,7 +280,7 @@ export function teachAt(script: ReplayScript, playMs: number): TeachFrame {
     if (playMs >= at && playMs < at + PRESS_MS) pressed = outcome;
   };
 
-  // N2 first: a judgment point, so Shadow asks Jonas to predict before he acts.
+  // N2 first: a judgment point, so Singoda AI asks Jonas to predict before he acts.
   if (playMs >= t.openN2AtMs) selectedId = t.predict.ticketId;
   pressedAt(t.commitN2AtMs, t.predict.chosen);
   if (playMs >= t.commitN2AtMs) {

@@ -17,7 +17,7 @@ const VoiceOrb = dynamic(() => import("../voice/VoiceOrb"), {
 const SPEAKER: Record<Speaker, string | null> = {
   narrator: null,
   maya: "Maya, senior lead",
-  shadow: "Shadow",
+  shadow: "Singoda AI",
   jonas: "Jonas, new hire",
 };
 
@@ -100,7 +100,7 @@ function Line({
       {name ? (
         <p className="mb-1 flex items-center gap-2 text-xs font-medium">
           {isShadow ? (
-            <Avatar name="Shadow" size="xs" shadow />
+            <Avatar name="Singoda AI" size="xs" shadow />
           ) : (
             <Avatar name={name.split(",")[0] ?? name} size="xs" />
           )}

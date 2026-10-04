@@ -170,9 +170,9 @@ describe("ProcessingSteps", () => {
 
 describe("ListeningIndicator", () => {
   it.each([
-    ["listening", "Shadow is listening"],
-    ["asking", "Shadow is asking"],
-    ["quiet", "Shadow is quiet"],
+    ["listening", "Singoda AI is listening"],
+    ["asking", "Singoda AI is asking"],
+    ["quiet", "Singoda AI is quiet"],
     ["off", "Voice off"],
   ] as const)("%s reads %s", (state, text) => {
     render(<ListeningIndicator state={state} />);
@@ -181,6 +181,6 @@ describe("ListeningIndicator", () => {
 
   it("keeps the label for screen readers when compact", () => {
     render(<ListeningIndicator state="asking" compact />);
-    expect(screen.getByRole("status", { name: "Shadow is asking" })).toBeTruthy();
+    expect(screen.getByRole("status", { name: "Singoda AI is asking" })).toBeTruthy();
   });
 });

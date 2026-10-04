@@ -140,13 +140,13 @@ export function usePreflight({ deskReady }: { deskReady: boolean }) {
                 status: "failed",
                 detail: "Voice is not configured on the server.",
                 fixHint:
-                  "Set ELEVENLABS_INTERVIEWER_AGENT_ID (see .env.example) and restart the web app. Without voice, Shadow follows silently and you type the debrief.",
+                  "Set ELEVENLABS_INTERVIEWER_AGENT_ID (see .env.example) and restart the web app. Without voice, Singoda AI follows silently and you type the debrief.",
               }
             : {
                 status: "failed",
                 detail: `The server could not open a voice session (${res.status}${code ? `, ${code}` : ""}).`,
                 fixHint:
-                  "Without voice, Shadow follows silently and you type the debrief. Select Check again to retry.",
+                  "Without voice, Singoda AI follows silently and you type the debrief. Select Check again to retry.",
               },
         );
         return;

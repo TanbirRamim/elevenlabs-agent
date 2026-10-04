@@ -20,10 +20,10 @@ export function WakeBanner() {
       {state === "waking" ? (
         <span className="inline-flex items-center gap-2">
           <span aria-hidden className="size-2 animate-pulse rounded-full bg-ask" />
-          Waking up Shadow&apos;s server. This takes up to a minute on the free host.
+          Waking up Singoda AI&apos;s server. This takes up to a minute on the free host.
         </span>
       ) : (
-        <span>Shadow&apos;s server did not answer. Reload the page in a moment.</span>
+        <span>Singoda AI&apos;s server did not answer. Reload the page in a moment.</span>
       )}
     </div>
   );

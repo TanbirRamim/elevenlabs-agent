@@ -9,10 +9,10 @@ import { cx } from "@/components/ui/cx";
 import { formatMs } from "@/components/workmap/format";
 
 /**
- * Shadow's entire presence while the learner works the standalone DeskSim app: a Meet-style
+ * Singoda AI's entire presence while the learner works the standalone DeskSim app: a Meet-style
  * dock floating over the bottom of the screen, the teach twin of CapturePill. It carries the
- * tutor's voice state, the mic, the session timer, how many saves Shadow held, and Finish.
- * Shadow's prompts (predict at a judgment point) surface as a callout above the dock; a held
+ * tutor's voice state, the mic, the session timer, how many saves Singoda AI held, and Finish.
+ * Singoda AI's prompts (predict at a judgment point) surface as a callout above the dock; a held
  * save is explained beside the held action itself, inside the app.
  */
 export interface TeachDockProps {
@@ -27,7 +27,7 @@ export interface TeachDockProps {
   expertName: string;
   onFinish: () => void;
   finishing: boolean;
-  /** Shadow's current prompt (the predict callout), shown above the dock. */
+  /** Singoda AI's current prompt (the predict callout), shown above the dock. */
   callout?: ReactNode;
   /** Floating notices (guard warnings, load problems) stacked above everything. */
   notice?: ReactNode;
@@ -80,10 +80,10 @@ export function TeachDock({
 
       <div className="pointer-events-auto flex w-full max-w-2xl flex-wrap items-center justify-center gap-2 rounded-overlay border border-rule bg-surface/95 p-2 shadow-overlay backdrop-blur sm:flex-nowrap">
         <div className="flex min-w-0 flex-1 items-center gap-2.5 pl-1">
-          <Avatar name="Shadow" shadow size="sm" />
+          <Avatar name="Singoda AI" shadow size="sm" />
           <div className="min-w-0 leading-tight">
             <p className="truncate text-ui font-semibold text-ink">
-              Shadow <span className="font-normal text-ink-muted">· tutor</span>
+              Singoda AI <span className="font-normal text-ink-muted">· tutor</span>
             </p>
             <p className="figures truncate text-2xs text-ink-faint">
               {learnerName ?? "New hire"} · <DockClock since={since} />
@@ -94,7 +94,7 @@ export function TeachDock({
         <dl className="flex items-center gap-1.5 text-xs">
           <DockStat label="Saved" value={`${saved}/${total}`} />
           <DockStat
-            label="Held by Shadow"
+            label="Held by Singoda AI"
             value={String(held)}
             icon={<PauseCircle aria-hidden="true" className="size-3.5 stroke-[1.75]" />}
             tone={held > 0 ? "guard" : "muted"}

@@ -24,7 +24,7 @@ export interface InterventionPanelProps {
 }
 
 /**
- * The demo's key moment, anchored under DeskSim's "Paused by Shadow" notice: the question, the
+ * The demo's key moment, anchored under DeskSim's "Paused by Singoda AI" notice: the question, the
  * guardrail that held the save, the expert's verbatim words with their timestamp and clip, and
  * the route the expert takes. Calm and decisive: a guard edge and words, never a red wall.
  */
@@ -53,10 +53,10 @@ export function InterventionPanel({
   }, []);
 
   return (
-    <section ref={ref} aria-label="Shadow intervention" className="scroll-mt-16 scroll-mb-4">
+    <section ref={ref} aria-label="Singoda AI intervention" className="scroll-mt-16 scroll-mb-4">
       <div className="px-4 pt-4 pb-4 @3xl:px-5">
         <div className="flex items-start gap-3">
-          <Avatar name="Shadow" shadow size="md" className="mt-0.5" />
+          <Avatar name="Singoda AI" shadow size="md" className="mt-0.5" />
           <div className="min-w-0 flex-1">
             {resolved ? (
               <p className="flex items-center gap-1.5 text-xs font-medium text-ok">
@@ -70,7 +70,7 @@ export function InterventionPanel({
             {!resolved ? (
               <p className="mt-0.5 text-ui text-ink-muted">
                 {tutorNotified
-                  ? "Shadow is asking you out loud. Answer, then pick the next action."
+                  ? "Singoda AI is asking you out loud. Answer, then pick the next action."
                   : "Coaching on screen · voice optional. Think it through, then pick the next action."}
               </p>
             ) : null}

@@ -221,7 +221,7 @@ export function WorkMapView({
             size="page"
             icon={<MapIcon />}
             title="No Work Map is published yet"
-            description="A Work Map is built from a capture session: the expert works real tickets, Shadow asks why at the pauses, and the debrief closes the gaps. Publish it from here when the expert has confirmed the teach-back."
+            description="A Work Map is built from a capture session: the expert works real tickets, Singoda AI asks why at the pauses, and the debrief closes the gaps. Publish it from here when the expert has confirmed the teach-back."
             action={
               <>
                 <ButtonLink href={CAPTURE_HREF} icon={<CircleDot aria-hidden="true" />}>
@@ -508,13 +508,13 @@ export function WorkMapView({
               <EmptyState
                 icon={<CircleHelp />}
                 title="No open questions"
-                description={`The debrief closed every gap Shadow found. Nothing in this map is unverified.`}
+                description={`The debrief closed every gap Singoda AI found. Nothing in this map is unverified.`}
               />
             </div>
           ) : (
             <>
               <p className="border-b border-rule px-4 py-2.5 text-xs text-ink-muted">
-                Shadow asked, {map.expertName} has not answered yet. None of this is in the map.
+                Singoda AI asked, {map.expertName} has not answered yet. None of this is in the map.
               </p>
               <ul aria-label="Open questions" className="divide-y divide-rule">
                 {openQuestions.map((q) => {

@@ -17,12 +17,12 @@ import { focusClass, ReplayDesk } from "./ReplayDesk";
 import type { LearnedRef } from "./script";
 
 /**
- * Chapter 1: Maya works the standalone DeskSim app with Shadow's floating dock over it (the real
+ * Chapter 1: Maya works the standalone DeskSim app with Singoda AI's floating dock over it (the real
  * CapturePill, its question callout included), as /capture looks live. Beside it, what the
- * product sees underneath: the Turn Gate's live view and what Shadow learned so far.
+ * product sees underneath: the Turn Gate's live view and what Singoda AI learned so far.
  */
 export function CaptureStage({ frame, timeline }: { frame: CaptureFrame; timeline: ReactNode }) {
-  // Story mode: the gate while Shadow holds a question, the app (and its callout) otherwise.
+  // Story mode: the gate while Singoda AI holds a question, the app (and its callout) otherwise.
   const gateFocus = frame.holding !== null && frame.asking === null;
   return (
     <div className="grid gap-4 lg:grid-cols-12">
@@ -76,7 +76,7 @@ function GatePanel({ frame }: { frame: CaptureFrame }) {
   const { signals, decision, holding, asking, justDropped, sessionMs } = frame;
   const open = decision.open || asking !== null;
   const headline = asking
-    ? "Gate open: Shadow asks now"
+    ? "Gate open: Singoda AI asks now"
     : decision.open
       ? reasonSentence(decision)
       : holding
@@ -159,7 +159,7 @@ function QuestionNote({
   return (
     <div className={cx("border-l-2 pl-3", signal ? "border-ask" : "border-rule-strong")}>
       <p className="flex flex-wrap items-center gap-2 text-xs font-medium">
-        {signal ? <Avatar name="Shadow" size="xs" shadow /> : null}
+        {signal ? <Avatar name="Singoda AI" size="xs" shadow /> : null}
         <span className={signal ? "text-ask-text" : "text-ink-muted"}>{label}</span>
         <Badge tone={slot === "guardrail" ? "guard" : "muted"}>
           {slot === "guardrail" ? "Guardrail" : "Reason"}
@@ -213,7 +213,7 @@ function Learned({ refs }: { refs: LearnedRef[] }) {
     >
       {refs.length === 0 ? (
         <p className="px-4 py-3 text-ui text-ink-faint">
-          Nothing yet. Shadow is watching the first ticket.
+          Nothing yet. Singoda AI is watching the first ticket.
         </p>
       ) : (
         <ol className="divide-y divide-rule">

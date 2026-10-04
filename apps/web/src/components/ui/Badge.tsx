@@ -3,7 +3,7 @@ import { cx } from "./cx";
 
 /**
  * Tones are meanings, not decoration (docs/DESIGN.md, "Colour by meaning"):
- * - `ask`: Shadow is listening or asking (brand colour)
+ * - `ask`: Singoda AI is listening or asking (brand colour)
  * - `rec`: recording is live
  * - `guard`: a guardrail held or blocked an action
  * - `ok`: success, verified, confirmed

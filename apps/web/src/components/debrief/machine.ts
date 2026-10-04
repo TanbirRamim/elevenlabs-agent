@@ -320,7 +320,7 @@ export function canCorrect(state: { round: number }): boolean {
   return state.round < MAX_CORRECTION_ROUNDS;
 }
 
-/** The prediction Shadow is waiting on: the first unmarked variant. */
+/** The prediction Singoda AI is waiting on: the first unmarked variant. */
 export function currentVariant(
   variants: PredictionVariant[] | null,
   marks: Record<string, PredictionMark>,

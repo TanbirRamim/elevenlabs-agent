@@ -89,7 +89,7 @@ describe("listeningStateFor", () => {
     expect(listeningStateFor("error", "speaking", true, false)).toBe("off");
   });
 
-  it("asks while Shadow speaks, even when holding", () => {
+  it("asks while Singoda AI speaks, even when holding", () => {
     expect(listeningStateFor("connected", "speaking", false, false)).toBe("asking");
     expect(listeningStateFor("connected", "listening", true, true)).toBe("asking");
   });

@@ -33,7 +33,7 @@ describe("replay script: live questions come from the real Turn Gate", () => {
       // The inputs decide() saw at the ask, re-run through the real gate.
       expect(q.signals.nowMs).toBe(q.atMs);
       expect(decide(q.signals)).toEqual({ open: true });
-      // They match the recorded session at that instant (asking itself only adds Shadow's speech).
+      // They match the recorded session at that instant (asking itself only adds Singoda AI's speech).
       const { signals } = captureSignalsAt(capture, q.atMs);
       expect({ ...signals, agentSpeaking: false }).toEqual({
         ...q.signals,
@@ -198,7 +198,7 @@ describe("replay frames", () => {
     expect(chapterAt(script, t.blockedAtMs).id).toBe("teach");
   });
 
-  it("story mode: the first Shadow question is on screen within 8 s of load", () => {
+  it("story mode: the first Singoda AI question is on screen within 8 s of load", () => {
     const q = must(capture.asked[0], "first question");
     expect(sessionToPlay(script.segments, q.atMs)).toBeLessThanOrEqual(8_000);
     expect(captureAt(script, sessionToPlay(script.segments, q.atMs) + 100).asking?.id).toBe(q.id);

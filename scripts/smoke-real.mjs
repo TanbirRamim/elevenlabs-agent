@@ -244,7 +244,7 @@ function debriefAnswer(question) {
 }
 
 async function main() {
-  out(`Shadow real-pipeline smoke against ${API}`);
+  out(`Singoda AI real-pipeline smoke against ${API}`);
   const health = await http("GET", "/health");
   record("health", health.status === 200, health.ms, `model ${health.json?.model ?? "?"}`);
   if (health.status !== 200) return;

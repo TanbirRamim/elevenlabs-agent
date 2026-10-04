@@ -28,7 +28,7 @@ test("capture loads the expert tickets into DeskSim and shows the preflight", as
   );
   await expect(checks.getByRole("button", { name: "Share this tab" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
-  await expect(page.getByText(/Without voice, Shadow follows the desk silently/)).toBeVisible();
+  await expect(page.getByText(/Without voice, Singoda AI follows the desk silently/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Start session" })).toBeEnabled();
   // Nothing records before Start: no recording controls, no off-the-record toggle yet.
   await expect(page.getByRole("toolbar", { name: "Recording controls" })).toHaveCount(0);

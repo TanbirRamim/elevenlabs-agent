@@ -21,7 +21,7 @@ import { sampleWorkMap } from "../workmap/fixture";
  *   time-lapsed (fast while Maya works, close to real time at the pauses that matter); the
  *   `segments` table maps one onto the other.
  *
- * Faithful, not hand-drawn: Shadow's live questions are not placed by hand. The script lists
+ * Faithful, not hand-drawn: Singoda AI's live questions are not placed by hand. The script lists
  * what Maya did (speech, typing, screen changes) and the questions the Curiosity Engine had
  * ready; `simulateCapture` then steps through the session and asks a question only when the real
  * Turn Gate (`decide()` from lib/turnGate) opens. Tickets come from seed/tickets.json and the
@@ -64,7 +64,7 @@ export interface Caption {
   offRecord?: boolean;
 }
 
-/** Something Shadow learned, pointing into the sample Work Map. */
+/** Something Singoda AI learned, pointing into the sample Work Map. */
 export type LearnedRef = { kind: "step"; id: string } | { kind: "guardrail"; id: string };
 
 type Slot = CandidateQuestion["slot"];
@@ -83,7 +83,7 @@ interface CandidateScript {
   priority: number;
   createdAtMs: number;
   text: string;
-  /** How long Shadow takes to say it. */
+  /** How long Singoda AI takes to say it. */
   askMs: number;
   answer: { text: string; durationMs: number; learns?: LearnedRef };
   /** The engine withdraws the question at this time (e.g. the expert answered it unprompted). */
@@ -95,7 +95,7 @@ type DeskBeat =
   | { kind: "type"; startMs: number; endMs: number; label: string; text: string }
   | { kind: "commit"; atMs: number; outcome: Outcome };
 
-/** A question Shadow asked during capture, with the pause that let it through. */
+/** A question Singoda AI asked during capture, with the pause that let it through. */
 export interface AskedQuestion {
   id: string;
   candidateId: string;
@@ -103,7 +103,7 @@ export interface AskedQuestion {
   slot: Slot;
   priority: number;
   text: string;
-  /** Session time the gate opened and Shadow started to speak. */
+  /** Session time the gate opened and Singoda AI started to speak. */
   atMs: number;
   createdAtMs: number;
   /** Measured at `atMs`: how long each signal had been quiet. Null: it never fired. */
@@ -206,7 +206,7 @@ export interface ReplayScript {
     ticketId: string;
     attempted: Outcome;
     rerouted: Outcome;
-    /** The judgment point Shadow predicts on (N2, G6), before Jonas acts. */
+    /** The judgment point Singoda AI predicts on (N2, G6), before Jonas acts. */
     predict: {
       ticketId: string;
       guardrailId: string;
@@ -448,8 +448,8 @@ function signalsFrom(s: SimState, t: number): GateSignals {
 }
 
 /**
- * Steps through the session every 100 ms and lets Shadow ask only when `decide()` opens.
- * Asking adds Shadow's speech and the expert's answer to the record, which the gate then sees.
+ * Steps through the session every 100 ms and lets Singoda AI ask only when `decide()` opens.
+ * Asking adds Singoda AI's speech and the expert's answer to the record, which the gate then sees.
  */
 export function simulateCapture(): CaptureTrack {
   const { input, screen } = deskSignals(DESK_BEATS);
@@ -571,13 +571,13 @@ export function captureSignalsAt(
 const CAPTURE_STRETCHES: [number, number][] = [
   // Story mode: the lead-in is compressed so the first question lands within 8 s of load.
   [50_000, 1_000], // the problem, then Maya starts the session and opens T1
-  [68_000, 2_800], // T1: she thinks aloud and answers Shadow's question before it is asked
+  [68_000, 2_800], // T1: she thinks aloud and answers Singoda AI's question before it is asked
   [150_000, 500], // types the reply
   [172_000, 900], // T2: a duplicate, refunded
   [186_000, 7_500], // first pause, first question
   [290_000, 600],
   [298_000, 1_400], // T3 opened
-  [316_000, 8_000], // she types; Shadow holds its question, then asks
+  [316_000, 8_000], // she types; Singoda AI holds its question, then asks
   [410_000, 600],
   [419_000, 1_500], // T4 opened, routed to Security
   [436_000, 5_500], // a guardrail question
@@ -673,7 +673,7 @@ export function buildReplayScript(): ReplayScript {
       number: 1,
       title: "Capture",
       summary:
-        "Maya triages four tickets and thinks aloud. Shadow asks only when the Turn Gate sees a real pause.",
+        "Maya triages four tickets and thinks aloud. Singoda AI asks only when the Turn Gate sees a real pause.",
       startMs: 0,
       endMs: captureEnd,
     },
@@ -682,7 +682,7 @@ export function buildReplayScript(): ReplayScript {
       number: 2,
       title: "Map",
       summary:
-        "A short debrief closes the gaps, including cases Maya never saw. She corrects Shadow once, then confirms.",
+        "A short debrief closes the gaps, including cases Maya never saw. She corrects Singoda AI once, then confirms.",
       startMs: mapStart,
       endMs: teachStart,
     },
@@ -691,7 +691,7 @@ export function buildReplayScript(): ReplayScript {
       number: 3,
       title: "Teach",
       summary:
-        "Jonas, new this week, works tickets Maya never handled, in the same app. Shadow asks him to predict on N2, then pauses a wrong refund on N1 before it is saved.",
+        "Jonas, new this week, works tickets Maya never handled, in the same app. Singoda AI asks him to predict on N2, then pauses a wrong refund on N1 before it is saved.",
       startMs: teachStart,
       endMs: agentsStart,
     },
@@ -700,7 +700,7 @@ export function buildReplayScript(): ReplayScript {
       number: 4,
       title: "Agents",
       summary:
-        "The same Work Map becomes a policy an AI agent can follow. Shadow learns from any software by screen share, and one connector call before save lets it hold a wrong one.",
+        "The same Work Map becomes a policy an AI agent can follow. Singoda AI learns from any software by screen share, and one connector call before save lets it hold a wrong one.",
       startMs: agentsStart,
       endMs: durationMs,
     },
@@ -808,7 +808,7 @@ export function buildReplayScript(): ReplayScript {
   say("shadow", RECHECK_TEXT, m(19_100), m(20_400));
   say("maya", "Yes, that’s right.", m(20_500), m(21_400));
 
-  // Teach: Jonas on two tickets Maya never handled. N2 is a judgment point, so Shadow asks him
+  // Teach: Jonas on two tickets Maya never handled. N2 is a judgment point, so Singoda AI asks him
   // to predict first (as /teach does); N1 he acts on, and the guard pauses the save.
   const t = (ms: number) => teachStart + ms;
   const g6 = guardrailQuote("G6");

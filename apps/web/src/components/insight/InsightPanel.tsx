@@ -44,10 +44,10 @@ export interface InsightPanelProps {
   onToggle?: () => void;
 }
 
-const PAUSED_SENTENCE = "Recording is paused: Shadow holds every question";
+const PAUSED_SENTENCE = "Recording is paused: Singoda AI holds every question";
 
 /**
- * Judge-facing panel: why Shadow spoke or stayed quiet. Pure props in, UI out; no network.
+ * Judge-facing panel: why Singoda AI spoke or stayed quiet. Pure props in, UI out; no network.
  * Dense and tokenised so it reads on a projector in both schemes.
  */
 export function InsightPanel({
@@ -72,7 +72,9 @@ export function InsightPanel({
       <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-rule px-4 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h2 className="text-ui font-semibold text-ink">Insight</h2>
-          <span className="hidden text-xs text-ink-faint sm:inline">Why Shadow asks or waits</span>
+          <span className="hidden text-xs text-ink-faint sm:inline">
+            Why Singoda AI asks or waits
+          </span>
           {paused ? (
             <Badge tone="muted" icon={<Pause aria-hidden="true" />}>
               Paused
@@ -140,7 +142,7 @@ export function InsightPanel({
                   name="Screen change"
                   value={formatAgo(now, signals.lastScreenChangeMs)}
                 />
-                <SignalRow name="Shadow" value={signals.agentSpeaking ? "speaking" : "quiet"} />
+                <SignalRow name="Singoda AI" value={signals.agentSpeaking ? "speaking" : "quiet"} />
                 <SignalRow name="Recording" value={signals.offRecord ? "off the record" : "on"} />
               </dl>
             </Block>
@@ -172,7 +174,7 @@ export function InsightPanel({
 
             <Block id="insight-asked" title="Asked" count={asked.length}>
               {asked.length === 0 ? (
-                <p className="text-ui text-ink-faint">Shadow has not asked anything yet.</p>
+                <p className="text-ui text-ink-faint">Singoda AI has not asked anything yet.</p>
               ) : (
                 <ol className="flex flex-col gap-3">
                   {asked.map((q) => (

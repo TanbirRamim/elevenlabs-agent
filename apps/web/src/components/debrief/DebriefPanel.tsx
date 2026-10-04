@@ -46,7 +46,7 @@ function stageIndex(state: DebriefState): number {
 }
 
 /**
- * Module 1, after Stop: the conversation with Shadow about what it could not see, its
+ * Module 1, after Stop: the conversation with Singoda AI about what it could not see, its
  * teach-back, and the prediction proof.
  * Specs: docs/tasks/tanbir.md TAN-7, TAN-8; docs/IMPLEMENTATION_PLAN.md §6.7.
  */
@@ -74,7 +74,7 @@ export function DebriefPanel({ onFinished, processing, ...options }: DebriefPane
     detail: endFailed
       ? "See the error above."
       : building
-        ? "Shadow turns what it saw into a draft map and finds what it could not learn by watching."
+        ? "Singoda AI turns what it saw into a draft map and finds what it could not learn by watching."
         : undefined,
   };
   const steps = [...(processing ?? []), workmapStep];
@@ -91,7 +91,7 @@ export function DebriefPanel({ onFinished, processing, ...options }: DebriefPane
         <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <h2 id="debrief-title" className="text-sm font-semibold text-ink">
-              Debrief with Shadow
+              Debrief with Singoda AI
             </h2>
             <p className="mt-0.5 max-w-prose text-ui text-pretty text-ink-muted">
               {phaseHint(view)}
@@ -106,7 +106,7 @@ export function DebriefPanel({ onFinished, processing, ...options }: DebriefPane
         {state.phase === "error" && (
           <Alert
             tone="danger"
-            title="Shadow could not continue the debrief"
+            title="Singoda AI could not continue the debrief"
             action={
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="secondary" onClick={debrief.retry}>
@@ -193,7 +193,7 @@ export function DebriefPanel({ onFinished, processing, ...options }: DebriefPane
                   correction={
                     view.phase === "correcting" ? (
                       <AnswerBox
-                        label="What did Shadow get wrong?"
+                        label="What did Singoda AI get wrong?"
                         submitLabel="Send correction"
                         spokenCount={debrief.spoken.segmentIds.length}
                         busy={view.submitting !== null || busy}
@@ -323,14 +323,14 @@ function phaseHint(state: DebriefState): string {
   switch (state.phase) {
     case "idle":
     case "ending":
-      return "Shadow is turning what it saw into a draft map.";
+      return "Singoda AI is turning what it saw into a draft map.";
     case "asking":
-      return "Shadow asks what it could not learn by watching, one question at a time.";
+      return "Singoda AI asks what it could not learn by watching, one question at a time.";
     case "teachback":
     case "correcting":
-      return "Shadow explains the workflow back to you. Confirm it or correct what is wrong.";
+      return "Singoda AI explains the workflow back to you. Confirm it or correct what is wrong.";
     case "predicting":
-      return "Shadow predicts tickets it has not seen. Mark each prediction right or wrong.";
+      return "Singoda AI predicts tickets it has not seen. Mark each prediction right or wrong.";
     case "confirmed":
       return "The debrief is complete.";
     case "error":

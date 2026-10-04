@@ -27,7 +27,7 @@ Both agents:
 Tutor only:
 
 - Client tool `replay_clip` with one required string parameter `frameId`, wait for response on.
-- First message: "Hi {{learner_name}}, I'm Shadow. Work the queue as you normally would; I'll jump
+- First message: "Hi {{learner_name}}, I'm Singoda AI. Work the queue as you normally would; I'll jump
   in only when it matters."
 
 Dashboard settings to apply to both:

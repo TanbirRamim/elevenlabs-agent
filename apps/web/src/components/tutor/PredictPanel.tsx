@@ -37,10 +37,10 @@ export function PredictPanel({
   return (
     <section aria-label="Predict the decision" className="px-4 py-4 @3xl:px-5">
       <div className="flex items-start gap-3">
-        <Avatar name="Shadow" shadow size="md" className="mt-0.5" />
+        <Avatar name="Singoda AI" shadow size="md" className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-ask-text">
-            Shadow asks · judgment point on <span className="font-mono">{ticketId}</span>
+            Singoda AI asks · judgment point on <span className="font-mono">{ticketId}</span>
           </p>
           <h3 className="mt-0.5 text-base leading-6 font-semibold text-ink">
             What would you do here?
@@ -50,7 +50,7 @@ export function PredictPanel({
             {result
               ? null
               : voiceLive
-                ? "Tell Shadow why, then mark your call."
+                ? "Tell Singoda AI why, then mark your call."
                 : "Mark your call before you act."}
           </p>
         </div>

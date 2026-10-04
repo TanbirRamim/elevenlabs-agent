@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 
 /**
  * The demo's Predict beat: opening N2 (a GDPR deletion request) in /teach hits judgment point
- * G6 in the sample Work Map, so Shadow asks the new hire what they would do before they act.
+ * G6 in the sample Work Map, so Singoda AI asks the new hire what they would do before they act.
  */
 test("teach: opening N2 shows the Predict callout for G6", async ({ page }) => {
   await page.goto("/teach");

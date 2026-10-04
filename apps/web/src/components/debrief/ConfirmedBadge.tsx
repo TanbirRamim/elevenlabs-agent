@@ -7,7 +7,7 @@ export interface ConfirmedBadgeProps {
   confirmedAtMs: number | null;
 }
 
-/** "Confirmed at 07:42": the expert signed off on Shadow's teach-back at this session time. */
+/** "Confirmed at 07:42": the expert signed off on Singoda AI's teach-back at this session time. */
 export function ConfirmedBadge({ confirmedAtMs }: ConfirmedBadgeProps) {
   if (confirmedAtMs === null) {
     return (

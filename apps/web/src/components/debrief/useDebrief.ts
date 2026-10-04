@@ -73,11 +73,11 @@ const OP_LABEL: Record<DebriefOp, string> = {
 export function describeDebriefError(op: DebriefOp, err: unknown): string {
   if (err instanceof ApiClientError) {
     const code = err.code ? `, ${err.code}` : "";
-    if (err.kind === "network") return `The Shadow API is not reachable while ${OP_LABEL[op]}.`;
+    if (err.kind === "network") return `The Singoda AI API is not reachable while ${OP_LABEL[op]}.`;
     if (err.kind === "invalid_response")
       return `The API sent an unexpected response while ${OP_LABEL[op]}.`;
     if (err.status === 404 || err.status === 405 || err.status === 501)
-      return `This API does not serve ${err.method} ${err.path} (${err.status}${code}), so Shadow cannot finish ${OP_LABEL[op]}.`;
+      return `This API does not serve ${err.method} ${err.path} (${err.status}${code}), so Singoda AI cannot finish ${OP_LABEL[op]}.`;
     return `The API returned an error while ${OP_LABEL[op]} (${err.status}${code}).`;
   }
   return err instanceof Error ? err.message : String(err);
@@ -210,7 +210,7 @@ export function useDebrief({
     })().catch(fail);
   }, [state, client, sessionId, clock, markSince]);
 
-  // Shadow states each prediction, one at a time.
+  // Singoda AI states each prediction, one at a time.
   const spokenVariant = useRef<string | null>(null);
   const current = state.phase === "predicting" ? currentVariant(state.variants, state.marks) : null;
   useEffect(() => {
@@ -226,7 +226,7 @@ export function useDebrief({
     markSince();
   }, [state, current, markSince]);
 
-  // Spoken answers: advance when Shadow speaks after the expert, or on a spoken yes/no.
+  // Spoken answers: advance when Singoda AI speaks after the expert, or on a spoken yes/no.
   useEffect(() => {
     const lines = voice.transcript;
     if (lines.length === 0) return;

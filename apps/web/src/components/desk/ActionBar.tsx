@@ -149,7 +149,7 @@ export function ActionBar({
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-x-3 gap-y-0.5 @2xl:flex-row @2xl:items-center">
                 <p className="min-w-0 flex-1 text-ui text-ink">
-                  <span className="font-semibold">Paused by Shadow</span>
+                  <span className="font-semibold">Paused by Singoda AI</span>
                   <span className="text-ink-muted">
                     {" "}
                     · {ACTION_LABELS[blocked.outcome]} was not saved. Pick another action to
@@ -228,7 +228,7 @@ export function ActionBar({
             <Loader aria-hidden="true" className="size-4 stroke-[1.75] text-ask-text" />
             Checking…
             <span className="font-normal text-ink-muted">
-              Shadow is reviewing {ACTION_LABELS[phase.outcome]}
+              Singoda AI is reviewing {ACTION_LABELS[phase.outcome]}
             </span>
           </span>
         ) : null}

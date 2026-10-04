@@ -24,8 +24,8 @@ export function CaptureCrop() {
       </div>
       <div className="rounded-panel border border-rule bg-surface p-3">
         <p className="mb-1.5 flex items-center gap-2 text-xs font-medium text-ask-text">
-          <Avatar name="Shadow" size="xs" shadow />
-          Shadow asks at a pause
+          <Avatar name="Singoda AI" size="xs" shadow />
+          Singoda AI asks at a pause
         </p>
         <p className="text-ui text-ink">
           You sent that one to Security instead of refunding. What tipped it?
@@ -77,7 +77,7 @@ export function TeachCrop() {
           ))}
         </div>
       </div>
-      <Alert tone="guard" title="Paused by Shadow before it was saved">
+      <Alert tone="guard" title="Paused by Singoda AI before it was saved">
         Rule <span className="font-mono">{g.id}</span>: {g.condition}. “{g.evidence.quote.text}”
       </Alert>
     </div>

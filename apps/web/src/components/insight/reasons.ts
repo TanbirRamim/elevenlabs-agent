@@ -5,7 +5,7 @@ export type GateReason = Extract<GateDecision, { open: false }>["reason"];
 /** One plain sentence per Turn Gate reason, readable from the back of a room. */
 export const REASON_SENTENCES: Record<GateReason, string> = {
   off_record: "Off the record",
-  agent_speaking: "Shadow is speaking",
+  agent_speaking: "Singoda AI is speaking",
   user_speaking: "Expert is speaking",
   user_typing: "Expert is typing",
   screen_changing: "Screen is still changing",
@@ -16,7 +16,7 @@ export const REASON_SENTENCES: Record<GateReason, string> = {
   budget_spent: "Question budget for these 10 minutes is spent",
 };
 
-export const OPEN_SENTENCE = "Gate open: Shadow may ask now";
+export const OPEN_SENTENCE = "Gate open: Singoda AI may ask now";
 
 export function reasonSentence(decision: GateDecision): string {
   return decision.open ? OPEN_SENTENCE : REASON_SENTENCES[decision.reason];

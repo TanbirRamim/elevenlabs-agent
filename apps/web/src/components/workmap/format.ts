@@ -29,7 +29,7 @@ export const GUARDRAIL_TYPE_LABEL: Record<Guardrail["type"], string> = {
 export const SPEAKER_LABEL: Record<Quote["speaker"], string> = {
   expert: "Expert",
   new_hire: "New hire",
-  agent: "Shadow",
+  agent: "Singoda AI",
 };
 
 export const SOURCE_LABEL: Record<Quote["source"], string> = {
