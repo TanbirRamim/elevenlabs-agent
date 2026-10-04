@@ -1,5 +1,7 @@
 import type { GuardVerdict, Outcome } from "@shadow/schema";
-import { Badge, Button } from "../ui";
+import { CircleCheck, Loader, Pause } from "lucide-react";
+import { type ReactNode, useId } from "react";
+import { Badge, Button, cx, Kbd } from "../ui";
 
 /** 1:1 with Outcome; `satisfies` makes the mapping a typecheck guarantee. */
 export const ACTION_LABELS = {
@@ -33,6 +35,8 @@ interface ActionBarProps {
   onRefundFocus: () => void;
   onRefundBlur: () => void;
   onAction: (outcome: Outcome) => void;
+  /** Coaching from the host (Teach), anchored under the pause notice. */
+  coach?: ReactNode;
 }
 
 const GROUPS: { label: string; outcomes: Outcome[] }[] = [
@@ -45,8 +49,16 @@ const GROUPS: { label: string; outcomes: Outcome[] }[] = [
   { label: "Finish", outcomes: ["close"] },
 ];
 
+/** The actions in the order the bar shows them; the 1-9 shortcuts follow this order. */
+export const ACTION_ORDER: readonly Outcome[] = GROUPS.flatMap((g) => g.outcomes);
+
+/** The shortcut digit for an outcome, as shown on its button. */
+export function shortcutFor(outcome: Outcome): string {
+  return String(ACTION_ORDER.indexOf(outcome) + 1);
+}
+
 // DeskSim is read by the vision model, so its controls never animate: no transitions, no press shift.
-const STILL = "transition-none! active:translate-y-0! px-4!";
+const STILL = "transition-none! active:translate-y-0!";
 
 export function ActionBar({
   phase,
@@ -56,89 +68,142 @@ export function ActionBar({
   onRefundFocus,
   onRefundBlur,
   onAction,
+  coach,
 }: ActionBarProps) {
   const disabled = phase.kind === "checking" || committed !== undefined;
+  const blocked = phase.kind === "blocked" ? phase : null;
+  const suggested = blocked?.verdict.expectedOutcome ?? null;
+  const suggestedHintId = useId();
+  const hasCoach = coach !== undefined && coach !== null && coach !== false;
 
   return (
-    <div className="flex flex-col gap-5">
-      {phase.kind === "blocked" ? (
+    <section
+      aria-label="Actions"
+      className="flex flex-col gap-4 border-t border-rule bg-canvas px-4 py-4 @3xl:px-6"
+    >
+      {blocked || hasCoach ? (
         <div
-          role="status"
-          className="flex flex-col gap-1.5 rounded-panel border border-guard bg-guard-wash px-5 py-4 shadow-[inset_6px_0_0_var(--sd-guard)] sm:px-6"
+          className={cx(
+            "overflow-hidden rounded-panel border bg-surface",
+            blocked ? "border-guard/45" : "border-rule",
+          )}
         >
-          <p className="text-base leading-tight text-ink">Paused by Shadow</p>
-          <p className="text-lg leading-snug text-ink">
-            {ACTION_LABELS[phase.outcome]} was not saved. Pick another action to continue.
-          </p>
-          {phase.verdict.ruleIds.length > 0 ? (
-            <p className="font-mono text-[0.9375rem] text-guard-text">
-              Guardrail rule {phase.verdict.ruleIds.join(", ")}
-            </p>
+          {blocked ? (
+            <div
+              role="status"
+              className="flex items-start gap-3 border-b border-guard/30 bg-guard-wash px-4 py-2.5 @2xl:items-center"
+            >
+              <span
+                aria-hidden="true"
+                className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-guard text-guard-ink"
+              >
+                <Pause className="size-3.5 fill-current stroke-[2]" />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-x-3 gap-y-0.5 @2xl:flex-row @2xl:items-center">
+                <p className="min-w-0 flex-1 text-ui text-ink">
+                  <span className="font-semibold">Paused by Shadow</span>
+                  <span className="text-ink-muted">
+                    {" "}
+                    · {ACTION_LABELS[blocked.outcome]} was not saved. Pick another action to
+                    continue.
+                  </span>
+                </p>
+                {blocked.verdict.ruleIds.length > 0 ? (
+                  <p className="font-mono text-xs font-medium text-guard-text">
+                    Guardrail rule {blocked.verdict.ruleIds.join(", ")}
+                  </p>
+                ) : null}
+              </div>
+            </div>
           ) : null}
+          {hasCoach ? coach : null}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-x-8 gap-y-5">
+      {suggested ? (
+        <span id={suggestedHintId} className="sr-only">
+          Suggested by the guardrail
+        </span>
+      ) : null}
+      <div className="flex flex-wrap gap-x-6 gap-y-3">
         {GROUPS.map((group) => (
           <fieldset key={group.label} className="m-0 min-w-0 border-0 p-0">
-            <legend className="sr-only">{group.label}</legend>
-            <div className="flex flex-col gap-2">
-              <p aria-hidden="true" className="text-[0.9375rem] leading-6 text-ink-muted">
-                {group.label}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {group.outcomes.map((outcome) =>
-                  outcome === "refund" ? (
-                    <div key={outcome} className="contents">
-                      <Button
-                        variant="secondary"
-                        size="lg"
-                        disabled={disabled}
-                        onClick={() => onAction(outcome)}
-                        className={`${STILL} text-[1.0625rem]!`}
+            <legend className="mb-1.5 p-0 text-2xs font-medium text-ink-faint">
+              {group.label}
+            </legend>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {group.outcomes.map((outcome) => {
+                const held = blocked?.outcome === outcome;
+                const isSuggested = suggested === outcome && !disabled;
+                const button = (
+                  <Button
+                    key={outcome}
+                    variant={isSuggested ? "primary" : "secondary"}
+                    size="md"
+                    disabled={disabled}
+                    onClick={() => onAction(outcome)}
+                    aria-describedby={isSuggested ? suggestedHintId : undefined}
+                    aria-keyshortcuts={shortcutFor(outcome)}
+                    icon={held ? <Pause aria-hidden="true" className="fill-current" /> : undefined}
+                    trailing={
+                      <Kbd
+                        aria-hidden="true"
+                        className={cx(
+                          "ml-1 h-4 min-w-4 text-[10px] shadow-none",
+                          isSuggested && "border-ink-inverse/40! bg-transparent! text-ink-inverse!",
+                          held && "border-guard/50! bg-transparent! text-guard-text!",
+                        )}
                       >
-                        {ACTION_LABELS[outcome]}
-                      </Button>
-                      <label className="flex items-center gap-2 pr-2">
-                        <span className="text-[0.9375rem] text-ink-muted">Refund amount (€)</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={refundAmount}
-                          disabled={disabled}
-                          onChange={(e) => onRefundAmountChange(e.target.value)}
-                          onFocus={onRefundFocus}
-                          onBlur={onRefundBlur}
-                          className="min-h-12 w-28 rounded-control border border-rule-strong bg-surface px-3 text-[1.0625rem] tabular-nums text-ink disabled:opacity-45"
-                        />
-                      </label>
-                    </div>
-                  ) : (
-                    <Button
-                      key={outcome}
-                      variant="secondary"
-                      size="lg"
-                      disabled={disabled}
-                      onClick={() => onAction(outcome)}
-                      className={`${STILL} text-[1.0625rem]!`}
-                    >
-                      {ACTION_LABELS[outcome]}
-                    </Button>
-                  ),
-                )}
-              </div>
+                        {shortcutFor(outcome)}
+                      </Kbd>
+                    }
+                    className={cx(
+                      STILL,
+                      held &&
+                        "border-guard/60 bg-guard-wash text-guard-text hover:border-guard hover:bg-guard-wash",
+                    )}
+                  >
+                    {ACTION_LABELS[outcome]}
+                  </Button>
+                );
+                if (outcome !== "refund") return button;
+                return (
+                  <div key={outcome} className="flex items-center gap-1.5">
+                    {button}
+                    <label className="flex items-center">
+                      <span className="sr-only">Refund amount (€)</span>
+                      <span
+                        aria-hidden="true"
+                        className="flex h-8 items-center rounded-l-control border border-r-0 border-rule-strong bg-sunken px-2 text-ink-faint"
+                      >
+                        €
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={refundAmount}
+                        disabled={disabled}
+                        onChange={(e) => onRefundAmountChange(e.target.value)}
+                        onFocus={onRefundFocus}
+                        onBlur={onRefundBlur}
+                        className="figures h-8 w-20 rounded-r-control border border-rule-strong bg-surface px-2 text-ui text-ink disabled:opacity-50"
+                      />
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           </fieldset>
         ))}
       </div>
 
       <p
-        className="flex min-h-12 flex-wrap items-center gap-3 border-t border-rule pt-4 text-lg empty:min-h-0 empty:border-0 empty:pt-0"
+        className="flex min-h-6 flex-wrap items-center gap-2 text-ui empty:hidden"
         aria-live="polite"
       >
         {phase.kind === "checking" ? (
-          <span className="flex items-center gap-2.5 font-semibold text-ink">
-            <span aria-hidden="true" className="size-2.5 rounded-full bg-ask" />
+          <span className="flex items-center gap-2 font-medium text-ink">
+            <Loader aria-hidden="true" className="size-4 stroke-[1.75] text-ask-text" />
             Checking…
             <span className="font-normal text-ink-muted">
               Shadow is reviewing {ACTION_LABELS[phase.outcome]}
@@ -147,12 +212,12 @@ export function ActionBar({
         ) : null}
         {committed ? (
           <>
-            <span className="flex items-center gap-2.5 font-semibold text-ok">
-              <span aria-hidden="true" className="size-2.5 rounded-full bg-ok" />
+            <span className="flex items-center gap-2 font-medium text-ok">
+              <CircleCheck aria-hidden="true" className="size-4 stroke-[1.75]" />
               Committed: {ACTION_LABELS[committed.outcome]}
             </span>
             {committed.approvalRequested ? (
-              <Badge tone="guard" dot className="px-3! py-1! text-[0.9375rem]! font-semibold">
+              <Badge tone="guard" dot>
                 Approval requested
               </Badge>
             ) : null}
@@ -162,6 +227,6 @@ export function ActionBar({
           <span className="text-ink-faint">No action saved on this ticket yet.</span>
         ) : null}
       </p>
-    </div>
+    </section>
   );
 }

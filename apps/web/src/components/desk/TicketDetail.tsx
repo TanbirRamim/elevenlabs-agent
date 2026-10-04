@@ -1,10 +1,12 @@
 import type { PublicTicket } from "@shadow/schema";
+import { Bug, Crown, Mail, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { Badge, cx } from "../ui";
 import { PII_ATTR } from "./types";
 
 const pii = { [PII_ATTR]: "" };
 
-/** Tags that change what an agent may do. They take the stop tone so they read before anything else. */
+/** Tags that change what an agent may do. They take the danger tone so they read before anything else. */
 const RISK_TAG = /chargeback|dispute|fraud|security|legal|privacy/i;
 
 export function isRiskTag(tag: string): boolean {
@@ -22,22 +24,15 @@ export function formatEur(amount: number): string {
   return `€${amount.toFixed(2)}`;
 }
 
-export function TagList({ tags, size = "md" }: { tags: string[]; size?: "sm" | "md" }) {
+export function TagList({ tags, className }: { tags: string[]; className?: string }) {
   if (tags.length === 0) return null;
   return (
-    <ul className="flex flex-wrap gap-1.5">
+    <ul aria-label="Tags" className={cx("flex flex-wrap gap-1", className)}>
       {tags.map((tag) => {
         const risk = isRiskTag(tag);
         return (
           <li key={tag}>
-            <Badge
-              tone={risk ? "danger" : "neutral"}
-              dot={risk}
-              className={cx(
-                size === "md" ? "px-3! py-1! text-[0.9375rem]!" : "text-sm!",
-                risk && "font-semibold",
-              )}
-            >
+            <Badge tone={risk ? "danger" : "muted"} dot={risk}>
               {tag}
             </Badge>
           </li>
@@ -47,70 +42,105 @@ export function TagList({ tags, size = "md" }: { tags: string[]; size?: "sm" | "
   );
 }
 
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dt className="text-2xs text-ink-faint">{label}</dt>
+      <dd className="min-w-0 text-ui text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * One ticket, laid out like a support workspace: subject and tags, the customer's message as a
+ * thread, and a customer sidebar on wide containers (stacked above the thread when narrow).
+ * Name and email are the only personal data and carry `data-pii`, once each.
+ */
 export function TicketDetail({ ticket }: { ticket: PublicTicket }) {
   const c = ticket.customer;
   return (
-    <article className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <h2 className="text-base leading-tight font-semibold text-balance text-ink">
-          <span className="mr-3 align-[0.2em] font-mono text-base tracking-normal text-ink-faint">
-            {ticket.id}
-          </span>
-          {ticket.subject}
-        </h2>
-        <TagList tags={ticket.tags} />
-      </header>
+    <article className="grid min-w-0 @5xl:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="flex min-w-0 flex-col gap-4 px-4 py-4 @3xl:px-6 @3xl:py-5">
+        <header className="flex flex-col gap-2">
+          <h2 className="flex flex-wrap items-baseline gap-x-2 text-base leading-6 font-semibold text-balance text-ink">
+            <span className="font-mono text-ui font-normal text-ink-faint">{ticket.id}</span>
+            {ticket.subject}
+          </h2>
+          <TagList tags={ticket.tags} />
+        </header>
 
-      <div className="grid gap-px overflow-hidden rounded-panel border border-rule bg-rule sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section aria-label="Customer" className="flex flex-col gap-2 bg-sunken px-5 py-4">
-          <p className="text-sm text-ink-muted">Customer</p>
-          <p {...pii} className="text-xl leading-snug font-semibold break-words text-ink">
-            {c.name}
-          </p>
-          <p {...pii} className="text-[1.0625rem] break-all text-ink-muted">
-            {c.email}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <Badge tone="neutral" className="text-sm!">
-              {PLAN_LABELS[c.plan]}
-            </Badge>
-            {c.vip ? (
-              <Badge tone="neutral" className="border-ink! text-sm! font-semibold">
-                VIP
-              </Badge>
-            ) : null}
-            <span className="text-[0.9375rem] text-ink-muted">
-              Account: {c.accountAgeDays} days
-            </span>
+        <section aria-label="Message" className="flex gap-3">
+          <span
+            aria-hidden="true"
+            className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-selected text-ink-muted"
+          >
+            <UserRound className="size-4 stroke-[1.75]" />
+          </span>
+          <div className="min-w-0 flex-1 rounded-panel border border-rule bg-surface">
+            <p className="flex items-center gap-2 border-b border-rule px-3.5 py-2 text-xs text-ink-muted">
+              <Mail aria-hidden="true" className="size-3.5 stroke-[1.75]" />
+              Message from the customer
+            </p>
+            <p className="max-w-[68ch] px-3.5 py-3 text-base leading-relaxed whitespace-pre-wrap text-ink">
+              {ticket.body}
+            </p>
           </div>
         </section>
-
-        <dl className="flex flex-col justify-center gap-4 bg-sunken px-5 py-4">
-          <div className="flex flex-col gap-1">
-            <dt className="text-sm text-ink-muted">Amount</dt>
-            {ticket.amountEur !== undefined ? (
-              <dd className="text-xl leading-none font-semibold tabular-nums text-ink">
-                {formatEur(ticket.amountEur)}
-              </dd>
-            ) : (
-              <dd className="text-lg text-ink-muted">No amount on this ticket</dd>
-            )}
-          </div>
-          {ticket.knownBugId !== undefined ? (
-            <div className="flex flex-col gap-1">
-              <dt className="text-sm text-ink-muted">Known bug</dt>
-              <dd className="font-mono text-lg text-ink">{ticket.knownBugId}</dd>
-            </div>
-          ) : null}
-        </dl>
       </div>
 
-      <section aria-label="Message" className="flex flex-col gap-2">
-        <p className="text-sm text-ink-muted">Message from the customer</p>
-        <p className="max-w-[68ch] text-lg leading-relaxed whitespace-pre-wrap text-ink">
-          {ticket.body}
-        </p>
-      </section>
+      <aside
+        aria-label="Customer"
+        className="order-first border-b border-rule bg-canvas/60 px-4 py-3 @3xl:px-6 @5xl:order-none @5xl:border-b-0 @5xl:border-l @5xl:px-4 @5xl:py-5"
+      >
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 @5xl:flex-col @5xl:items-stretch @5xl:gap-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-selected text-ink-muted"
+            >
+              <UserRound className="size-4 stroke-[1.75]" />
+            </span>
+            <div className="min-w-0">
+              <p {...pii} className="truncate text-ui font-semibold text-ink">
+                {c.name}
+              </p>
+              <p {...pii} className="truncate text-xs text-ink-muted">
+                {c.email}
+              </p>
+            </div>
+          </div>
+          <dl className="flex flex-wrap gap-x-6 gap-y-2 @5xl:flex-col @5xl:gap-3">
+            <Row label="Plan">
+              <span className="inline-flex items-center gap-1.5">
+                {PLAN_LABELS[c.plan]}
+                {c.vip ? (
+                  <Badge tone="neutral" icon={<Crown aria-hidden="true" />}>
+                    VIP
+                  </Badge>
+                ) : null}
+              </span>
+            </Row>
+            <Row label="Account age">
+              <span className="figures">{c.accountAgeDays} days</span>
+            </Row>
+            <Row label="Amount">
+              {ticket.amountEur !== undefined ? (
+                <span className="figures font-semibold">{formatEur(ticket.amountEur)}</span>
+              ) : (
+                <span className="text-ink-muted">No amount on this ticket</span>
+              )}
+            </Row>
+            {ticket.knownBugId !== undefined ? (
+              <Row label="Known bug">
+                <span className="inline-flex items-center gap-1.5 font-mono text-xs">
+                  <Bug aria-hidden="true" className="size-3.5 stroke-[1.75] text-ink-muted" />
+                  {ticket.knownBugId}
+                </span>
+              </Row>
+            ) : null}
+          </dl>
+        </div>
+      </aside>
     </article>
   );
 }
