@@ -9,16 +9,18 @@ import { formatClip, formatMs, SOURCE_LABEL } from "./format";
 import { frameUrl } from "./load";
 import { GUARDRAIL_EDGE, GuardrailTypeBadge, InlineConfirm, JudgmentBadge } from "./primitives";
 
-function FrameImage({
+/** A redacted frame from the API; `sessionId` null (no stored frames to address) shows a placeholder. */
+export function FrameImage({
   frameId,
   tMs,
-  available,
+  sessionId,
 }: {
   frameId: string;
   tMs: number;
-  available: boolean;
+  sessionId: string | null;
 }) {
   const [failed, setFailed] = useState(false);
+  const available = sessionId !== null;
   const showImage = available && !failed;
   return (
     <figure className="overflow-hidden rounded-panel border border-rule bg-surface">
@@ -29,7 +31,7 @@ function FrameImage({
           // biome-ignore lint/performance/noImgElement: frames come from the API host; next/image would need remotePatterns in next.config.ts, which this page does not own
           <img
             key={frameId}
-            src={frameUrl(frameId)}
+            src={frameUrl(sessionId, frameId)}
             alt={`Redacted screen at ${formatMs(tMs)}`}
             onError={() => setFailed(true)}
             className="size-full object-contain"
@@ -66,7 +68,6 @@ export function StepDetail({
   expertName,
   guardrails,
   sessionId,
-  framesAvailable,
   canEdit,
   busy,
   onRemove,
@@ -76,7 +77,6 @@ export function StepDetail({
   expertName?: string;
   guardrails: Guardrail[];
   sessionId: string | null;
-  framesAvailable: boolean;
   canEdit: boolean;
   busy: boolean;
   onRemove: (stepId: string) => Promise<void>;
@@ -143,11 +143,7 @@ export function StepDetail({
           <ClipPlayer moment={step.moment} sessionId={sessionId} quoteMs={step.reason.tMs} />
         ) : (
           <div className="flex flex-col gap-2">
-            <FrameImage
-              frameId={step.moment.frameId}
-              tMs={step.moment.tMs}
-              available={framesAvailable}
-            />
+            <FrameImage frameId={step.moment.frameId} tMs={step.moment.tMs} sessionId={null} />
             <p className="text-xs text-ink-muted">
               Clip <span className="figures font-mono">{formatClip(step.moment.clip)}</span> plays
               here when the map has a session recording (open it with{" "}

@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { WorkMap } from "@shadow/schema";
+import { API_URL } from "./env";
 import { expect, test } from "./fixtures";
 
 // The page's sample map is seed/fixtures/workmap.json (src/components/workmap/fixture.ts; its
@@ -47,5 +48,36 @@ test.describe("Work Map with the sample map (?fixture=1)", () => {
 
     await page.getByRole("radio", { name: "All", exact: true }).click();
     await expect(list.getByRole("listitem")).toHaveCount(all);
+  });
+});
+
+test.describe("Work Map evidence for a recorded session", () => {
+  test("serves the step's frame by session and shows a no-recording state", async ({
+    page,
+    request,
+  }) => {
+    const created = await request.post(`${API_URL}/sessions`, { data: { mode: "capture" } });
+    const { id: sessionId } = (await created.json()) as { id: string };
+    const frameId = sampleWorkMap.steps[0]?.moment.frameId;
+    if (!frameId) throw new Error("sample map has no steps");
+    // Without S3 the API keeps objects on disk (apps/api/src/main.ts), under the key the frame
+    // pipeline writes: frames/<sessionId>/<frameId>.jpg. A capture in fixture mode stores no
+    // frames, so this test puts one there itself.
+    const dir = new URL(`../../../infra/data/objects/frames/${sessionId}/`, import.meta.url);
+    mkdirSync(dir, { recursive: true });
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0xff, 0xd9]);
+    writeFileSync(new URL(`${frameId}.jpg`, dir), jpeg);
+
+    await page.goto(`/map/latest?fixture=1&session=${sessionId}`);
+    const video = page.getByLabel(/Session clip/);
+    const poster = await video.getAttribute("poster");
+    expect(poster).toBe(`${API_URL}/sessions/${sessionId}/frames/${frameId}.jpg`);
+    const frame = await request.get(poster ?? "");
+    expect(frame.status()).toBe(200);
+    expect(frame.headers()["content-type"]).toBe("image/jpeg");
+
+    // The session never uploaded a recording: the player says so instead of a broken element.
+    await expect(page.getByText("The recording could not be loaded")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Play clip" })).toBeDisabled();
   });
 });
