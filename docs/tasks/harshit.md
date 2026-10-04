@@ -107,11 +107,11 @@ You own the sandbox helpdesk (DeskSim) and everything behind the API: screen und
 **Owns:** `apps/api/src/privacy/**`, `apps/api/src/storage/**` (new), `apps/api/src/routes/sessions.ts`, `apps/api/src/routes/recording.ts` (new)
 
 **Build:**
-1. `storage/s3.ts` with `@aws-sdk/client-s3` against `S3_*` env (MinIO locally). Create the bucket at boot if missing.
+1. `storage/s3.ts` with `@aws-sdk/client-s3` against `S3_*` env (RustFS locally, S3-compatible). Create the bucket at boot if missing.
 2. For each `frame` message (not off the record): Presidio image redactor → store the redacted JPEG at `frames/<sessionId>/<frameId>.jpg`. Unredacted frames are never written anywhere.
 3. `PUT /sessions/:id/recording` (webm body, via `@fastify/multipart` or raw body up to 200 MB) → S3. `GET /sessions/:id/recording` streams with Range support (the Work Map and tutor seek into it for clips).
 
-**Acceptance:** after a capture session, MinIO holds only redacted frames (check one manually: the customer name is boxed out); a Range request returns `206`.
+**Acceptance:** after a capture session, the `shadow-frames` bucket holds only redacted frames (check one manually: the customer name is boxed out); a Range request returns `206`.
 
 ---
 

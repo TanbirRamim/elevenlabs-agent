@@ -1,6 +1,6 @@
 // Runs the API stack on this machine and exposes it on a free public HTTPS URL.
 //
-//   pnpm api:public                       # API + Presidio/MinIO in Docker + Cloudflare quick tunnel
+//   pnpm api:public                       # API + Presidio/RustFS in Docker + Cloudflare quick tunnel
 //   pnpm api:public --web https://x.app   # also allow that origin for CORS (comma-separate several)
 //
 // Needs: Docker running, .env filled in, and `cloudflared` on PATH
@@ -48,7 +48,7 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-console.warn("1/3 starting Presidio, MinIO and Postgres (docker compose)…");
+console.warn("1/3 starting Presidio, RustFS and Postgres (docker compose)…");
 const infra = spawnSync("docker", ["compose", "-f", "infra/docker-compose.yml", "up", "-d"], {
   cwd: root,
   stdio: "inherit",
