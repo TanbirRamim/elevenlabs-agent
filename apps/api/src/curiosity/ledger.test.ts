@@ -45,6 +45,14 @@ describe("priority formula (§6.5)", () => {
     expect(priorityOf(g, { nowMs: 0, screenAnswers: [] })).toBe(0.5);
   });
 
+  it("a refund asks about the limit: T2's guardrail gap clears the 0.6 candidate bar", () => {
+    const gaps = gapsForDecision(byId.get("T2"), "T2", "refund", 0, nextId);
+    const g = gaps.find((x) => x.slot === "guardrail");
+    if (!g) throw new Error("missing");
+    expect(surpriseOf(byId.get("T2"), "refund")).toBe(0.75);
+    expect(priorityOf(g, { nowMs: 0, screenAnswers: [] })).toBeGreaterThanOrEqual(0.6);
+  });
+
   it("handoffs open an escalation_contact gap", () => {
     const gaps = gapsForDecision(byId.get("T4"), "T4", "handoff_security", 0, nextId);
     expect(gaps.map((g) => g.slot)).toContain("escalation_contact");

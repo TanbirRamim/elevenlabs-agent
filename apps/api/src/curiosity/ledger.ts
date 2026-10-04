@@ -8,7 +8,7 @@ export interface Gap {
   slot: GapSlot;
   openedAtMs: number;
   outcome: Outcome;
-  surprise: 0.5 | 1;
+  surprise: 0.5 | 0.75 | 1;
   /** Set when a question about this gap was asked (starts the 30 s answer window). */
   askedAtMs?: number;
   questionId?: string;
@@ -35,12 +35,14 @@ const SLOT_CUES: Record<GapSlot, string[]> = {
 /**
  * §6.5 surprise: 1.0 when the outcome differs from the naive one — money is in
  * play but no refund happened, or the naive reply became a handoff/escalation.
+ * 0.75 for a refund: money leaves the company, so whether there is a limit is worth asking.
  */
-export function surpriseOf(ticket: PublicTicket | undefined, outcome: Outcome): 0.5 | 1 {
+export function surpriseOf(ticket: PublicTicket | undefined, outcome: Outcome): 0.5 | 0.75 | 1 {
   const moneyInPlay =
     ticket?.amountEur !== undefined || /refund|charge|€|\beur\b/i.test(ticket?.body ?? "");
   if (moneyInPlay && outcome !== "refund") return 1;
   if (!moneyInPlay && (outcome.startsWith("handoff_") || outcome.startsWith("escalate_"))) return 1;
+  if (outcome === "refund") return 0.75;
   return 0.5;
 }
 

@@ -70,7 +70,11 @@ export async function buildApp({
     bodyLimit: 4 * 1024 * 1024,
   });
   // WEB_ORIGIN may list several origins, comma-separated (local dev + the deployed web app).
-  await app.register(cors, { origin: env.WEB_ORIGIN.split(",").map((o) => o.trim()) });
+  // The browser also PUTs recordings and PATCHes Work Maps; the plugin's default is GET/HEAD/POST.
+  await app.register(cors, {
+    origin: env.WEB_ORIGIN.split(",").map((o) => o.trim()),
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+  });
   await app.register(websocket, { options: { maxPayload: 4 * 1024 * 1024 } });
   // Must register before the routes: the plugin attaches limits via an onRoute hook.
   await app.register(rateLimit, {
@@ -118,10 +122,11 @@ export async function buildApp({
       redactText: identityRedactor, // fixture text only, no PII
     });
   } else {
-    const redactImage = createPresidioImageRedactor({
-      url: env.PRESIDIO_IMAGE_REDACTOR_URL,
-      log: app.log,
-    });
+    const redactImage =
+      env.FRAME_REDACTION === "browser"
+        ? // Frames arrive with personal-data fields already blacked out in the browser.
+          async (jpeg: Buffer) => jpeg
+        : createPresidioImageRedactor({ url: env.PRESIDIO_IMAGE_REDACTOR_URL, log: app.log });
     // Without a key, frames are stored (redacted) but never shown to a model.
     const ticketsById = new Map(tickets.map((t) => [t.id, PublicTicket.parse(t)]));
     registerWorkMapRoutes(app, store);
