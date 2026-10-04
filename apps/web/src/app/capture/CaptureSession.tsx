@@ -7,7 +7,9 @@ import type {
   PendingAction,
   PublicTicket,
 } from "@shadow/schema";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DebriefPanel } from "@/components/debrief/DebriefPanel";
+import type { DebriefVoice } from "@/components/debrief/useDebrief";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { DESK_ROOT_ID, PII_ATTR } from "@/components/desk/types";
 import { describeDeskEvent, detectRecordPhrase } from "@/components/session/helpers";
@@ -35,11 +37,12 @@ import { useVoice } from "@/lib/voice";
 const FRAME_INTERVAL_MS = 1500;
 const HAMMING_THRESHOLD = 6;
 
-type Phase = "loading" | "ready" | "capturing" | "ended" | "failed";
+type Phase = "loading" | "ready" | "capturing" | "ended" | "debrief" | "failed";
 
 /**
  * Module 1, Capture. Hosts DeskSim, the voice side panel, screen capture, the Turn Gate
- * and off-the-record. Specs: docs/tasks/tanbir.md TAN-2, TAN-3, TAN-4, TAN-5.
+ * and off-the-record, then hands over to the debrief after End task.
+ * Specs: docs/tasks/tanbir.md TAN-2, TAN-3, TAN-4, TAN-5, TAN-7, TAN-8.
  */
 export function CaptureSession() {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -147,6 +150,8 @@ export function CaptureSession() {
 
   // Forward new transcript lines to the API and react to spoken record commands.
   const sentLines = useRef(0);
+  /** Segment ids the API has received; the debrief may only cite these. */
+  const sentIds = useRef(new Set<string>());
   useEffect(() => {
     const lines = voice.transcript;
     for (let i = sentLines.current; i < lines.length; i++) {
@@ -168,6 +173,7 @@ export function CaptureSession() {
         speaker: line.role === "user" ? "expert" : "agent",
         text: line.text,
       });
+      sentIds.current.add(line.id);
     }
     sentLines.current = lines.length;
   }, [voice.transcript, setRecord]);
@@ -277,7 +283,7 @@ export function CaptureSession() {
   const end = useCallback(async () => {
     loop.current?.stop();
     loop.current = null;
-    voice.stop();
+    // The voice session stays open: Shadow runs the debrief in the same conversation.
     for (const track of media.current?.getTracks() ?? []) track.stop();
     setPhase("ended");
     const rec = recorder.current;
@@ -295,8 +301,55 @@ export function CaptureSession() {
     // Idempotent: also covers "no recorder" and "no session" paths.
     redacted.current?.stop();
     redacted.current = null;
-  }, [sessionId, voice.stop]);
+    setPhase("debrief");
+  }, [sessionId]);
   endRef.current = end;
+
+  const typedSeq = useRef(0);
+  const sendTypedLine = useCallback(
+    (text: string): string | null => {
+      const s = stream.current;
+      if (!s || offRecordRef.current) return null;
+      typedSeq.current += 1;
+      const segmentId = `typed${typedSeq.current}`;
+      const tMs = Math.max(0, Math.round(clock()));
+      try {
+        s.send({
+          type: "transcript",
+          segmentId,
+          tStartMs: tMs,
+          tEndMs: tMs,
+          speaker: "expert",
+          text,
+        });
+      } catch {
+        return null;
+      }
+      sentIds.current.add(segmentId);
+      return segmentId;
+    },
+    [clock],
+  );
+  const isSent = useCallback((id: string) => sentIds.current.has(id), []);
+
+  const voiceConnected = voice.status === "connected";
+  const debriefVoice = useMemo<DebriefVoice>(
+    () => ({
+      connected: voiceConnected,
+      transcript: voice.transcript,
+      speak: (prefix, payload) => {
+        if (!voiceConnected) return false;
+        try {
+          voice.sendControl(prefix, payload);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    }),
+    [voiceConnected, voice.transcript, voice.sendControl],
+  );
+  const onDebriefFinished = useCallback(() => voice.stop(), [voice.stop]);
 
   return (
     <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
@@ -322,7 +375,7 @@ export function CaptureSession() {
           )}
           {phase === "ended" && (
             <p className="text-sm text-neutral-600 dark:text-neutral-300">
-              Task ended. The debrief comes next.
+              Task ended. Saving the recording before the debrief…
             </p>
           )}
           {phase === "loading" && <p className="text-sm text-neutral-500">Loading tickets…</p>}
@@ -337,7 +390,17 @@ export function CaptureSession() {
             {problem}
           </p>
         )}
-        {phase !== "failed" && phase !== "loading" && (
+        {phase === "debrief" && sessionId && (
+          <DebriefPanel
+            sessionId={sessionId}
+            voice={debriefVoice}
+            clock={clock}
+            isSent={isSent}
+            sendTypedLine={sendTypedLine}
+            onFinished={onDebriefFinished}
+          />
+        )}
+        {(phase === "ready" || phase === "capturing" || phase === "ended") && (
           <DeskSim
             tickets={tickets}
             mode="capture"
