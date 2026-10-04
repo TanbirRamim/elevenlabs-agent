@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildIntervention,
   citedGuardrails,
+  expertReason,
+  explainPayload,
   findMoment,
   masteryCounts,
   matchJudgment,
   momentForFrame,
+  oncePerKey,
   predictPayload,
   showPredictFor,
   ticketMatchesRule,
@@ -191,6 +194,8 @@ describe("matchJudgment", () => {
       ticketId: "X1",
       guardrailId: "G2",
       condition: "card used without permission",
+      expertReason: "Fraud is never refunded.",
+      guardrailQuote: "Never refund that, it goes to Security first.",
     });
   });
 
@@ -266,5 +271,53 @@ describe("showPredictFor", () => {
     expect(showPredictFor("N1", "N1", "N1")).toBe(false);
     // Regression: a held N1 used to hide the predict step on N2 for the rest of the session.
     expect(showPredictFor("N2", "N2", "N1")).toBe(true);
+  });
+});
+
+describe("tutor explanations", () => {
+  it("quotes the step's reason, else the guardrail's own words", () => {
+    const withStep = matchJudgment(map, fraud);
+    const noStep = matchJudgment(map, ticket({ tags: ["chargeback-open"] }));
+    expect(withStep && expertReason(withStep)).toBe("Fraud is never refunded.");
+    expect(noStep && expertReason(noStep)).toBe("Never refund with a chargeback.");
+    expect(noStep && predictPayload(noStep, "X2")).toMatchObject({
+      stepId: "G3",
+      expertReason: "Never refund with a chargeback.",
+    });
+  });
+
+  it("builds [EXPLAIN] with the step title, the expert's reason and the learner's answer", () => {
+    const m = matchJudgment(map, fraud);
+    if (!m) throw new Error("no match");
+    expect(explainPayload(m, "X1", "Maya", { predictedOutcome: "refund", correct: false })).toEqual(
+      {
+        ticketId: "X1",
+        stepId: "S2",
+        stepTitle: "Fraud goes to Security",
+        expertReason: "Fraud is never refunded.",
+        expertName: "Maya",
+        expectedOutcome: "handoff_security",
+        learnerPredicted: "refund",
+        learnerCorrect: false,
+      },
+    );
+  });
+
+  it("falls back to the guardrail condition and omits a missing answer", () => {
+    const m = matchJudgment(map, ticket({ tags: ["chargeback-open"] }));
+    if (!m) throw new Error("no match");
+    const payload = explainPayload(m, "X2", "Maya", null);
+    expect(payload.stepTitle).toBe("chargeback open");
+    expect(payload).not.toHaveProperty("learnerPredicted");
+  });
+
+  it("rate-limits to once per ticket, and a released ticket may send again", () => {
+    const once = oncePerKey();
+    expect(once.take("N1")).toBe(true);
+    expect(once.take("N1")).toBe(false);
+    expect(once.take("N2")).toBe(true);
+    once.release("N1");
+    expect(once.take("N1")).toBe(true);
+    expect(once.take("N1")).toBe(false);
   });
 });

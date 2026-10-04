@@ -24,12 +24,14 @@ import { ClipOverlay } from "@/components/tutor/ClipOverlay";
 import { InterventionPanel } from "@/components/tutor/InterventionPanel";
 import {
   buildIntervention,
+  explainPayload,
   guardrailMoment,
   type Intervention,
   type JudgmentMatch,
   type MomentRef,
   matchJudgment,
   momentForFrame,
+  oncePerKey,
   pickGuidedStart,
   predictPayload,
   showPredictFor,
@@ -48,13 +50,14 @@ import {
   getPublishedWorkMap,
   getTickets,
   getWorkMap,
+  getWorkMapMarkdown,
   type LearnerPredictionResponse,
   submitLearnerPrediction,
 } from "@/lib/api";
 import { type ConnectorVerdict, shadow } from "@/lib/connector";
 import { REFERENCE_RULES } from "@/lib/connector/referenceRules";
 import { openSessionStream, type SessionStream } from "@/lib/stream";
-import { type ControlPrefix, useVoice } from "@/lib/voice";
+import { type ControlPrefix, formatWorkMapContext, useVoice } from "@/lib/voice";
 import { ConnectorChip } from "./ConnectorChip";
 import { GuidedStart } from "./GuidedStart";
 import { TeachDock } from "./TeachDock";
@@ -88,8 +91,9 @@ export interface TeachSessionProps {
 
 /**
  * Module 3, Teach (TAN-10). Hosts DeskSim in teach mode, runs every save through the guard,
- * and drives the tutor: `[PREDICT]` at judgment points, `[INTERVENE]` on a BLOCK, and the
- * `replay_clip` client tool. Pure decisions live in components/tutor/logic.ts.
+ * and drives the tutor: the Work Map as `[WORKMAP]` context when the voice connects, `[PREDICT]`
+ * at judgment points, `[EXPLAIN]` once the learner has answered, `[INTERVENE]` on a BLOCK, and
+ * the `replay_clip` client tool. Pure decisions live in components/tutor/logic.ts.
  */
 export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachSessionProps) {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -127,6 +131,8 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   const mapRef = useRef<WorkMap | null>(null);
   const stream = useRef<SessionStream | null>(null);
   const predicted = useRef(new Set<string>());
+  /** One `[EXPLAIN]` per ticket, however often it is re-opened or re-answered. */
+  const explained = useRef(oncePerKey());
 
   const expertName = map?.expertName ?? "The expert";
   const dynamicVariables = useMemo(
@@ -151,6 +157,29 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
     },
     [voice.sendControl],
   );
+
+  // The tutor's knowledge base: the map's Markdown, sent once per voice connection.
+  const mapSentFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!voiceLive) {
+      mapSentFor.current = null;
+      return;
+    }
+    const mapId = map?.id;
+    if (!mapId || mapSentFor.current === mapId) return;
+    mapSentFor.current = mapId;
+    // Not cancelled on re-render: the in-flight fetch delivers for whichever map is still current.
+    getWorkMapMarkdown(mapId)
+      .then((markdown) => {
+        if (mapSentFor.current !== mapId) return;
+        const delivered = voiceLiveRef.current && voice.sendContext(formatWorkMapContext(markdown));
+        if (!delivered) mapSentFor.current = null;
+      })
+      .catch(() => {
+        // Not fatal: [PREDICT], [EXPLAIN] and [INTERVENE] carry the quotes the tutor needs.
+        if (mapSentFor.current === mapId) mapSentFor.current = null;
+      });
+  }, [voiceLive, map?.id, voice.sendContext]);
 
   // Load the map, the new-hire tickets, and create the teach session.
   useEffect(() => {
@@ -332,6 +361,17 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
           tMs: clock(),
         });
         setPredict((p) => (p ? { ...p, pending: false, result } : p));
+        if (explained.current.take(predict.ticketId)) {
+          const sent = control(
+            "[EXPLAIN]",
+            explainPayload(predict.match, predict.ticketId, expertName, {
+              predictedOutcome: outcome,
+              correct: result.correct,
+            }),
+          );
+          // Not live yet: let a later answer on this ticket explain once the voice is on.
+          if (!sent) explained.current.release(predict.ticketId);
+        }
         setStats((st) => ({
           ...st,
           predicted: st.predicted + 1,
@@ -349,7 +389,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         );
       }
     },
-    [predict, sessionId, clock],
+    [predict, sessionId, clock, control, expertName],
   );
 
   const finish = useCallback(async () => {
