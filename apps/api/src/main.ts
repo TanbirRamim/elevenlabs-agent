@@ -6,13 +6,17 @@ import { loadEnv } from "./env.js";
 import { createDiskStorage } from "./storage/disk.js";
 import { createS3Storage } from "./storage/s3.js";
 import { createJsonlStore } from "./store/jsonl.js";
+import { createMemoryStore } from "./store/memory.js";
 
 const env = loadEnv();
 const dataDir = join(findSeedDir(), "..", "infra", "data");
 // Sessions and maps survive an API restart: JSONL on local disk, mirrored to
 // R2/RustFS when S3 is configured (in prod the container disk is wiped on stop).
 const s3 = await createS3Storage(env);
-const store = await createJsonlStore({ dir: join(dataDir, "state"), storage: s3 });
+// Fixture mode (tests, UI work) keeps nothing between runs, so it never reads the live state.
+const persistent =
+  env.MOCK_AI === "1" ? null : await createJsonlStore({ dir: join(dataDir, "state"), storage: s3 });
+const store = persistent ?? createMemoryStore();
 // Without S3, recordings and frames go to the local disk: they last for this uptime.
 const storage = s3 ?? createDiskStorage(join(dataDir, "objects"));
 const app = await buildApp({
@@ -38,7 +42,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     // sessions before the final flush.
     void app
       .close()
-      .then(() => store.close())
+      .then(() => persistent?.close())
       .then(() => process.exit(0));
   });
 }
