@@ -74,7 +74,7 @@ export function ClipPlayer({
           key={src}
           preload="metadata"
           src={src}
-          poster={frameUrl(moment.frameId)}
+          poster={frameUrl(sessionId, moment.frameId)}
           playsInline
           className="block size-full bg-sunken object-contain"
           aria-label={`Session clip ${formatClip(moment.clip)}`}

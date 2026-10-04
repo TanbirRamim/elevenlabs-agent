@@ -474,7 +474,6 @@ export function WorkMapView({
               expertName={map.expertName}
               guardrails={map.guardrails}
               sessionId={clipSession}
-              framesAvailable={!isFixture && clipSession !== null}
               canEdit={canEdit}
               busy={busy}
               onRemove={removeStep}
