@@ -132,6 +132,7 @@ export async function buildApp({
       redactText: createPresidioRedactor({
         analyzerUrl: env.PRESIDIO_ANALYZER_URL,
         anonymizerUrl: env.PRESIDIO_ANONYMIZER_URL,
+        allowList: tickets.map((t) => t.id),
         log: app.log,
       }),
       ...(objectStorage || llm
