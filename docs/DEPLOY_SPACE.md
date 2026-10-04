@@ -2,11 +2,11 @@
 
 > Hugging Face Docker Spaces are now paid, so this path is optional. The free path is Render: `docs/DEPLOY_RENDER.md`.
 
-The laptop and Cloudflare quick tunnel setup in `docs/DEPLOY.md` stops working whenever the laptop sleeps. This guide moves the whole backend (the API plus Presidio) into **one Docker image** on a free Hugging Face Space. The web app stays on Vercel.
+This guide moves the whole backend (the API plus Presidio) into **one Docker image** on a Hugging Face Space. The web app stays on Cloudflare Workers.
 
 ```mermaid
 flowchart LR
-  B[Browser] -->|HTTPS| V[shadow-web on Vercel]
+  B[Browser] -->|HTTPS| V[shadow-web on Cloudflare Workers]
   B -->|HTTPS + WebSocket| S["Hugging Face Space<br/>https://&lt;user&gt;-&lt;space&gt;.hf.space"]
   subgraph S1 [One container, port 7860]
     A[Fastify API :7860] --> P[Presidio analyzer / anonymizer / image redactor<br/>127.0.0.1 only]
@@ -54,21 +54,21 @@ Checked with the built image: `/health` 200, the session WebSocket (`hello` → 
 
    | Name | Value |
    | --- | --- |
-   | `ANTHROPIC_API_KEY` | the Anthropic key (the same one as in the laptop `.env`) |
+   | `ANTHROPIC_API_KEY` | the Anthropic key (the same one as in your local `.env`) |
 
    Under **Variables** (**New variable**; values are visible), add:
 
    | Name | Value |
    | --- | --- |
-   | `WEB_ORIGIN` | `https://shadow-web-meow-4acb.vercel.app` |
+   | `WEB_ORIGIN` | `https://shadow-web.tanbirramim420.workers.dev` |
    | `DEMO_FALLBACK_RULES` | `0` |
    | `SHADOW_MODEL` | only if you want a model other than the default `claude-opus-5-5` |
 
-   Not needed on the Space: `ELEVENLABS_*` (only the Vercel app uses them), `DATABASE_URL` (unused), `API_PORT`, `PRESIDIO_*`, `SHADOW_BOOT_DIR` and `GUARD_JUDGE_TIMEOUT_MS` (set inside the image). The image sets `GUARD_JUDGE_TIMEOUT_MS=6000`: how long a save waits for the LLM guard judge before it is let through as `timeout_allow`. The judge takes about 2.7 s at p50 on a good link and longer from a shared free CPU, and a timed-out judge can miss a rule only the judge catches, so 6 s favours catching the rule over a fast save. Override it as a Space variable if needed. Never set `MOCK_AI=1` here; it serves fixture data instead of the real pipeline.
+   Not needed on the Space: `ELEVENLABS_*` (only the web app uses them), `DATABASE_URL` (unused), `API_PORT`, `PRESIDIO_*`, `SHADOW_BOOT_DIR` and `GUARD_JUDGE_TIMEOUT_MS` (set inside the image). The image sets `GUARD_JUDGE_TIMEOUT_MS=6000`: how long a save waits for the LLM guard judge before it is let through as `timeout_allow`. The judge takes about 2.7 s at p50 on a good link and longer from a shared free CPU, and a timed-out judge can miss a rule only the judge catches, so 6 s favours catching the rule over a fast save. Override it as a Space variable if needed. Never set `MOCK_AI=1` here; it serves fixture data instead of the real pipeline.
 
 ## 2. Push the code (every time you want to update the API)
 
-From an up-to-date checkout of `main` on the laptop:
+From an up-to-date checkout of `main`:
 
 ```bash
 git switch main && git pull
@@ -102,16 +102,16 @@ node infra/space/smoke.mjs https://<username>-shadow-api.hf.space
 
 ## 4. Point the web app at the Space
 
-In Vercel → project `shadow-web` → **Settings** → **Environment Variables**, change (all environments):
+In the `shadow-web` Worker's build variables, change:
 
 | Name | New value |
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | `https://<username>-shadow-api.hf.space` |
 | `NEXT_PUBLIC_API_WS_URL` | `wss://<username>-shadow-api.hf.space` |
 
-Then **Deployments** → latest → **⋮** → **Redeploy**. These values are baked in at build time, so the redeploy is required. The founder's assistant can make this Vercel change. Unlike the quick tunnel, the Space URL never changes, so this is a one-time edit.
+Then redeploy the web Worker. These values are baked in at build time, so the redeploy is required. The Space URL never changes, so this is a one-time edit.
 
-Finally open <https://shadow-web-meow-4acb.vercel.app> and run Capture → Map → Teach once.
+Finally open <https://shadow-web.tanbirramim420.workers.dev> and run Capture → Map → Teach once.
 
 ## Sleep and cold starts
 
@@ -138,7 +138,7 @@ The container log shows what was restored, ids only: `boot map published` (`work
 
 Until the real session is recorded, `seed/boot/workmap.json` is the **sample** map (`wm_mock_1`, a copy of `seed/fixtures/workmap.json`), with no recording. To replace it with the founder's real session:
 
-1. Record Capture → debrief → **Publish** against the Space (or the laptop API) as usual.
+1. Record Capture → debrief → **Publish** against the Space (or a local API) as usual.
 2. Export the published map into the repo. Either the Work Map page → **Export** (it downloads `<id>-v<version>.json`; save it as `seed/boot/workmap.json`), or:
 
    ```bash
@@ -181,4 +181,4 @@ docker run --rm -p 7861:7860 -e MOCK_AI=1 -e DEMO_FALLBACK_RULES=1 shadow-space 
 node infra/space/smoke.mjs http://localhost:7861
 ```
 
-Add `-e ANTHROPIC_API_KEY=...` (or `--env-file .env`, but then override the `PRESIDIO_*`, `S3_*` and `API_PORT` values, which point at the laptop setup) to run the full pipeline.
+Add `-e ANTHROPIC_API_KEY=...` (or `--env-file .env`, but then override the `PRESIDIO_*`, `S3_*` and `API_PORT` values, which point at the local Docker setup) to run the full pipeline.

@@ -8,7 +8,7 @@ more than "I don't know."**
 
 ## 0. Before you write anything
 
-1. Find your task in `docs/tasks/tanbir.md` or `docs/tasks/harshit.md` (ask your human which one if it isn't stated). Do **only** that task.
+1. Work from one GitHub issue (ask your human which one if it isn't stated). Do **only** that task.
 2. Read every file under the task's **Reads** and the files you will touch. The contracts in `packages/schema/src/` and `apps/web/src/components/desk/types.ts` are the source of truth.
 3. Change only paths under the task's **Owns**. `ownership.json` maps every path to an owner, and CI fails a PR that touches another owner's files.
 4. If the task, the plan and the code disagree, **stop and ask**. Do not pick one silently.

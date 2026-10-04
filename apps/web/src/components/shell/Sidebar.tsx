@@ -64,7 +64,7 @@ export function Sidebar({
 
       <nav aria-label="Product" className="flex flex-col gap-4">
         <NavGroup items={PRODUCT_NAV} pathname={pathname} onNavigate={onNavigate} />
-        <NavGroup label="Tools" items={TOOLS_NAV} pathname={pathname} onNavigate={onNavigate} />
+        <NavGroup label="More" items={TOOLS_NAV} pathname={pathname} onNavigate={onNavigate} />
       </nav>
 
       <div className="mt-auto flex items-center gap-2 border-t border-rule px-1 pt-3">

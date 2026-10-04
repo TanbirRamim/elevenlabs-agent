@@ -2,14 +2,14 @@
 
 **Team:** Tanbir Ramim, Harshit · **Window:** 24 h · **Brief:** `docs/challenge-brief.pdf` (Hack-Nation × ElevenLabs, Challenge 01 "The AI Apprentice") · **Product rationale:** `docs/PRODUCT_PLAN.md` · as of 2026-10-03
 
-> Read order: §1 (acceptance criteria) → §2 (scope) → §9 (timeline) → your task file in `docs/tasks/` → `AGENTS.md`.
+> The build plan written at kickoff. Read order: §1 (acceptance criteria) → §2 (scope) → §3 (decisions). Current requirement status lives in `docs/EVIDENCE.md`; the live deployment in `docs/DEPLOY.md`.
 
 ---
 
 ## 0. TL;DR
 
 - **Build:** an apprentice that watches a senior support lead triage tickets in our sandbox helpdesk (DeskSim), asks *why* at real pauses, turns the session into an evidence-linked Work Map, and coaches a new hire, blocking a wrong refund before it is saved.
-- **Stack:** TypeScript monorepo (pnpm + Turborepo). Next.js 16 web, Fastify 5 API with WebSockets, Zod contracts shared by both, ElevenAgents for voice, Claude (`claude-opus-5-5`, per-route effort) for vision and reasoning, Presidio for redaction; web on Vercel, API in Docker behind a Cloudflare Tunnel (free), with a paid Cloudflare Containers option.
+- **Stack:** TypeScript monorepo (pnpm + Turborepo). Next.js 16 web, Fastify 5 API with WebSockets, Zod contracts shared by both, ElevenAgents for voice, Claude (`claude-opus-5-5`, per-route effort) for vision and reasoning, Presidio for redaction; web on Cloudflare Workers, API and Presidio in Docker on Render (free), with a paid Cloudflare Containers option.
 - **Split:** **Tanbir** owns the voice agents and every page people see. **Harshit** owns DeskSim and everything behind the API. Interfaces are frozen in `packages/schema` and `apps/web/src/components/desk/types.ts`; `ownership.json` + CI keep each PR inside its owner's folders; Harshit's mock mode lets the UI run before the pipeline exists.
 - **Gates:** H4 voice + one screen · H9 Capture · H14 Map · H19 Teach · **H20 feature freeze** · H21 deployed · H24 submitted.
 - **Already done (scaffold, verified):** monorepo, CI, hooks, contracts, guardrail engine (9/9 catches, 0 false blocks on seed), Turn Gate logic (7 tests), API skeleton (guard, sessions, WS), typed Claude wrapper, vision extractor, agent prompts, seed tickets, AI-assistant rules, ownership enforcement, per-person task files.
@@ -349,7 +349,7 @@ The coding-assistant rules are in `AGENTS.md`. Inside the product, the same prin
 
 ```mermaid
 flowchart LR
-  I[Task in docs/tasks] --> B[Branch tanbir/... or harshit/...]
+  I[GitHub issue] --> B[Branch tanbir/... or harshit/...]
   B --> C[Small commits<br/>hooks: lint, secrets, message]
   C --> P[PR with template<br/>+ real verify output]
   P --> CI[CI: verify · guard eval · build · ownership]
@@ -375,10 +375,10 @@ flowchart LR
 
 | Piece | Where | How |
 | --- | --- | --- |
-| Web | Vercel Hobby, root `apps/web`, auto-deploy from `main` | `docs/DEPLOY.md` §2 |
-| API + Presidio + storage | Docker on the demo laptop, public URL via a Cloudflare quick tunnel | `pnpm api:public --web <vercel url>` |
+| Web | Cloudflare Workers (OpenNext), `shadow-web` | `docs/DEPLOY.md` |
+| API + Presidio | One Docker image on Render's free web service | `docs/DEPLOY_RENDER.md` |
 
-Trade-off: the API lives on one laptop and the tunnel URL changes per run (update `NEXT_PUBLIC_API_*` on Vercel and redeploy). The fully hosted alternative (Cloudflare Workers + Containers, needs the Workers Paid plan) stays documented in `docs/DEPLOY_CLOUDFLARE.md`.
+The fully hosted alternative (Cloudflare Workers + Containers, needs the Workers Paid plan) stays documented in `docs/DEPLOY_CLOUDFLARE.md`.
 
 --- | --- | --- |
 | Web | `shadow-web` Worker via the OpenNext adapter | `pnpm cf:deploy:web` |
@@ -418,7 +418,7 @@ Step-by-step: `docs/DEPLOY_CLOUDFLARE.md`. HTTPS is automatic on `workers.dev`, 
 
 ## 9. 24-hour timeline
 
-H0 = kickoff. Task ids refer to `docs/tasks/tanbir.md` (TAN) and `docs/tasks/harshit.md` (HAR).
+H0 = kickoff. TAN = Tanbir's tasks, HAR = Harshit's.
 
 ```mermaid
 gantt
@@ -481,7 +481,7 @@ gantt
 
 ## 10. Task breakdown
 
-The full, agent-ready task specs (paths owned, contracts read, steps, acceptance) live in **`docs/tasks/tanbir.md`** and **`docs/tasks/harshit.md`**. They are the single source for task details; this plan does not repeat them. `node scripts/create-issues.mjs --apply` turns every task into a GitHub issue labelled with its owner.
+Work was tracked as GitHub issues and pull requests, one task per branch (`tanbir/...` or `harshit/...`), within the paths `ownership.json` assigns to each owner.
 
 ---
 
@@ -513,11 +513,11 @@ Full script with lines and timings: `docs/demo-script.md`. Shape (≈ 7 min live
 
 ## 13. Pre-demo checklist
 
-- [ ] Prod URLs load over HTTPS on the demo laptop; mic + screen permissions granted in the demo browser profile
+- [ ] Prod URLs load over HTTPS on the demo machine; mic + screen permissions granted in the demo browser profile
 - [ ] `DEMO_FALLBACK_RULES=0` in production (the tutor must use the captured map)
 - [ ] ElevenLabs agents: prompts match `agents/*.md`; Tutor KB holds the *new* map
 - [ ] Insight panel visible on a second screen
-- [ ] Backup video on the laptop and in the cloud
+- [ ] Backup video stored locally and in the cloud
 - [ ] Volume, external mic, quiet corner tested
 
 ---
