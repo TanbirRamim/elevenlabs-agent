@@ -34,7 +34,7 @@ const GROUPS: { status: Status; title: string; blurb: string; tone: BadgeTone }[
   {
     status: "assisted",
     title: "Assisted",
-    blurb: "Got there after Shadow stepped in",
+    blurb: "Got there after Singoda AI stepped in",
     tone: "guard",
   },
   { status: "missed", title: "Missed", blurb: "Still needs practice", tone: "danger" },

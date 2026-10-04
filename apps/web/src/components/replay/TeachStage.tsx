@@ -15,7 +15,7 @@ import type { ReplayScript } from "./script";
 
 /**
  * Chapter 3: Jonas works the standalone DeskSim app with the real TeachDock over it, as /teach
- * looks live. On N2, a judgment point, Shadow's predict callout (the real PredictPanel) asks
+ * looks live. On N2, a judgment point, Singoda AI's predict callout (the real PredictPanel) asks
  * before he acts. On N1 the guard pauses the refund and the real InterventionPanel, built by the
  * tutor's own `buildIntervention` from the guard's verdict and the sample Work Map, is anchored
  * under the held action. At Finish the mastery report takes the page over.

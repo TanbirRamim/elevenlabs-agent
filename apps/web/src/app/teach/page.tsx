@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { VoiceProvider } from "@/lib/voice";
 import { TeachSession } from "./TeachSession";
 
-export const metadata: Metadata = { title: "Teach · Shadow" };
+export const metadata: Metadata = { title: "Teach · Singoda AI" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -12,8 +12,8 @@ function first(value: string | string[] | undefined): string | null {
 }
 
 /**
- * No Shadow chrome here (the route is "naked" in the shell): the page IS the standalone DeskSim
- * ticketing app the new hire works in. Shadow is the floating dock, plus the pause the Shadow
+ * No Singoda AI chrome here (the route is "naked" in the shell): the page IS the standalone DeskSim
+ * ticketing app the new hire works in. Singoda AI is the floating dock, plus the pause the Singoda AI
  * connector puts on a risky save before it commits (docs/CONNECTOR.md).
  */
 export default async function TeachPage({ searchParams }: { searchParams: Promise<SearchParams> }) {

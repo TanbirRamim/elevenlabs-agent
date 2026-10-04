@@ -5,7 +5,7 @@ import { Avatar, Button, IconButton } from "@/components/ui";
 
 /**
  * The guided first click, over the empty inbox on a fresh visit: one click opens the ticket a
- * loaded rule would hold and points at Refund; the second click is the save Shadow pauses.
+ * loaded rule would hold and points at Refund; the second click is the save Singoda AI pauses.
  */
 export function GuidedStart({
   ticketId,
@@ -17,14 +17,14 @@ export function GuidedStart({
   onDismiss: () => void;
 }) {
   return (
-    <section aria-label="Try Shadow" className="flex items-start gap-3 px-4 py-3.5">
-      <Avatar name="Shadow" shadow size="sm" className="mt-0.5" />
+    <section aria-label="Try Singoda AI" className="flex items-start gap-3 px-4 py-3.5">
+      <Avatar name="Singoda AI" shadow size="sm" className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <p className="text-ui font-medium text-ink">
           Try it: refund <span className="font-mono">{ticketId}</span> the way a new hire would
         </p>
         <p className="mt-0.5 text-ui text-ink-muted">
-          Shadow checks every save before it happens. Watch what it does with this one.
+          Singoda AI checks every save before it happens. Watch what it does with this one.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" icon={<ArrowRight aria-hidden="true" />} onClick={onStart}>

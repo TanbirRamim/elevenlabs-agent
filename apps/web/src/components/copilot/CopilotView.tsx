@@ -118,7 +118,7 @@ export function CopilotView({
       <PageHeader
         meta={
           <>
-            <StatusPill tone="muted">Shadow mode, nothing is sent</StatusPill>
+            <StatusPill tone="muted">Singoda AI mode, nothing is sent</StatusPill>
             {ready ? (
               ready.run.judge === "on" ? (
                 <Badge tone="ok" icon={<Check aria-hidden="true" />}>

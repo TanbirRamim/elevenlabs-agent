@@ -22,9 +22,9 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shadow",
+  title: "Singoda AI",
   description:
-    "Shadow sits beside your senior support lead, asks why at the right moments, and teaches their judgment to the next hire.",
+    "Singoda AI sits beside your senior support lead, asks why at the right moments, and teaches their judgment to the next hire.",
 };
 
 export const viewport: Viewport = {

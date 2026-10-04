@@ -94,9 +94,9 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await page.goto("/capture");
   await page.getByRole("button", { name: "Start session" }).click();
   await expect(page.getByRole("toolbar", { name: "Recording controls" })).toBeVisible();
-  await expect(page.getByRole("status", { name: "Shadow is listening" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Singoda AI is listening" })).toBeVisible();
 
-  // T1: a plain step. Its candidate is below the priority bar, so Shadow stays quiet.
+  // T1: a plain step. Its candidate is below the priority bar, so Singoda AI stays quiet.
   await openTicket(page, "T1");
   voice.say("T1 just wants the invoice, so I resend it.");
   await typeReply(page, "Here is your invoice.");
@@ -221,7 +221,7 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await expect.poll(() => voice.controls.some((c) => c.prefix === "[TEACHBACK]")).toBe(true);
   await page.waitForTimeout(500);
   voice.say("Yes, that's right.");
-  // Then the prediction check on cases Shadow has not seen: the expert marks each one right.
+  // Then the prediction check on cases Singoda AI has not seen: the expert marks each one right.
   const predictions = page.getByRole("region", { name: "Prediction check" });
   await expect(predictions).toBeVisible();
   const groups = predictions.getByRole("group", { name: /^Is prediction \d+ right\?$/ });
@@ -274,12 +274,12 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await expect(page.getByRole("button", { name: "Stop voice tutor" })).toBeVisible();
   await openTicket(page, "N1");
   await page.getByRole("button", { name: "Refund", exact: true }).click();
-  const paused = page.getByRole("status").filter({ hasText: "Paused by Shadow" });
+  const paused = page.getByRole("status").filter({ hasText: "Paused by Singoda AI" });
   await expect(paused).toBeVisible();
   await expect(paused).toContainText("G4");
   const g4 = map.guardrails.find((g) => g.id === "G4");
   if (!g4) throw new Error("map has no G4");
-  const intervention = page.getByRole("region", { name: "Shadow intervention" });
+  const intervention = page.getByRole("region", { name: "Singoda AI intervention" });
   await expect(intervention).toContainText(`${map.expertName} would stop here. Why do you think?`);
   await expect(intervention).toContainText(g4.evidence.quote.text);
   await expect.poll(() => voice.controls.some((c) => c.prefix === "[INTERVENE]")).toBe(true);
@@ -289,7 +289,7 @@ test("Challenge 01 acceptance: live questions, debrief, evidence-linked map, tut
   await expect(page.getByText(/^Committed:/)).toHaveCount(0);
   expect(committedActions(sent)).not.toContainEqual({ ticketId: "N1", outcome: "refund" });
 
-  // N2 (GDPR, also unseen) is a judgment point: Shadow asks the learner to predict first.
+  // N2 (GDPR, also unseen) is a judgment point: Singoda AI asks the learner to predict first.
   await openTicket(page, "N2");
   await expect(page.getByRole("region", { name: "Predict the decision" })).toBeVisible();
   await expect.poll(() => voice.controls.some((c) => c.prefix === "[PREDICT]")).toBe(true);

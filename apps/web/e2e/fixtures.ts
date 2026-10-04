@@ -80,7 +80,7 @@ export interface FakeVoiceAgent {
   readonly contextual: string[];
   /** The expert says something: a final user transcript, as Scribe would deliver it. */
   say(text: string): void;
-  /** Shadow says something out loud (an agent response line). */
+  /** Singoda AI says something out loud (an agent response line). */
   reply(text: string): void;
 }
 

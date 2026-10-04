@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       })),
       {
         id: "go.home",
-        label: "Go to the Shadow homepage",
+        label: "Go to the Singoda AI homepage",
         group: "Navigate",
         keywords: ["landing", "home"],
         run: () => router.push("/"),

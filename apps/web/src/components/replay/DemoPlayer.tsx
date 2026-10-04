@@ -201,7 +201,7 @@ export function DemoPlayer() {
         <header className="flex flex-col gap-3 border-b border-rule pt-6 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <h1 className="text-xl leading-7 font-semibold tracking-[-0.01em] text-ink">
-              Shadow, in 90 seconds
+              Singoda AI, in 90 seconds
             </h1>
             <StatusPill tone="muted">Replay of a recorded session</StatusPill>
           </div>

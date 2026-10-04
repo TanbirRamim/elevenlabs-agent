@@ -16,10 +16,10 @@ import { cx } from "@/components/ui/cx";
 import { StartPanel } from "./parts";
 
 /**
- * Shadow's entire presence while the expert works the standalone DeskSim app: a
+ * Singoda AI's entire presence while the expert works the standalone DeskSim app: a
  * Meet-style dock floating over the bottom of the screen. Before the session it
  * carries the start card and preflight; while recording it is the recording bar
- * plus the agent's status, mic mute and a one-tap insight peek. Shadow's latest
+ * plus the agent's status, mic mute and a one-tap insight peek. Singoda AI's latest
  * question surfaces as a callout above the dock, so the expert never leaves the
  * ticket they are working.
  */
@@ -90,7 +90,7 @@ export function CapturePill({
             className="mt-0.5 size-4 shrink-0 stroke-[1.75] text-ask-text"
           />
           <p className="min-w-0 text-ui text-ink">
-            <span className="font-semibold text-ask-text">Shadow asks</span> ·{" "}
+            <span className="font-semibold text-ask-text">Singoda AI asks</span> ·{" "}
             {currentQuestion.text}
           </p>
         </div>

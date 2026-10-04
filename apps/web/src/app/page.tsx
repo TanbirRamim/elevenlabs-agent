@@ -41,8 +41,8 @@ const MODULES: readonly Module[] = [
     name: "Capture",
     icon: <CircleDot />,
     crop: <CaptureCrop />,
-    caption: "Capture: recorder, Shadow asking at a pause, the expert's answer",
-    body: "Your senior lead triages real tickets and thinks aloud. Shadow stays quiet while they read or type, and at natural pauses asks a few short questions about what just happened on screen.",
+    caption: "Capture: recorder, Singoda AI asking at a pause, the expert's answer",
+    body: "Your senior lead triages real tickets and thinks aloud. Singoda AI stays quiet while they read or type, and at natural pauses asks a few short questions about what just happened on screen.",
     result: "Reasons and guardrails, each pinned to the moment it was said.",
     href: "/capture",
     action: "Start a capture session",
@@ -53,7 +53,7 @@ const MODULES: readonly Module[] = [
     icon: <Workflow />,
     crop: <MapCrop />,
     caption: "Work Map: steps on the session timeline, judgment calls marked",
-    body: "A short spoken debrief closes the gaps. Shadow explains the whole process back, the expert corrects what it got wrong, and confirms the rest.",
+    body: "A short spoken debrief closes the gaps. Singoda AI explains the whole process back, the expert corrects what it got wrong, and confirms the rest.",
     result:
       "A Work Map: steps, reasons and guardrails, each linked to a screen moment and a quote.",
     href: "/map/latest?fixture=1",
@@ -65,7 +65,7 @@ const MODULES: readonly Module[] = [
     icon: <GraduationCap />,
     crop: <TeachCrop />,
     caption: "Teach: a wrong refund held before it is saved, with the rule and the quote",
-    body: "A new agent works tickets the expert never saw. Shadow coaches in the expert’s words, asks them to predict the next decision, and stops a wrong refund before it is saved.",
+    body: "A new agent works tickets the expert never saw. Singoda AI coaches in the expert’s words, asks them to predict the next decision, and stops a wrong refund before it is saved.",
     result: "A new hire who can explain why, not just what.",
     href: "/teach",
     action: "Coach a new hire",
@@ -109,7 +109,7 @@ function Hero() {
             Your best support lead’s judgment, taught to every new hire.
           </h1>
           <p className="mt-5 max-w-[38rem] text-base leading-relaxed text-pretty text-ink-muted sm:text-lg">
-            Shadow sits beside your senior lead while they triage, asks why at the moments that
+            Singoda AI sits beside your senior lead while they triage, asks why at the moments that
             matter, and turns the answers into a Work Map that coaches the people who come after
             them.
           </p>
@@ -199,7 +199,7 @@ function ProductFrame() {
                 Expert routes a refund request to Security instead of refunding it.
               </p>
             </TranscriptRow>
-            <TranscriptRow time="06:41" who="Shadow" shadow>
+            <TranscriptRow time="06:41" who="Singoda AI" shadow>
               <p className="text-sm text-ink">
                 You sent that one to Security instead of refunding. What tipped it?
               </p>
@@ -255,8 +255,8 @@ function TranscriptRow({
         <p className="mb-1.5 flex items-center gap-2 text-xs font-medium">
           {shadow ? (
             <>
-              <Avatar name="Shadow" size="xs" shadow />
-              <span className="text-ask-text">Shadow asks</span>
+              <Avatar name="Singoda AI" size="xs" shadow />
+              <span className="text-ask-text">Singoda AI asks</span>
             </>
           ) : (
             <span className="text-ink-muted">{who}</span>
@@ -393,7 +393,7 @@ function Privacy() {
           <SectionHeading
             id="privacy-title"
             title="Off the record means off the record."
-            description="Experts talk about customers, colleagues and mistakes. Shadow is built so they can say what they really think, and so the customer data on their screen is protected before anything is kept."
+            description="Experts talk about customers, colleagues and mistakes. Singoda AI is built so they can say what they really think, and so the customer data on their screen is protected before anything is kept."
           />
         </div>
 
@@ -449,7 +449,7 @@ function Footer() {
       <Container className="flex flex-col gap-3 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
         <span className="inline-flex items-center gap-2 text-ink">
           <BrandMark className="size-4" />
-          <span className="text-ui font-semibold">Shadow</span>
+          <span className="text-ui font-semibold">Singoda AI</span>
         </span>
         <p>Built for Hack-Nation and ElevenLabs, challenge 01: The AI Apprentice.</p>
       </Container>

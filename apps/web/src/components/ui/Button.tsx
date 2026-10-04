@@ -13,7 +13,7 @@ const BASE =
   "[&_svg]:shrink-0 [&_svg]:stroke-[1.75]";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  // Primary is ink, never the brand colour: the brand means "Shadow", not "click here".
+  // Primary is ink, never the brand colour: the brand means "Singoda AI", not "click here".
   primary: "bg-ink text-ink-inverse shadow-raised hover:bg-ink/85",
   secondary:
     "border border-rule-strong bg-surface text-ink shadow-raised hover:border-ink-faint/60 hover:bg-hover",

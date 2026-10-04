@@ -75,7 +75,7 @@ describe("shadow connector", () => {
     expect(verdict.latencyMs).toBe(150);
   });
 
-  it("fails open with a warning when Shadow does not answer in time and has no rules", async () => {
+  it("fails open with a warning when Singoda AI does not answer in time and has no rules", async () => {
     vi.useFakeTimers();
     const shadow = createShadowConnector({
       transport: () => new Promise<GuardVerdict>(() => {}),

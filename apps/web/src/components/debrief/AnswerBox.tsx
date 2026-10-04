@@ -63,7 +63,7 @@ export function AnswerBox(props: AnswerBoxProps) {
           {voiceConnected ? (
             <>
               <Mic aria-hidden="true" className="size-3.5 shrink-0 stroke-[1.75] text-ask-text" />
-              Answer out loud; Shadow moves on when you are done. Or type below.
+              Answer out loud; Singoda AI moves on when you are done. Or type below.
             </>
           ) : (
             "Voice is not connected, so type your answer."
@@ -82,7 +82,7 @@ export function AnswerBox(props: AnswerBoxProps) {
       />
       {failed && (
         <Alert tone="danger" title="The answer could not be sent">
-          Check the connection to the Shadow API and try again.
+          Check the connection to the Singoda AI API and try again.
         </Alert>
       )}
       <div className="flex flex-wrap items-center gap-2">

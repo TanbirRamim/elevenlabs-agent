@@ -2,7 +2,7 @@ import { API_URL } from "./env";
 import { committedActions, expect, recordSentFrames, test } from "./fixtures";
 
 /**
- * The demo's core moment: a new hire refunds N1 (card used without permission) and Shadow
+ * The demo's core moment: a new hire refunds N1 (card used without permission) and Singoda AI
  * pauses the save before it happens, because guardrail G4 says route it to Security.
  */
 
@@ -34,7 +34,7 @@ test("guard API blocks N1 -> Refund with G4 (the rule path the /teach demo relie
 });
 
 // The demo's key moment (Gate 4): the wrong refund on an unseen case is held before it is saved.
-test("teach: N1 -> Refund is paused by Shadow and never committed", async ({ page }) => {
+test("teach: N1 -> Refund is paused by Singoda AI and never committed", async ({ page }) => {
   const frames = recordSentFrames(page);
   await page.goto("/teach");
 
@@ -49,7 +49,7 @@ test("teach: N1 -> Refund is paused by Shadow and never committed", async ({ pag
   await page.getByRole("button", { name: "Refund", exact: true }).click();
   expect((await verdict).ok()).toBe(true);
 
-  const paused = page.getByRole("status").filter({ hasText: "Paused by Shadow" });
+  const paused = page.getByRole("status").filter({ hasText: "Paused by Singoda AI" });
   await expect(paused).toBeVisible();
   await expect(paused).toContainText(/rule .*G4/);
   await expect(page.getByText(/^Committed:/)).toHaveCount(0);
@@ -57,7 +57,7 @@ test("teach: N1 -> Refund is paused by Shadow and never committed", async ({ pag
   expect(committedActions(frames)).not.toContainEqual({ ticketId: "N1", outcome: "refund" });
 
   // The intervention sits with the held save: the expert's question, rule and words.
-  const intervention = page.getByRole("region", { name: "Shadow intervention" });
+  const intervention = page.getByRole("region", { name: "Singoda AI intervention" });
   await expect(intervention).toContainText("would stop here. Why do you think?");
   await expect(intervention).toContainText("Guardrail G4");
 

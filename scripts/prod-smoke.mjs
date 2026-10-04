@@ -219,7 +219,7 @@ await route("/teach", async (page) => {
     .first()
     .click({ timeout: 10000 });
   const t0 = Date.now();
-  await see(page, "Paused by Shadow", 15000);
+  await see(page, "Paused by Singoda AI", 15000);
   await see(page, /G4/, 2000);
   const blockMs = Date.now() - t0;
   await page.getByText("N2", { exact: true }).first().click({ timeout: 10000 });

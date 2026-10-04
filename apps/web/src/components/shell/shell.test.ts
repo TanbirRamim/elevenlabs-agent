@@ -46,7 +46,7 @@ describe("nav", () => {
       { label: "Latest" },
     ]);
     expect(resolveCrumbs("/map/wm%2042")[1]).toEqual({ label: "wm 42" });
-    expect(resolveCrumbs("/unknown")).toEqual([{ label: "Shadow" }]);
+    expect(resolveCrumbs("/unknown")).toEqual([{ label: "Singoda AI" }]);
   });
 });
 

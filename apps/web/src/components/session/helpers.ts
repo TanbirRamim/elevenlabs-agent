@@ -48,7 +48,7 @@ export function detectRecordPhrase(text: string): RecordPhrase {
 
 /**
  * What the voice orb shows for the live session. Off the record wins over everything; without a
- * connected voice session Shadow is quiet; otherwise it is asking while the agent speaks.
+ * connected voice session Singoda AI is quiet; otherwise it is asking while the agent speaks.
  */
 export function orbStateFor(
   status: VoiceStatus,
@@ -65,7 +65,7 @@ export type LiveVoiceState = "listening" | "asking" | "quiet" | "off";
 
 /**
  * What the ListeningIndicator shows. Without a connected voice session the voice is off. While
- * Shadow's audio plays it is asking. Off the record or paused it holds every question (quiet);
+ * Singoda AI's audio plays it is asking. Off the record or paused it holds every question (quiet);
  * otherwise it is listening.
  */
 export function listeningStateFor(

@@ -28,7 +28,7 @@ export function createLlm(apiKey: string, model: string): LlmDeps {
 const TIMEOUT_MS: Record<Effort, number> = { low: 60_000, medium: 60_000, high: 180_000 };
 
 /**
- * The only way Shadow calls Claude: one route, one Zod schema, validated output or a typed error.
+ * The only way Singoda AI calls Claude: one route, one Zod schema, validated output or a typed error.
  * Callers must handle LlmError explicitly; nothing downstream ever sees unvalidated model text.
  */
 export async function structured<S extends z.ZodType>(

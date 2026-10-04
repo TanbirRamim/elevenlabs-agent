@@ -27,8 +27,8 @@ export function AgentsStage() {
           the sentence Maya said it in.
         </p>
         <p className="max-w-prose text-ui text-pretty text-ink">
-          It works on top of any software: Shadow learns by screen share, with no integration, and
-          one connector call before a save is all it needs to hold a wrong one.
+          It works on top of any software: Singoda AI learns by screen share, with no integration,
+          and one connector call before a save is all it needs to hold a wrong one.
         </p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <ButtonLink href="/capture" size="md">

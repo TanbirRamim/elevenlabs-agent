@@ -1,5 +1,5 @@
 /**
- * Turn Gate: decides WHEN Shadow may speak. Pure and deterministic so it can be unit-tested
+ * Turn Gate: decides WHEN Singoda AI may speak. Pure and deterministic so it can be unit-tested
  * and shown live in the judge debug panel. The LLM decides HOW to ask, never WHEN.
  */
 export interface GateSignals {

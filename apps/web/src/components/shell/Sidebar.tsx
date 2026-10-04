@@ -38,7 +38,7 @@ export function Sidebar({
           href="/"
           onClick={onNavigate}
           className="-mx-1 rounded-control px-1 py-1 text-ink"
-          aria-label="Shadow, home"
+          aria-label="Singoda AI, home"
         >
           <Wordmark />
         </Link>

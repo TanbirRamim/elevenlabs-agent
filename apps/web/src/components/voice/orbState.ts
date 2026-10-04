@@ -4,9 +4,9 @@ export const ORB_STATES: readonly OrbState[] = ["idle", "listening", "speaking",
 
 /** What the orb means, in words. Used for aria labels and visible captions. */
 export const ORB_STATE_LABEL: Record<OrbState, string> = {
-  idle: "Shadow is quiet",
-  listening: "Shadow is listening",
-  speaking: "Shadow is asking",
+  idle: "Singoda AI is quiet",
+  listening: "Singoda AI is listening",
+  speaking: "Singoda AI is asking",
   "off-record": "Off the record",
 };
 

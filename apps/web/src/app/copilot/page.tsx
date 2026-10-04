@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CopilotView } from "@/components/copilot/CopilotView";
 
-export const metadata: Metadata = { title: "Copilot · Shadow" };
+export const metadata: Metadata = { title: "Copilot · Singoda AI" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

@@ -64,7 +64,7 @@ import { usePreflight } from "./usePreflight";
 
 const FRAME_INTERVAL_MS = 1500;
 const HAMMING_THRESHOLD = 6;
-/** How long Shadow's latest question stays pinned at the top of the rail. */
+/** How long Singoda AI's latest question stays pinned at the top of the rail. */
 const QUESTION_CALLOUT_MS = 30_000;
 
 type Phase = "loading" | "ready" | "countdown" | "capturing" | "processing" | "debrief" | "failed";
@@ -85,7 +85,7 @@ const INITIAL_STEPS: ProcessingStep[] = [
 ];
 
 /**
- * Module 1, Capture. Preflight, countdown, the recording workspace (DeskSim, the Shadow rail,
+ * Module 1, Capture. Preflight, countdown, the recording workspace (DeskSim, the Singoda AI rail,
  * the Turn Gate and its live timeline, off the record, pause) and the debrief after Stop.
  * Specs: docs/tasks/tanbir.md TAN-2, TAN-3, TAN-4, TAN-5, TAN-7, TAN-8.
  */
@@ -464,7 +464,7 @@ export function CaptureSession() {
       go("processing");
       loop.current?.stop();
       loop.current = null;
-      // The voice session stays open: Shadow runs the debrief in the same conversation.
+      // The voice session stays open: Singoda AI runs the debrief in the same conversation.
       for (const track of media.current?.getTracks() ?? []) track.stop();
       media.current = null;
       setScreen({ kind: "idle" });
@@ -642,7 +642,7 @@ export function CaptureSession() {
             tone={loadError.offline ? "offline" : "danger"}
             title={
               loadError.offline
-                ? "The Shadow API is not reachable"
+                ? "The Singoda AI API is not reachable"
                 : "Could not start a capture session"
             }
             action={
@@ -669,7 +669,7 @@ export function CaptureSession() {
       ) : null}
 
       {/* The standalone ticketing app: the whole viewport belongs to DeskSim while the
-          expert works; Shadow is only the floating dock and its callouts. */}
+          expert works; Singoda AI is only the floating dock and its callouts. */}
       {showDesk ? (
         <div className="relative min-h-0 flex-1">
           <DeskSim
@@ -709,7 +709,7 @@ export function CaptureSession() {
                   <HoldStrip
                     icon={<Pause />}
                     title="Recording paused."
-                    text="Your microphone is muted for Shadow and nothing is captured. The timer is stopped."
+                    text="Your microphone is muted for Singoda AI and nothing is captured. The timer is stopped."
                     action={
                       <Button
                         size="sm"
@@ -764,7 +764,7 @@ export function CaptureSession() {
                   </Alert>
                 ) : null}
                 {streamDown ? (
-                  <Alert tone="offline" title="Connection to the Shadow API lost">
+                  <Alert tone="offline" title="Connection to the Singoda AI API lost">
                     Reconnecting to <code className="font-mono text-xs">{publicEnv.apiWsUrl}</code>.
                     Up to {QUEUE_LIMIT} events wait and are sent when it is back.
                   </Alert>
@@ -775,13 +775,13 @@ export function CaptureSession() {
         </div>
       ) : null}
 
-      {/* After Stop, Shadow takes the page over: the ticketing app fades away and the
+      {/* After Stop, Singoda AI takes the page over: the ticketing app fades away and the
           debrief carries the story to the Work Map. */}
       {phase === "processing" || phase === "debrief" ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8 motion-safe:animate-fade-in">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-ink">Shadow · Debrief</p>
+              <p className="text-sm font-semibold text-ink">Singoda AI · Debrief</p>
               <LiveRecordingStatus state="idle" elapsed={elapsed} />
             </div>
             {endReason === "share_ended" ? <ShareEndedNotice /> : null}
@@ -862,8 +862,9 @@ function StartIntent({ onStart }: { onStart: () => void }) {
 
 function describeError(err: unknown): string {
   if (err instanceof ApiClientError) {
-    if (err.kind === "network") return "The Shadow API is not reachable. Is it running (pnpm dev)?";
-    return `The Shadow API returned an error (${err.status ?? "?"}${err.code ? `, ${err.code}` : ""}).`;
+    if (err.kind === "network")
+      return "The Singoda AI API is not reachable. Is it running (pnpm dev)?";
+    return `The Singoda AI API returned an error (${err.status ?? "?"}${err.code ? `, ${err.code}` : ""}).`;
   }
   return err instanceof Error ? err.message : String(err);
 }

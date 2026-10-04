@@ -11,14 +11,14 @@ export interface DebriefLine {
 export interface CollectedAnswer {
   /** Expert lines that count as the answer, in order. */
   segmentIds: string[];
-  /** True once Shadow spoke again after the expert: the answer is over. */
+  /** True once Singoda AI spoke again after the expert: the answer is over. */
   complete: boolean;
-  /** Index of the Shadow line that ended the answer, or -1. The next answer starts there. */
+  /** Index of the Singoda AI line that ended the answer, or -1. The next answer starts there. */
   endIndex: number;
 }
 
 /**
- * The expert's answer since `since`: their lines from that index on, up to the first Shadow
+ * The expert's answer since `since`: their lines from that index on, up to the first Singoda AI
  * line that follows at least one of them. Lines for which `eligible` is false (never sent to
  * the API, e.g. spoken off the record) are skipped, since the API only knows sent segments.
  */
@@ -111,7 +111,7 @@ export function outcomePhrase(outcome: Outcome): string {
   return OUTCOME_PHRASE[outcome];
 }
 
-/** The sentence Shadow says for one prediction, e.g. "Prediction 1 of 2: … I would refund it …". */
+/** The sentence Singoda AI says for one prediction, e.g. "Prediction 1 of 2: … I would refund it …". */
 export function predictionSentence(
   variant: PredictionVariant,
   index: number,

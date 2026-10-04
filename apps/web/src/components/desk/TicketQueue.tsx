@@ -7,7 +7,7 @@ interface TicketQueueProps {
   tickets: PublicTicket[];
   selectedId: string | null;
   committed: Record<string, CommittedAction>;
-  /** The ticket whose save Shadow is holding right now, if any. */
+  /** The ticket whose save Singoda AI is holding right now, if any. */
   heldId?: string | null;
   onSelect: (id: string) => void;
 }

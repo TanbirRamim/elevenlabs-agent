@@ -67,7 +67,7 @@ const GENERIC_RECORD_ID =
 
 /**
  * The record a vision text is about: a known ticket id first (longest wins), else a generic
- * record reference, so capture also works on software Shadow has no ticket list for.
+ * record reference, so capture also works on software Singoda AI has no ticket list for.
  */
 export function recordIdIn(text: string, knownIds: Iterable<string>): string | null {
   let best: string | null = null;

@@ -9,7 +9,7 @@ import type { VoiceLine } from "@/lib/voice";
  * A layout effect on purpose: React runs every layout effect before any passive effect, so a
  * line is forwarded (and marked as sent) before children such as the debrief read it in their
  * own effects. With a passive effect the parent's ran after the child's, the debrief saw the
- * expert's spoken "yes" as not-yet-sent, and nothing re-checked it until Shadow spoke again.
+ * expert's spoken "yes" as not-yet-sent, and nothing re-checked it until Singoda AI spoke again.
  */
 export function useForwardTranscript(
   lines: readonly VoiceLine[],

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Public entry point for the Shadow API on Cloudflare.
+  // Public entry point for the Singoda AI API on Cloudflare.
   // The Worker forwards every request (HTTP and WebSocket) to one API container;
   // the three Presidio containers are private and only reachable from the API container.
   "name": "elevenlabs-agent",

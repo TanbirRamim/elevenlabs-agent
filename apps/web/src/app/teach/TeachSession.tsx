@@ -285,8 +285,8 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
   // Teach mode: a BLOCK goes back to DeskSim (it pauses the save) and starts the intervention.
   const onPreSave = useCallback(
     async (action: PendingAction): Promise<GuardVerdict> => {
-      // The Shadow connector: the one pre-commit call any helpdesk adds (docs/CONNECTOR.md).
-      // It fails open with a warning when Shadow can't answer in time.
+      // The Singoda AI connector: the one pre-commit call any helpdesk adds (docs/CONNECTOR.md).
+      // It fails open with a warning when Singoda AI can't answer in time.
       setHintTicketId(null);
       const verdict = await shadow.check(action, {
         sessionId,
@@ -414,7 +414,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
       {phase === "failed" && problem ? (
         <Alert
           tone="offline"
-          title="Can't reach the Shadow API"
+          title="Can't reach the Singoda AI API"
           action={
             <Button
               size="sm"
@@ -432,11 +432,11 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         </Alert>
       ) : null}
       {offline ? (
-        <Alert tone="offline" title="Live API offline — running Shadow's rules in the browser">
+        <Alert tone="offline" title="Live API offline — running Singoda AI's rules in the browser">
           Saves are checked on this page against{" "}
           {map
-            ? "the Work Map's machine rules plus Shadow's reference rules"
-            : "Shadow's reference rules"}
+            ? "the Work Map's machine rules plus Singoda AI's reference rules"
+            : "Singoda AI's reference rules"}
           , so a save a rule forbids is still held. Guardrails only the judge can decide are skipped
           until <span className="font-mono text-xs text-ink">{publicEnv.apiUrl}</span> answers
           again.
@@ -512,7 +512,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
       ) : null}
 
       {/* The standalone ticketing app: the whole viewport belongs to DeskSim while the learner
-          works; Shadow is only the floating dock, its callouts, and the pause on a held save. */}
+          works; Singoda AI is only the floating dock, its callouts, and the pause on a held save. */}
       {phase === "ready" ? (
         // Bottom padding keeps the app's last row reachable above the floating dock.
         <div className="relative min-h-0 flex-1 pb-36 sm:pb-[4.75rem]">
@@ -568,17 +568,17 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
         </div>
       ) : null}
 
-      {/* At Finish, Shadow takes the page over: the ticketing app gives way to the mastery
+      {/* At Finish, Singoda AI takes the page over: the ticketing app gives way to the mastery
           report, like capture's debrief. */}
       {phase === "ended" && report ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-8 motion-safe:animate-fade-in sm:py-10">
             <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
-                <Avatar name="Shadow" shadow size="md" className="mt-0.5" />
+                <Avatar name="Singoda AI" shadow size="md" className="mt-0.5" />
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-ink-muted">
-                    Shadow · Mastery report
+                    Singoda AI · Mastery report
                     {map ? (
                       <>
                         {" "}
@@ -591,7 +591,7 @@ export function TeachSession({ workMapId, expertSessionId, learnerName }: TeachS
                   </h1>
                   <p className="figures mt-0.5 text-ui text-ink-muted">
                     {learnerName ?? "New hire"} · {formatMs(clock())} · {stats.saved}{" "}
-                    {stats.saved === 1 ? "save" : "saves"} · {stats.held} held by Shadow
+                    {stats.saved === 1 ? "save" : "saves"} · {stats.held} held by Singoda AI
                     {stats.predicted > 0
                       ? ` · ${stats.predictedRight} of ${stats.predicted} predictions right`
                       : ""}
@@ -719,7 +719,7 @@ function NoMapNotice({
         </p>
         <p className="mt-0.5 max-w-prose text-ui text-ink-muted">
           You can still practise: every save is checked against the guardrails. Without a map,
-          Shadow can't quote an expert or ask what you would do. Capture an expert working the
+          Singoda AI can't quote an expert or ask what you would do. Capture an expert working the
           queue, or look at the sample map to see what one holds.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -796,8 +796,8 @@ async function loadMap(workMapId: string | null): Promise<{
 
 function describeError(err: unknown): string {
   if (err instanceof ApiClientError) {
-    if (err.kind === "network") return "the Shadow API is not reachable";
-    return `the Shadow API returned ${err.status}${err.code ? ` ${err.code}` : ""}`;
+    if (err.kind === "network") return "the Singoda AI API is not reachable";
+    return `the Singoda AI API returned ${err.status}${err.code ? ` ${err.code}` : ""}`;
   }
   return err instanceof Error ? err.message : String(err);
 }

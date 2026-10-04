@@ -21,7 +21,7 @@ export interface StreamPipes {
 
 /**
  * Where capture reads the screen from. "vision" (default): only what the model sees in the
- * redacted frames, so Shadow learns any app from a screen share; DeskSim DOM events are kept
+ * redacted frames, so Singoda AI learns any app from a screen share; DeskSim DOM events are kept
  * as ground truth for the vision/DOM agreement metric only. "vision+desk": DOM events also
  * become session events and drive the Curiosity Engine (tests, DeskSim-only demos).
  */

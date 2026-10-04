@@ -5,7 +5,7 @@ import { type GateReason, REASON_SENTENCES } from "./reasons";
 
 /**
  * Turns the live Turn Gate samples (one every 250 ms) into the series GateTimeline draws:
- * speech spans, typing and screen instants, Shadow's asking spans, off-the-record spans, and
+ * speech spans, typing and screen instants, Singoda AI's asking spans, off-the-record spans, and
  * each question with how long the gate held it and why. Pure: no clocks, no React.
  */
 

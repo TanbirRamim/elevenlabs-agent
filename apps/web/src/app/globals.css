@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Shadow design tokens, v2. Rules and rationale: docs/DESIGN.md.
+ * Singoda AI design tokens, v2. Rules and rationale: docs/DESIGN.md.
  *
  * Raw values live on :root as --sd-* custom properties and switch with the colour scheme.
  * `@theme inline` maps them to Tailwind utilities (bg-canvas, text-ink, border-rule, bg-rec, …),
@@ -40,7 +40,7 @@
   --sd-ink-faint: #6b6b74; /* metadata, placeholders, timestamps */
   --sd-ink-inverse: #ffffff; /* text on ink */
 
-  /* Brand: Shadow blue. Means "Shadow" (the mark, Shadow listening or asking) and the focus ring. */
+  /* Brand: Singoda AI blue. Means "Singoda AI" (the mark, Singoda AI listening or asking) and the focus ring. */
   --sd-brand: #3b5bdb;
   --sd-brand-ink: #ffffff;
   --sd-brand-text: #3b5bdb;
@@ -161,7 +161,7 @@
   --color-brand-text: var(--sd-brand-text);
   --color-brand-wash: var(--sd-brand-wash);
 
-  /* "Shadow is listening or asking" is Shadow's own voice, so it is the brand colour. */
+  /* "Singoda AI is listening or asking" is Singoda AI's own voice, so it is the brand colour. */
   --color-ask: var(--sd-brand);
   --color-ask-ink: var(--sd-brand-ink);
   --color-ask-text: var(--sd-brand-text);

@@ -34,7 +34,7 @@ const FALLBACK_PALETTE: Palette = {
 const POINT_COUNT = 1800;
 
 /**
- * The voice orb: a shell of points that breathes with Shadow's state.
+ * The voice orb: a shell of points that breathes with Singoda AI's state.
  * Client-only. Callers load it with `dynamic(() => import(...), { ssr: false })`.
  *
  * - Renders on demand and only while on screen and the tab is visible.

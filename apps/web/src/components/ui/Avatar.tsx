@@ -11,7 +11,7 @@ export function initials(name: string): string {
 const SIZES = { xs: "size-5 text-[9px]", sm: "size-6 text-2xs", md: "size-8 text-xs" } as const;
 
 /**
- * A person: initials on a neutral disc. `shadow` renders Shadow itself in the brand colour,
+ * A person: initials on a neutral disc. `shadow` renders Singoda AI itself in the brand colour,
  * the one place the brand marks an identity.
  */
 export function Avatar({

@@ -20,8 +20,8 @@ const SHORT: Record<OrbState, string> = {
 
 const CAPTION: Record<OrbState, string> = {
   idle: "Nothing on screen needs a question yet.",
-  listening: "The expert is working. Shadow follows the screen and the voice.",
-  speaking: "A natural pause. Shadow asks one short question about what just happened.",
+  listening: "The expert is working. Singoda AI follows the screen and the voice.",
+  speaking: "A natural pause. Singoda AI asks one short question about what just happened.",
   "off-record": "Nothing is sent or stored until the expert says “back on the record.”",
 };
 
