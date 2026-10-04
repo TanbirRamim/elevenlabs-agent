@@ -36,6 +36,22 @@ test("demo: scrubbing to Act 3 shows Shadow pausing the wrong refund", async ({ 
   );
 });
 
+test("demo: Act 3 asks Jonas to predict on N2 before the N1 intercept", async ({ page }) => {
+  await page.goto("/demo");
+  await page.keyboard.press("Space");
+  await page.getByRole("slider", { name: "Replay position" }).fill("61500");
+  await expect(chapterHeading(page)).toContainText("Teach");
+  const predict = page.getByRole("region", { name: "Predict the decision" });
+  await expect(predict).toContainText("judgment point on N2");
+  await expect(predict).toContainText("Right call.");
+  await expect(predict).toContainText("Legal");
+});
+
+test("demo: story mode shows Shadow's first question within 8 s", async ({ page }) => {
+  await page.goto("/demo");
+  await expect(page.getByText(/^Shadow asks/).first()).toBeVisible({ timeout: 8_000 });
+});
+
 test("demo: keyboard controls play, pause, seek and jump chapters", async ({ page }) => {
   await page.goto("/demo");
   const position = page.getByRole("slider", { name: "Replay position" });
@@ -67,7 +83,7 @@ test("demo: keyboard controls play, pause, seek and jump chapters", async ({ pag
 test("demo: the Turn Gate timeline explains each question", async ({ page }) => {
   await page.goto("/demo");
   await page.keyboard.press("Space");
-  await page.getByRole("slider", { name: "Replay position" }).fill("39000");
+  await page.getByRole("slider", { name: "Replay position" }).fill("9000");
   const marker = page.getByRole("button", { name: /^Question 1 at / });
   await marker.focus();
   await expect(page.getByRole("tooltip")).toContainText("The gate opened after");

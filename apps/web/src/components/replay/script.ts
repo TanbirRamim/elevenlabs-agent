@@ -206,13 +206,24 @@ export interface ReplayScript {
     ticketId: string;
     attempted: Outcome;
     rerouted: Outcome;
+    /** The judgment point Shadow predicts on (N2, G6), before Jonas acts. */
+    predict: {
+      ticketId: string;
+      guardrailId: string;
+      condition: string;
+      chosen: Outcome;
+      result: { correct: boolean; expectedOutcome: Outcome; reasonQuote: string; frameId: string };
+    };
+    openN2AtMs: number;
     predictAtMs: number;
+    predictChosenAtMs: number;
+    predictResultAtMs: number;
+    commitN2AtMs: number;
+    openN1AtMs: number;
     pressRefundAtMs: number;
     blockedAtMs: number;
     interventionAtMs: number;
     pressRerouteAtMs: number;
-    openN2AtMs: number;
-    commitN2AtMs: number;
     masteryAtMs: number;
     mastery: MasteryReport;
   };
@@ -291,8 +302,8 @@ const DESK_BEATS: DeskBeat[] = [
     kind: "type",
     startMs: 160_000,
     endMs: 168_000,
-    label: "Internal note",
-    text: "Duplicate charge. Refund the second one.",
+    label: "Reply",
+    text: "Hi Ben, you were charged twice. The second charge is refunded.",
   },
   { kind: "commit", atMs: 172_000, outcome: "refund" },
   { kind: "open", atMs: 290_000, ticketId: "T3" },
@@ -300,8 +311,8 @@ const DESK_BEATS: DeskBeat[] = [
     kind: "type",
     startMs: 296_000,
     endMs: 301_000,
-    label: "Internal note",
-    text: "Chargeback open. No refund. Billing disputes to review.",
+    label: "Reply",
+    text: "Hi, your bank opened a dispute, so our billing disputes team takes it from here.",
   },
   { kind: "commit", atMs: 316_000, outcome: "handoff_billing_disputes" },
   { kind: "open", atMs: 410_000, ticketId: "T4" },
@@ -558,10 +569,11 @@ export function captureSignalsAt(
 
 /** [session end of the stretch, playback length]. Session starts where the previous one ended. */
 const CAPTURE_STRETCHES: [number, number][] = [
-  [50_000, 2_500], // the problem, then Maya starts the session and opens T1
-  [68_000, 5_000], // T1: she thinks aloud and answers Shadow's question before it is asked
-  [150_000, 1_000], // types the reply
-  [172_000, 1_600], // T2: a duplicate, refunded
+  // Story mode: the lead-in is compressed so the first question lands within 8 s of load.
+  [50_000, 1_000], // the problem, then Maya starts the session and opens T1
+  [68_000, 2_800], // T1: she thinks aloud and answers Shadow's question before it is asked
+  [150_000, 500], // types the reply
+  [172_000, 900], // T2: a duplicate, refunded
   [186_000, 7_500], // first pause, first question
   [290_000, 600],
   [298_000, 1_400], // T3 opened
@@ -626,7 +638,7 @@ export function speedAt(segments: readonly Segment[], playMs: number): number {
 
 const MAP_LENGTH_MS = 22_000;
 const TEACH_LENGTH_MS = 22_000;
-const AGENTS_LENGTH_MS = 5_500;
+const AGENTS_LENGTH_MS = 10_000;
 
 const TEACH_BACK_TEXT =
   "A normal billing question gets the invoice again. Clear duplicates you refund yourself; refunds over a hundred euros are checked by a lead afterwards. An open chargeback is never refunded, it goes to Billing disputes. A changed email, or a card used without permission, means no refund and straight to Security. GDPR or deleting data goes to Legal.";
@@ -679,7 +691,7 @@ export function buildReplayScript(): ReplayScript {
       number: 3,
       title: "Teach",
       summary:
-        "Jonas, new this week, works a ticket Maya never handled. Shadow stops a wrong refund before it is saved.",
+        "Jonas, new this week, works tickets Maya never handled, in the same app. Shadow asks him to predict on N2, then pauses a wrong refund on N1 before it is saved.",
       startMs: teachStart,
       endMs: agentsStart,
     },
@@ -687,7 +699,8 @@ export function buildReplayScript(): ReplayScript {
       id: "agents",
       number: 4,
       title: "Agents",
-      summary: "The same Work Map becomes a policy an AI agent can follow.",
+      summary:
+        "The same Work Map becomes a policy an AI agent can follow. Shadow learns from any software by screen share, and one connector call before save lets it hold a wrong one.",
       startMs: agentsStart,
       endMs: durationMs,
     },
@@ -706,12 +719,7 @@ export function buildReplayScript(): ReplayScript {
     });
   };
 
-  say(
-    "narrator",
-    "Maya has led support escalations for nine years. None of her judgment is written down.",
-    0,
-    2_400,
-  );
+  say("narrator", "Maya: nine years of support judgment, none of it written down.", 0, 1_000);
   const captureLines: { speaker: Speaker; text: string; span: Span; offRecord?: boolean }[] = [
     ...capture.lines.map((l) => ({
       speaker: "maya" as const,
@@ -800,30 +808,35 @@ export function buildReplayScript(): ReplayScript {
   say("shadow", RECHECK_TEXT, m(19_100), m(20_400));
   say("maya", "Yes, that’s right.", m(20_500), m(21_400));
 
-  // Teach: Jonas on an unseen case.
+  // Teach: Jonas on two tickets Maya never handled. N2 is a judgment point, so Shadow asks him
+  // to predict first (as /teach does); N1 he acts on, and the guard pauses the save.
   const t = (ms: number) => teachStart + ms;
+  const g6 = guardrailQuote("G6");
+  const g6Rule = sampleWorkMap.guardrails.find((g) => g.id === "G6");
+  if (!g6Rule) throw new Error("sample Work Map has no guardrail G6");
   say(
     "shadow",
-    "Jonas, this one is new. Maya never handled it. What would you do?",
-    t(400),
-    t(2_800),
+    "Jonas, this one touches a data deletion request. What would you do here?",
+    t(500),
+    t(2_900),
   );
-  say("jonas", "Refund it. The amount is right there.", t(3_000), t(4_800));
-  say("shadow", "Maya would stop here. Why do you think?", t(5_800), t(8_000));
-  say("jonas", "Because it’s over a hundred?", t(8_200), t(9_600));
+  say("jonas", "Legal. We don’t delete data ourselves.", t(3_100), t(4_500));
+  say("maya", g6.text, t(4_700), t(7_000));
+  say("jonas", "Refund it. The amount is right there.", t(8_000), t(9_300));
+  say("shadow", "Maya would stop here. Why do you think?", t(10_000), t(11_800));
+  say("jonas", "Because it’s over a hundred?", t(12_000), t(13_200));
   say(
     "shadow",
     "That’s one. Now read the last line: the card was used without permission. Maya calls that fraud.",
-    t(9_800),
     t(13_400),
+    t(16_400),
   );
-  say("jonas", "So no refund. It goes to Security.", t(13_600), t(14_800));
-  say("jonas", "GDPR. That’s Legal.", t(15_600), t(16_800));
+  say("jonas", "So no refund. It goes to Security.", t(16_600), t(17_600));
   say(
     "shadow",
     "N2 he handled alone. N1 needed one nudge, so that is what he practises next.",
-    t(17_000),
-    t(20_500),
+    t(18_600),
+    t(21_600),
   );
 
   say(
@@ -893,14 +906,29 @@ export function buildReplayScript(): ReplayScript {
       ticketId: "N1",
       attempted: "refund",
       rerouted: "handoff_security",
-      predictAtMs: t(400),
-      pressRefundAtMs: t(5_000),
-      blockedAtMs: t(5_600),
-      interventionAtMs: t(5_800),
-      pressRerouteAtMs: t(15_000),
-      openN2AtMs: t(15_600),
-      commitN2AtMs: t(16_800),
-      masteryAtMs: t(17_000),
+      predict: {
+        ticketId: "N2",
+        guardrailId: "G6",
+        condition: g6Rule.condition,
+        chosen: "handoff_legal",
+        result: {
+          correct: true,
+          expectedOutcome: "handoff_legal",
+          reasonQuote: g6.text,
+          frameId: g6Rule.evidence.moment.frameId,
+        },
+      },
+      openN2AtMs: t(200),
+      predictAtMs: t(500),
+      predictChosenAtMs: t(3_100),
+      predictResultAtMs: t(4_700),
+      commitN2AtMs: t(7_200),
+      openN1AtMs: t(7_700),
+      pressRefundAtMs: t(9_300),
+      blockedAtMs: t(9_800),
+      interventionAtMs: t(10_000),
+      pressRerouteAtMs: t(17_800),
+      masteryAtMs: t(18_400),
       mastery: {
         sessionId: "replay_teach",
         workMapId: sampleWorkMap.id,
