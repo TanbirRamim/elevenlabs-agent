@@ -1,6 +1,8 @@
 "use client";
 
 import { type FormEvent, useId, useState } from "react";
+import { Notice } from "../session/Notice";
+import { Button } from "../ui";
 
 export interface AnswerBoxProps {
   /** Label for the typed answer, e.g. "Type your answer". */
@@ -35,45 +37,38 @@ export function AnswerBox(props: AnswerBoxProps) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-2">
-      {voiceConnected && (
-        <p className="text-xs text-neutral-500">
-          Answer out loud; Shadow moves on when you are done. Or type below.
-        </p>
-      )}
-      <label htmlFor={id} className="block text-sm font-medium">
-        {label}
-      </label>
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={id} className="text-[0.9375rem] font-medium text-ink">
+          {label}
+        </label>
+        {voiceConnected && (
+          <p className="text-sm text-ink-muted">
+            Answer out loud; Shadow moves on when you are done. Or type below.
+          </p>
+        )}
+      </div>
       <textarea
         id={id}
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
         disabled={busy}
-        className="w-full rounded-md border border-neutral-300 bg-transparent p-2 text-sm dark:border-neutral-700"
+        className="w-full resize-y rounded-control border border-rule-strong bg-surface px-3 py-2.5 text-[0.9375rem] leading-relaxed text-ink placeholder:text-ink-faint transition-colors hover:border-ink-faint disabled:opacity-60"
       />
       {failed && (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-300">
+        <Notice role="alert">
           The answer could not be sent. Check the connection to the Shadow API and try again.
-        </p>
+        </Notice>
       )}
       <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          disabled={busy || !text.trim()}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-black"
-        >
+        <Button type="submit" disabled={busy || !text.trim()}>
           {busy ? "Saving…" : submitLabel}
-        </button>
+        </Button>
         {spokenCount > 0 && (
-          <button
-            type="button"
-            onClick={onSubmitSpoken}
-            disabled={busy}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-neutral-700"
-          >
+          <Button variant="secondary" onClick={onSubmitSpoken} disabled={busy}>
             Use what I said ({spokenCount} {spokenCount === 1 ? "line" : "lines"})
-          </button>
+          </Button>
         )}
       </div>
     </form>
