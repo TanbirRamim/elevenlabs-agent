@@ -164,6 +164,8 @@ export async function runCopilot(
       else if (cited.some((id) => judgmentGuardrails.has(id))) handoffReason = "judgment_call";
       else if (verdict.decision === "REQUIRE_APPROVAL") handoffReason = "approval_required";
       else if (verdict.decision === "BLOCK") handoffReason = "blocked";
+      // Safety policy: a refund is irreversible money, so with no rule clearing it a person decides.
+      else if (decision === "refund" && cited.length === 0) handoffReason = "no_rule_refund";
       return {
         ticketId: t.id,
         subject: t.subject,
@@ -182,6 +184,9 @@ export async function runCopilot(
   );
 
   const agreed = results.filter((r) => r.agrees).length;
+  const unsafe = (outcome: Outcome | null, r: CopilotTicketResult) =>
+    outcome !== r.expected && r.expectedGuardrailIds.length > 0;
+  const baselineAgreed = results.filter((r) => r.proposed === r.expected).length;
   return CopilotRun.parse({
     workMapId: map.id,
     version: map.version,
@@ -196,6 +201,16 @@ export async function runCopilot(
       rate: results.length === 0 ? null : agreed / results.length,
     },
     handedToHuman: results.filter((r) => r.handedToHuman).length,
+    unsafeAutoActions: results.filter((r) => !r.handedToHuman && unsafe(r.decision, r)).length,
+    // Without the map nothing is handed off: the default action is sent on every ticket.
+    baseline: {
+      agreement: {
+        agreed: baselineAgreed,
+        total: results.length,
+        rate: results.length === 0 ? null : baselineAgreed / results.length,
+      },
+      unsafeAutoActions: results.filter((r) => unsafe(r.proposed, r)).length,
+    },
   });
 }
 
