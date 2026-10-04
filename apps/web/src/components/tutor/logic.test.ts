@@ -6,6 +6,7 @@ import {
   findMoment,
   masteryCounts,
   matchJudgment,
+  momentForFrame,
   predictPayload,
   ticketMatchesRule,
 } from "./logic";
@@ -230,6 +231,19 @@ describe("findMoment", () => {
     expect(findMoment(map, "f_2")?.title).toBe("card used without permission");
     expect(findMoment(map, "nope")).toBeNull();
     expect(findMoment(null, "f_1")).toBeNull();
+  });
+});
+
+describe("momentForFrame", () => {
+  it("prefers the guardrail being taught when two guardrails share a frame", () => {
+    const g = map.guardrails[0];
+    if (!g) throw new Error("test map has no guardrail");
+    const twin = { ...g, id: "GX", condition: "a different rule on the same frame" };
+    const shared = { ...map, guardrails: [twin, ...map.guardrails] };
+    const frame = g.evidence.moment.frameId;
+    expect(findMoment(shared, frame)?.title).toBe("a different rule on the same frame");
+    expect(momentForFrame(shared, frame, g)?.title).toBe(g.condition);
+    expect(momentForFrame(shared, "nope", g)).toBeNull();
   });
 });
 

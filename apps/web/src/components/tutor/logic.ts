@@ -161,6 +161,24 @@ export interface MomentRef {
   title: string;
 }
 
+/** The expert's moment for one guardrail, never confused with another that shares its frame. */
+export function guardrailMoment(g: Guardrail): MomentRef {
+  return { moment: g.evidence.moment, quote: g.evidence.quote.text, title: g.condition };
+}
+
+/**
+ * Resolves a frame to a moment, preferring the guardrail that is being taught right now:
+ * two guardrails can cite the same frame, and the replay must show the one that held the save.
+ */
+export function momentForFrame(
+  map: WorkMap | null,
+  frameId: string,
+  prefer: Guardrail | null,
+): MomentRef | null {
+  if (prefer && prefer.evidence.moment.frameId === frameId) return guardrailMoment(prefer);
+  return findMoment(map, frameId);
+}
+
 /** Resolves a `replay_clip({ frameId })` call to the expert's moment and words. */
 export function findMoment(map: WorkMap | null, frameId: string): MomentRef | null {
   if (!map) return null;

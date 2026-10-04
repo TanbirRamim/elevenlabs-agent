@@ -55,4 +55,14 @@ test("teach: N1 -> Refund is paused by Shadow and never committed", async ({ pag
   await expect(page.getByText(/^Committed:/)).toHaveCount(0);
 
   expect(committedActions(frames)).not.toContainEqual({ ticketId: "N1", outcome: "refund" });
+
+  // The intervention sits with the held save: the expert's question, rule and words.
+  const intervention = page.getByRole("region", { name: "Shadow intervention" });
+  await expect(intervention).toContainText("would stop here. Why do you think?");
+  await expect(intervention).toContainText("Guardrail G4");
+
+  // Taking the expert's route goes through the guard again and commits.
+  await intervention.getByRole("button", { name: /^Take .+'s route$/ }).click();
+  await expect(page.getByText(/^Committed: Handoff: Security/)).toBeVisible();
+  await expect(intervention).toContainText("Saved as Handoff: Security");
 });

@@ -2,6 +2,7 @@
 import type { DeskEvent, GuardVerdict, PendingAction, PublicTicket } from "@shadow/schema";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DeskCoachProvider } from "./coach";
 import { DeskSim } from "./DeskSim";
 import { DESK_ROOT_ID, PII_ATTR } from "./types";
 
@@ -155,5 +156,60 @@ describe("DeskSim", () => {
     expect(activity.map((e) => e.tMs)).toEqual([1234, 1800]);
 
     expect(container.querySelectorAll(`[${PII_ATTR}]`).length).toBe(2);
+  });
+
+  it("runs actions from the keyboard (J opens, digits act) but not while typing", async () => {
+    const preSave = vi.fn(
+      async (): Promise<GuardVerdict> => ({
+        decision: "ALLOW",
+        ruleIds: [],
+        source: "machine_rule",
+      }),
+    );
+    setup(preSave);
+
+    fireEvent.keyDown(document.body, { key: "j" });
+    expect(
+      screen.getByRole("button", { name: /chargeback opened/i }).getAttribute("aria-current"),
+    ).toBe("true");
+
+    fireEvent.keyDown(screen.getByLabelText(/refund amount/i), { key: "2" });
+    expect(preSave).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: "2" });
+    await screen.findByText(/committed:/i);
+    expect(preSave).toHaveBeenCalledWith({ ticket: T3, outcome: "refund", amountEur: 49.9 });
+  });
+
+  it("renders host coaching for the open ticket and lets it choose an action", async () => {
+    const preSave = vi.fn(
+      async (): Promise<GuardVerdict> => ({
+        decision: "ALLOW",
+        ruleIds: [],
+        source: "machine_rule",
+      }),
+    );
+    render(
+      <DeskCoachProvider
+        value={(ticketId, api) => (
+          <button type="button" onClick={() => api.choose("handoff_billing_disputes")}>
+            Coach for {ticketId}
+          </button>
+        )}
+      >
+        <DeskSim
+          tickets={[T3]}
+          mode="teach"
+          clock={() => 0}
+          onDeskEvent={vi.fn()}
+          preSave={preSave}
+        />
+      </DeskCoachProvider>,
+    );
+    expect(screen.queryByText(/coach for/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /chargeback opened/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Coach for T3" }));
+    await screen.findByText(/committed:/i);
+    expect(preSave).toHaveBeenCalledWith({ ticket: T3, outcome: "handoff_billing_disputes" });
   });
 });

@@ -1,10 +1,20 @@
 "use client";
 
 import { type DeskEvent, type GuardVerdict, TicketsResponse } from "@shadow/schema";
+import { GraduationCap, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DeskSim } from "@/components/desk/DeskSim";
 import { Page } from "@/components/shell/Page";
-import { Alert, Badge, EmptyState, PageHeader, Panel, Skeleton } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  ButtonLink,
+  EmptyState,
+  PageHeader,
+  Panel,
+  Skeleton,
+} from "@/components/ui";
 import { publicEnv } from "@/env";
 
 type LoadState =
@@ -53,6 +63,16 @@ export default function DeskPage() {
         title="Desk preview"
         description="The sandbox helpdesk on its own. Capture and Teach embed it in a session; here every action is allowed and every desk event is logged below."
         meta={<Badge tone="muted">Tool</Badge>}
+        actions={
+          <ButtonLink
+            href="/teach"
+            variant="secondary"
+            size="sm"
+            icon={<GraduationCap aria-hidden="true" />}
+          >
+            Open in Teach
+          </ButtonLink>
+        }
       />
 
       <div className="mt-6">
@@ -85,6 +105,18 @@ export default function DeskPage() {
         className="mt-8"
         title="Event log"
         meta={`${events.length} events`}
+        actions={
+          events.length > 0 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<RotateCcw aria-hidden="true" />}
+              onClick={() => setEvents([])}
+            >
+              Clear
+            </Button>
+          ) : null
+        }
         flush
       >
         {events.length === 0 ? (
