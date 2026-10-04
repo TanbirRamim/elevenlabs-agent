@@ -1,5 +1,172 @@
 @import "tailwindcss";
 
+/*
+ * Shadow design tokens. Rules and rationale: docs/DESIGN.md.
+ *
+ * Raw values live on :root as --desk-* custom properties and switch with the colour scheme.
+ * `@theme inline` maps them to Tailwind utilities (bg-canvas, text-ink, border-rule, …) so a
+ * utility always resolves to the current scheme without a `dark:` prefix.
+ *
+ * Scheme: follows the OS by default; `data-theme="light" | "dark"` on <html> forces one.
+ */
+
+/* `dark:` keeps its default media behaviour and also honours a forced data-theme. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:not(:where([data-theme="light"], [data-theme="light"] *)) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+}
+
 :root {
   color-scheme: light dark;
+
+  /* Light: ink on newsprint */
+  --desk-canvas: #f2f1ec;
+  --desk-surface: #fbfaf7;
+  --desk-sunken: #e9e7e0;
+  --desk-rule: #d6d3ca;
+  --desk-rule-strong: #b9b5a9;
+  --desk-ink: #13202b;
+  --desk-ink-muted: #4e5862;
+  --desk-ink-faint: #5f6870;
+
+  /* The one signal: Shadow is listening or asking, and guardrail moments. Nothing else. */
+  --desk-signal: #e9a93c;
+  --desk-signal-ink: #13202b;
+  --desk-signal-text: #8f5300;
+  --desk-signal-wash: #f6e3bd;
+
+  /* Status tones, muted on purpose: they label, they don't decorate. */
+  --desk-ok: #2f6b57;
+  --desk-ok-wash: #dcebe3;
+  --desk-stop: #a33a2b;
+  --desk-stop-wash: #f3dcd6;
+
+  --desk-focus: #13202b;
+  --desk-elevation: 0 1px 0 rgb(19 32 43 / 0.04), 0 8px 24px -12px rgb(19 32 43 / 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    /* Dark: the operations desk at night */
+    --desk-canvas: #0d1720;
+    --desk-surface: #13202b;
+    --desk-sunken: #0a121a;
+    --desk-rule: #263847;
+    --desk-rule-strong: #3a4f61;
+    --desk-ink: #ece5d6;
+    --desk-ink-muted: #a39e92;
+    --desk-ink-faint: #7f8a93;
+
+    --desk-signal: #f0b44c;
+    --desk-signal-ink: #1a1205;
+    --desk-signal-text: #f0b44c;
+    --desk-signal-wash: #2e2410;
+
+    --desk-ok: #7fb8a4;
+    --desk-ok-wash: #142a24;
+    --desk-stop: #e26d5a;
+    --desk-stop-wash: #2d1714;
+
+    --desk-focus: #f0b44c;
+    --desk-elevation: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --desk-canvas: #0d1720;
+  --desk-surface: #13202b;
+  --desk-sunken: #0a121a;
+  --desk-rule: #263847;
+  --desk-rule-strong: #3a4f61;
+  --desk-ink: #ece5d6;
+  --desk-ink-muted: #a39e92;
+  --desk-ink-faint: #7f8a93;
+  --desk-signal: #f0b44c;
+  --desk-signal-ink: #1a1205;
+  --desk-signal-text: #f0b44c;
+  --desk-signal-wash: #2e2410;
+  --desk-ok: #7fb8a4;
+  --desk-ok-wash: #142a24;
+  --desk-stop: #e26d5a;
+  --desk-stop-wash: #2d1714;
+  --desk-focus: #f0b44c;
+  --desk-elevation: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-canvas: var(--desk-canvas);
+  --color-surface: var(--desk-surface);
+  --color-sunken: var(--desk-sunken);
+  --color-rule: var(--desk-rule);
+  --color-rule-strong: var(--desk-rule-strong);
+  --color-ink: var(--desk-ink);
+  --color-ink-muted: var(--desk-ink-muted);
+  --color-ink-faint: var(--desk-ink-faint);
+  --color-signal: var(--desk-signal);
+  --color-signal-ink: var(--desk-signal-ink);
+  --color-signal-text: var(--desk-signal-text);
+  --color-signal-wash: var(--desk-signal-wash);
+  --color-ok: var(--desk-ok);
+  --color-ok-wash: var(--desk-ok-wash);
+  --color-stop: var(--desk-stop);
+  --color-stop-wash: var(--desk-stop-wash);
+  --color-focus: var(--desk-focus);
+
+  /* Fonts are wired in app/layout.tsx via next/font. */
+  --font-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-atkinson), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-atkinson-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Radius by role, not one radius for everything. */
+  --radius-control: 0.375rem;
+  --radius-panel: 0.75rem;
+  --radius-pill: 999px;
+
+  --shadow-raised: var(--desk-elevation);
+
+  /* Motion tokens: enter is slower than exit; nothing loops unless it shows live state. */
+  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-leave: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+@layer base {
+  html {
+    background-color: var(--desk-canvas);
+    color: var(--desk-ink);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--desk-canvas);
+    color: var(--desk-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "kern";
+  }
+
+  ::selection {
+    background-color: var(--desk-signal-wash);
+    color: var(--desk-ink);
+  }
+
+  /* One focus treatment everywhere: a 2px ring offset from the element. */
+  :focus-visible {
+    outline: 2px solid var(--desk-focus);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Reduced motion is handled per component (Reveal, VoiceOrb), so meaning survives it. */
 }
