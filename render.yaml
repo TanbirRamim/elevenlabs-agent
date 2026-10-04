@@ -7,7 +7,6 @@ services:
     dockerfilePath: ./infra/render/Dockerfile
     dockerContext: .
     healthCheckPath: /health
-    autoDeploy: false
     envVars:
       - key: WEB_ORIGIN
         value: https://shadow-web-meow-4acb.vercel.app
