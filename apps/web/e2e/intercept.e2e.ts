@@ -33,9 +33,8 @@ test("guard API blocks N1 -> Refund with G4 (the rule path the /teach demo relie
   expect(verdict.expectedOutcome).toBe("handoff_security");
 });
 
-// FIXME(TAN-12): enable when /teach (TAN-10) hosts <DeskSim mode="teach"> with preSave wired to
-// /guard/presave. Today apps/web/src/app/teach/page.tsx is a placeholder with no DeskSim.
-test.fixme("teach: N1 -> Refund is paused by Shadow and never committed", async ({ page }) => {
+// The demo's key moment (Gate 4): the wrong refund on an unseen case is held before it is saved.
+test("teach: N1 -> Refund is paused by Shadow and never committed", async ({ page }) => {
   const frames = recordSentFrames(page);
   await page.goto("/teach");
 
@@ -50,8 +49,9 @@ test.fixme("teach: N1 -> Refund is paused by Shadow and never committed", async 
   await page.getByRole("button", { name: "Refund", exact: true }).click();
   expect((await verdict).ok()).toBe(true);
 
-  await expect(page.getByRole("status").filter({ hasText: "Paused by Shadow" })).toBeVisible();
-  await expect(page.getByText(/rule .*G4/)).toBeVisible();
+  const paused = page.getByRole("status").filter({ hasText: "Paused by Shadow" });
+  await expect(paused).toBeVisible();
+  await expect(paused).toContainText(/rule .*G4/);
   await expect(page.getByText(/^Committed:/)).toHaveCount(0);
 
   expect(committedActions(frames)).not.toContainEqual({ ticketId: "N1", outcome: "refund" });
