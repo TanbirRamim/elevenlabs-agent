@@ -51,7 +51,7 @@ import { useTurnGate } from "@/lib/gate/useTurnGate";
 import { openSessionStream, QUEUE_LIMIT, type SessionStream, type StreamState } from "@/lib/stream";
 import { DEFAULT_GATE } from "@/lib/turnGate";
 import { useVoice } from "@/lib/voice";
-import { CapturePill } from "./CapturePill";
+import { CapturePill, PresentingBanner } from "./CapturePill";
 import {
   buildPreflight,
   HoldStrip,
@@ -73,10 +73,11 @@ type Phase = "loading" | "ready" | "countdown" | "capturing" | "processing" | "d
 type LoadError = { offline: boolean; message: string };
 type EndReason = "stopped" | "share_ended";
 
-const SURFACE: Record<string, string> = {
-  browser: "Sharing a browser tab",
-  window: "Sharing a window. Only the desk area is cropped, redacted and kept.",
-  monitor: "Sharing a whole screen. Only the desk area is cropped, redacted and kept.",
+/** What is shared when it is not this tab; nothing is kept then. */
+const OTHER_SURFACE: Record<string, string> = {
+  browser: "Sharing a tab from the picker",
+  window: "Sharing a window",
+  monitor: "Sharing your entire screen",
 };
 
 const INITIAL_STEPS: ProcessingStep[] = [
@@ -118,6 +119,10 @@ export function CaptureSession() {
   const [endReason, setEndReason] = useState<EndReason | null>(null);
   const [uploadProblem, setUploadProblem] = useState<string | null>(null);
   const [intentPending, setIntentPending] = useState(false);
+  /** The redacted stream, for the presenting banner's thumbnail. */
+  const [preview, setPreview] = useState<MediaStream | null>(null);
+  /** Where a link click wanted to go mid-recording; the leave dialog is open while set. */
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
 
   const startedAt = useRef<number | null>(null);
   const clock = useCallback(
@@ -143,6 +148,8 @@ export function CaptureSession() {
   const media = useRef<MediaStream | null>(null);
   const video = useRef<HTMLVideoElement | null>(null);
   const offRecordRef = useRef(false);
+  /** False for a window, a screen or another tab: the DeskSim region can't be located, so nothing is kept. */
+  const thisTabRef = useRef(true);
   const pausedRef = useRef(false);
   const endRef = useRef<(reason: EndReason) => Promise<void>>(async () => {});
   const shareEndedRef = useRef<() => void>(() => {});
@@ -337,16 +344,26 @@ export function CaptureSession() {
     },
   });
 
-  /** Asks for the tab. Needs a user gesture, so it runs from a button. */
-  const share = useCallback(async (): Promise<boolean> => {
-    if (media.current?.active) return true;
+  /**
+   * Asks for the screen. Needs a user gesture, so it runs from a button. `start` keeps whatever
+   * is already shared; `tab` asks for this tab; `any` opens the full picker (a window, a whole
+   * screen, any tab). Before the session, `tab` and `any` replace a different earlier share.
+   */
+  const share = useCallback(async (mode: "start" | "tab" | "any" = "start"): Promise<boolean> => {
+    const anySurface = mode === "any";
+    if (media.current?.active) {
+      if (mode === "start" || (mode === "tab" && thisTabRef.current)) return true;
+      if (phaseRef.current !== "ready") return true;
+      for (const track of media.current.getTracks()) track.stop();
+      media.current = null;
+    }
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setScreen({ kind: "error", message: "This browser cannot share a tab." });
       return false;
     }
     setScreen({ kind: "requesting" });
     try {
-      const s = await pickScreen({ preferCurrentTab: true, frameRate: 5 });
+      const s = await pickScreen({ preferCurrentTab: !anySurface, frameRate: 5 });
       const v = video.current;
       if (!v) throw new Error("video element missing");
       v.srcObject = s;
@@ -355,9 +372,18 @@ export function CaptureSession() {
       const track = s.getVideoTracks()[0];
       track?.addEventListener("ended", () => shareEndedRef.current());
       const surface = track?.getSettings().displaySurface;
+      // The default flow asks for this tab (Chrome offers only it), so it keeps the DeskSim crop
+      // as before. Anything from the full picker (a window, a whole screen, any tab) fails
+      // closed: the DeskSim region can't be located in it, so the redacted output stays black
+      // and no frame is sent.
+      const thisTab = !anySurface;
+      thisTabRef.current = thisTab;
       setScreen({
         kind: "sharing",
-        detail: (surface && SURFACE[surface]) ?? "Sharing the screen you picked",
+        thisTab,
+        detail: thisTab
+          ? "Sharing this tab. Only DeskSim is kept, personal data blacked out."
+          : `${(surface && OTHER_SURFACE[surface]) ?? "Sharing another screen"}. Singoda AI can only black out personal data in this tab, so nothing is kept.`,
       });
       return true;
     } catch (err) {
@@ -373,7 +399,7 @@ export function CaptureSession() {
   const requestStart = useCallback(async () => {
     setProblem(null);
     setIntentPending(false);
-    if (await share()) go("countdown");
+    if (await share("start")) go("countdown");
   }, [share, go]);
 
   /** After the countdown: frames, the redacted recording and the voice session start. */
@@ -393,6 +419,7 @@ export function CaptureSession() {
       frozen.current = null;
       // One region for frames and recording: DeskSim only, PII blacked out.
       const region = (): RedactedRegion | null => {
+        if (!thisTabRef.current) return null;
         const root = document.getElementById(DESK_ROOT_ID);
         const scale = videoToViewportScale(v);
         if (!root || !scale) return null;
@@ -405,6 +432,7 @@ export function CaptureSession() {
       // The raw tab is never recorded; only the redacted canvas is.
       redacted.current = startRedactedStream(v, { width: 1280, height: 720, getRegion: region });
       recorder.current = redacted.current ? startRecorder(redacted.current.stream) : null;
+      setPreview(redacted.current?.stream ?? null);
       loop.current = startFrameLoop({
         intervalMs: FRAME_INTERVAL_MS,
         hammingThreshold: HAMMING_THRESHOLD,
@@ -470,6 +498,7 @@ export function CaptureSession() {
       // The voice session stays open: Singoda AI runs the debrief in the same conversation.
       for (const track of media.current?.getTracks() ?? []) track.stop();
       media.current = null;
+      setPreview(null);
       setScreen({ kind: "idle" });
       const rec = recorder.current;
       recorder.current = null;
@@ -525,6 +554,42 @@ export function CaptureSession() {
     setScreen({ kind: "ended" });
     if (phaseRef.current === "countdown") go("ready");
   };
+
+  // A link (the Singoda AI nav in the app bar or the dock) clicked mid-recording asks first.
+  useEffect(() => {
+    if (phase !== "capturing") return;
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const a = e.target instanceof Element ? e.target.closest("a[href]") : null;
+      if (!(a instanceof HTMLAnchorElement) || a.target === "_blank") return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname)
+        return;
+      e.preventDefault(); // next/link skips navigation for a prevented click
+      setLeaveTo(`${url.pathname}${url.search}${url.hash}`);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [phase]);
+
+  /** Leave mid-recording: stop sharing and every capture resource, then navigate. */
+  const leave = useCallback(() => {
+    const to = leaveTo;
+    setLeaveTo(null);
+    if (!to) return;
+    loop.current?.stop();
+    loop.current = null;
+    const rec = recorder.current;
+    recorder.current = null;
+    rec?.stop().catch(() => {});
+    redacted.current?.stop();
+    redacted.current = null;
+    for (const track of media.current?.getTracks() ?? []) track.stop();
+    media.current = null;
+    setPreview(null);
+    voice.stop();
+    router.push(to);
+  }, [leaveTo, voice.stop, router]);
 
   // Stop every capture resource if the page goes away mid-session.
   useEffect(
@@ -619,7 +684,7 @@ export function CaptureSession() {
   const preflightItems = buildPreflight({
     preflight,
     screen,
-    onShare: () => void share(),
+    onShare: () => void share("tab"),
   });
   const blocking =
     preflight.redaction.status === "failed" || screen.kind === "requesting" || sessionId === null;
@@ -673,6 +738,14 @@ export function CaptureSession() {
 
       {/* The standalone ticketing app: the whole viewport belongs to DeskSim while the
           expert works; Singoda AI is only the floating dock and its callouts. */}
+      {live ? (
+        <PresentingBanner
+          thisTab={screen.kind === "sharing" ? screen.thisTab : true}
+          preview={preview}
+          onStop={() => void end("stopped")}
+        />
+      ) : null}
+
       {showDesk ? (
         <div className="relative min-h-0 flex-1">
           <DeskSim
@@ -736,6 +809,7 @@ export function CaptureSession() {
                 ? undefined
                 : {
                     onStart: () => void requestStart(),
+                    onShareOther: () => void share("any"),
                     disabled: blocking || phase === "countdown",
                     busy: screen.kind === "requesting",
                     intent: intentPending,
@@ -747,7 +821,6 @@ export function CaptureSession() {
             }
             recordingState={recordingState}
             elapsed={elapsed}
-            voiceConnected={voiceConnected}
             voiceState={voice.status === "connected" ? voiceState : undefined}
             onPause={() => setPause(true)}
             onResume={() => setPause(false)}
@@ -848,6 +921,26 @@ export function CaptureSession() {
           </Button>
         </div>
       </Dialog>
+
+      <Dialog
+        open={leaveTo !== null}
+        onOpenChange={(open) => {
+          if (!open) setLeaveTo(null);
+        }}
+        title="Stop presenting and leave?"
+        description="Singoda AI stops recording and stops sharing your screen. This session ends here, without a debrief."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLeaveTo(null)}>
+              Keep presenting
+            </Button>
+            <Button variant="danger" onClick={leave}>
+              Stop and leave
+            </Button>
+          </>
+        }
+      />
 
       {/* Hidden: the shared-tab stream feeds the frame loop and never renders. */}
       <video ref={video} muted playsInline className="hidden" />
