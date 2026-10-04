@@ -59,6 +59,7 @@ import {
   ShareEndedNotice,
   START_BUTTON_ID,
 } from "./parts";
+import { useForwardTranscript } from "./useForwardTranscript";
 import { usePreflight } from "./usePreflight";
 
 const FRAME_INTERVAL_MS = 1500;
@@ -270,34 +271,27 @@ export function CaptureSession() {
   }, [phase, setRecord]);
 
   // Forward new transcript lines to the API and react to spoken record commands.
-  const sentLines = useRef(0);
   /** Segment ids the API has received; the debrief may only cite these. */
   const sentIds = useRef(new Set<string>());
-  useEffect(() => {
-    const lines = voice.transcript;
-    for (let i = sentLines.current; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) continue;
-      if (line.role === "user") {
-        const phrase = detectRecordPhrase(line.text);
-        if (phrase) {
-          setRecord(phrase === "off");
-          continue; // the command itself is not content
-        }
+  useForwardTranscript(voice.transcript, (line) => {
+    if (line.role === "user") {
+      const phrase = detectRecordPhrase(line.text);
+      if (phrase) {
+        setRecord(phrase === "off");
+        return; // the command itself is not content
       }
-      if (holding()) continue; // nothing said off the record or paused leaves the browser
-      stream.current?.send({
-        type: "transcript",
-        segmentId: line.id,
-        tStartMs: line.tMs,
-        tEndMs: line.tMs,
-        speaker: line.role === "user" ? "expert" : "agent",
-        text: line.text,
-      });
-      sentIds.current.add(line.id);
     }
-    sentLines.current = lines.length;
-  }, [voice.transcript, setRecord, holding]);
+    if (holding()) return; // nothing said off the record or paused leaves the browser
+    stream.current?.send({
+      type: "transcript",
+      segmentId: line.id,
+      tStartMs: line.tMs,
+      tEndMs: line.tMs,
+      speaker: line.role === "user" ? "expert" : "agent",
+      text: line.text,
+    });
+    sentIds.current.add(line.id);
+  });
 
   const onDeskEvent = useCallback(
     (event: DeskEvent) => {
