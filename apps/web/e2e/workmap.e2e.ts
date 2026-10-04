@@ -1,5 +1,13 @@
-import { sampleWorkMap } from "../src/components/workmap/fixture";
+import { readFileSync } from "node:fs";
+import { WorkMap } from "@shadow/schema";
 import { expect, test } from "./fixtures";
+
+// The page's sample map is seed/fixtures/workmap.json (src/components/workmap/fixture.ts; its
+// unit test asserts they are equal). Read from disk: Playwright's ESM loader would need an
+// import attribute for the JSON import inside fixture.ts.
+const sampleWorkMap = WorkMap.parse(
+  JSON.parse(readFileSync(new URL("../../../seed/fixtures/workmap.json", import.meta.url), "utf8")),
+);
 
 test.describe("Work Map with the sample map (?fixture=1)", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,7 +30,8 @@ test.describe("Work Map with the sample map (?fixture=1)", () => {
     if (!step) throw new Error("sample map has no step S4");
     await page.getByRole("button", { name: new RegExp(step.title) }).click();
     const detail = page.getByRole("region", { name: "Step detail" });
-    await expect(detail.getByText(`“${step.reason.text}”`)).toBeVisible();
+    // S4's reason is also the evidence quote of its guardrail G3, so it can show twice.
+    await expect(detail.getByText(`“${step.reason.text}”`).first()).toBeVisible();
     await expect(detail.getByText(step.decision, { exact: true })).toBeVisible();
   });
 

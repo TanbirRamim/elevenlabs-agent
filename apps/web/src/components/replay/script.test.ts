@@ -4,6 +4,7 @@ import { sampleWorkMap } from "../workmap/fixture";
 import {
   captureAt,
   chapterAt,
+  clockAt,
   mapAt,
   momentsOf,
   orbStateAt,
@@ -71,7 +72,7 @@ describe("replay script: live questions come from the real Turn Gate", () => {
       for (const o of capture.offRecord)
         expect(q.atMs >= o.startMs && q.atMs < o.endMs).toBe(false);
     }
-    expect(capture.dropped.map((d) => d.ticketId)).toEqual(["T4"]);
+    expect(capture.dropped.map((d) => d.ticketId)).toEqual(["T1"]);
   });
 
   it("is deterministic", () => {
@@ -126,13 +127,32 @@ describe("replay script: timeline", () => {
     }
   });
 
-  it("quotes Maya from the sample Work Map verbatim", () => {
+  it("quotes Maya from the sample Work Map verbatim: every step and every guardrail", () => {
     const mayaLines = new Set(
       script.captions.filter((c) => c.speaker === "maya").map((c) => c.text),
     );
-    for (const id of ["S1", "S2", "S3", "S4", "S5", "S6"]) {
-      const step = sampleWorkMap.steps.find((s) => s.id === id);
-      expect(mayaLines.has(step?.reason.text ?? "")).toBe(true);
+    for (const step of sampleWorkMap.steps) expect(mayaLines).toContain(step.reason.text);
+    for (const g of sampleWorkMap.guardrails) expect(mayaLines).toContain(g.evidence.quote.text);
+  });
+
+  it("has Maya say each quote at the session time the sample Work Map cites", () => {
+    const quotes = [
+      ...sampleWorkMap.steps.map((s) => s.reason),
+      ...sampleWorkMap.guardrails.map((g) => g.evidence.quote),
+    ];
+    // Captions are rounded to whole playback ms; allow for that once mapped to session time.
+    const roundingMs = 50;
+    for (const q of quotes) {
+      const said = script.captions.filter((c) => c.speaker === "maya" && c.text === q.text);
+      const atSessionTime = said.some((c) => {
+        const from = clockAt(script, c.startMs)?.ms ?? Number.NaN;
+        const to = clockAt(script, c.endMs - 1)?.ms ?? Number.NaN;
+        return q.tMs >= from - roundingMs && q.tMs <= to + roundingMs;
+      });
+      expect(atSessionTime, `${q.segmentId} at ${q.tMs} ms`).toBe(true);
+    }
+    for (const [start, end] of sampleWorkMap.offRecordSpans) {
+      expect(capture.offRecord).toContainEqual({ startMs: start, endMs: end });
     }
   });
 });
@@ -162,7 +182,9 @@ describe("replay frames", () => {
   it("map ends confirmed at the Work Map's time with coverage over the target", () => {
     const end = mapAt(script, must(script.chapters[1], "map chapter").endMs - 1);
     expect(end.done).toBe(true);
-    expect(end.teachBack?.confirmedSessionMs).toBe(sampleWorkMap.teachBackConfirmedAtMs);
+    const lastQuoteMs = Math.max(...sampleWorkMap.guardrails.map((g) => g.evidence.quote.tMs));
+    expect(end.teachBack?.confirmedSessionMs).toBeGreaterThan(lastQuoteMs);
+    expect(end.coverage).toBe(sampleWorkMap.coverage);
     expect(end.gaps.every((g) => g.status === "answered")).toBe(true);
   });
 

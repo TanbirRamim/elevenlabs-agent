@@ -30,7 +30,7 @@ test("demo: scrubbing to Act 3 shows Shadow pausing the wrong refund", async ({ 
   await expect(chapterHeading(page)).toContainText("Teach");
   const paused = page.getByRole("status").filter({ hasText: "Paused by Shadow" });
   await expect(paused).toBeVisible();
-  await expect(paused).toContainText("G3");
+  await expect(paused).toContainText("G4");
   await expect(page.getByRole("region", { name: "Shadow intervention" })).toContainText(
     "Maya would stop here. Why do you think?",
   );
