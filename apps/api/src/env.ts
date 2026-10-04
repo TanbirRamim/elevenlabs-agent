@@ -21,6 +21,11 @@ const Env = z.object({
    * becomes timeout_allow (§6.8 says 2.5 s; measured live, the judge takes ~2.7 s at p50).
    */
   GUARD_JUDGE_TIMEOUT_MS: z.coerce.number().int().positive().default(2500),
+  /**
+   * Optional directory with workmap.json and recordings/<sessionId>.webm, restored at boot when
+   * nothing is published (seed/boot in the Space image; see docs/DEPLOY_SPACE.md). Empty = unset.
+   */
+  SHADOW_BOOT_DIR: z.string().optional(),
   DEMO_FALLBACK_RULES: z.enum(["0", "1"]).default("0"),
   /** Serve fixture data from seed/fixtures instead of calling Claude/Presidio (UI work, tests). */
   MOCK_AI: z.enum(["0", "1"]).default("0"),

@@ -31,7 +31,11 @@ export function registerRecordingRoutes(
 
   app.get<{ Params: { id: string } }>("/sessions/:id/recording", async (req, reply) => {
     if (!storage) return reply.code(503).send({ code: "storage_unavailable" });
-    if (!store.getSession(req.params.id)) return reply.code(404).send({ code: "unknown_session" });
+    // The published map's source session may be gone after a wiped disk while its recording
+    // was restored from the boot dir (boot.ts), so that one id stays replayable.
+    const isPublishedSource = store.getPublishedWorkMap()?.sourceSessionId === req.params.id;
+    if (!store.getSession(req.params.id) && !isPublishedSource)
+      return reply.code(404).send({ code: "unknown_session" });
     const result = await storage.get(`recordings/${req.params.id}.webm`, req.headers.range);
     if (result.status === 404) return reply.code(404).send({ code: "no_recording" });
     if (result.status === 416) {
