@@ -3,6 +3,9 @@ import {
   DebriefStatus,
   MasteryReport,
   type OpenQuestion,
+  TeachBackConfirmRequest,
+  TeachBackConfirmResponse,
+  TeachBackResponse,
 } from "@shadow/schema";
 import type { FastifyInstance } from "fastify";
 import type { Store } from "../store/memory.js";
@@ -11,6 +14,8 @@ import type { MockFixtures } from "./fixtures.js";
 /**
  * MOCK_AI=1 stand-ins for the endpoints HAR-9/HAR-12 build for real. They let the
  * web app run Capture -> Map -> Teach end to end with no Claude or Presidio keys.
+ * The Work Map routes (GET/PATCH/publish/markdown/predictions, routes/workmaps.ts) are the
+ * real store-backed ones; the fixture map is saved into the store here.
  */
 export function registerMockRoutes(
   app: FastifyInstance,
@@ -18,11 +23,16 @@ export function registerMockRoutes(
   fixtures: MockFixtures,
 ): void {
   const debriefs = new Map<string, { coverage: number; asked: number; open: OpenQuestion[] }>();
+  const corrections = new Map<string, number>();
+  store.saveWorkMap(fixtures.workMap);
 
   app.post<{ Params: { id: string } }>("/sessions/:id/end", async (req, reply) => {
     if (!store.getSession(req.params.id)) {
       return reply.code(404).send({ code: "unknown_session" });
     }
+    // A fresh fixture map per debrief, so a previous teach-back confirmation never leaks.
+    store.saveWorkMap(fixtures.workMap);
+    corrections.delete(req.params.id);
     debriefs.set(req.params.id, {
       coverage: fixtures.endSession.coverage,
       asked: 0,
@@ -54,9 +64,38 @@ export function registerMockRoutes(
     });
   });
 
-  // The id is pinned to end-session.json's workMapId by the fixture test; answering
-  // any id keeps Tanbir unblocked rather than 404ing on a mismatch.
-  app.get("/workmaps/:id", async () => fixtures.workMap);
+  app.post<{ Params: { id: string } }>("/sessions/:id/teachback", async (req, reply) => {
+    if (!debriefs.has(req.params.id)) {
+      return reply.code(409).send({ code: "debrief_not_started" });
+    }
+    return TeachBackResponse.parse({ text: fixtures.teachBack.text });
+  });
+
+  app.post<{ Params: { id: string } }>("/sessions/:id/teachback/confirm", async (req, reply) => {
+    const body = TeachBackConfirmRequest.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ code: "invalid_body" });
+    const map = store.getWorkMap(fixtures.endSession.workMapId);
+    if (!debriefs.has(req.params.id) || !map) {
+      return reply.code(409).send({ code: "debrief_not_started" });
+    }
+    if (body.data.confirmed) {
+      const confirmed = { ...map, teachBackConfirmedAtMs: body.data.tMs };
+      store.saveWorkMap(confirmed);
+      return TeachBackConfirmResponse.parse({ workMap: confirmed });
+    }
+    if (body.data.correctionSegmentIds.length === 0) {
+      return reply.code(400).send({ code: "correction_segments_required" });
+    }
+    const used = corrections.get(req.params.id) ?? 0;
+    if (used >= 2) return reply.code(409).send({ code: "correction_limit" });
+    corrections.set(req.params.id, used + 1);
+    const corrected = { ...map, version: map.version + 1 };
+    store.saveWorkMap(corrected);
+    return TeachBackConfirmResponse.parse({
+      workMap: corrected,
+      recheckText: fixtures.teachBack.recheckText,
+    });
+  });
 
   app.get<{ Params: { id: string } }>("/sessions/:id/mastery", async (req, reply) => {
     if (!store.getSession(req.params.id)) {

@@ -5,7 +5,17 @@ import { workMapToMarkdown } from "../workmap/markdown.js";
 import { predictionVariants } from "../workmap/predictions.js";
 
 /** Draft + published Work Map endpoints. None of these call Claude. */
-export function registerWorkMapRoutes(app: FastifyInstance, store: Store): void {
+export function registerWorkMapRoutes(
+  app: FastifyInstance,
+  store: Store,
+  opts: {
+    /**
+     * MOCK_AI only: served by GET /workmaps/published while nothing is published. It is not
+     * published itself, so the guard keeps its fallback rules until a map really is.
+     */
+    publishedFallback?: WorkMap;
+  } = {},
+): void {
   const find = (id: string) => {
     const draft = store.getWorkMap(id);
     if (draft) return draft;
@@ -14,7 +24,7 @@ export function registerWorkMapRoutes(app: FastifyInstance, store: Store): void 
   };
 
   app.get("/workmaps/published", async (_req, reply) => {
-    const map = store.getPublishedWorkMap();
+    const map = store.getPublishedWorkMap() ?? opts.publishedFallback;
     if (!map) return reply.code(404).send({ code: "nothing_published" });
     return map;
   });
