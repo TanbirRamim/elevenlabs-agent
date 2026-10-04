@@ -11,16 +11,10 @@ import { type RedactText, unavailableRedactor } from "../privacy/presidio.js";
 import { ingestTranscript } from "../privacy/transcript.js";
 import type { Store } from "../store/memory.js";
 
-export interface SessionStreamDeps {
-  hooks?: StreamHooks;
-  /** Defaults to the fail-safe placeholder redactor; app.ts wires the real one. */
-  redactText?: RedactText;
-}
-
 export function registerSessionRoutes(
   app: FastifyInstance,
   store: Store,
-  { hooks, redactText = unavailableRedactor }: SessionStreamDeps = {},
+  hooks?: StreamHooks,
 ): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
