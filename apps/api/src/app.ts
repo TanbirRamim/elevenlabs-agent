@@ -9,6 +9,7 @@ import type { Env } from "./env.js";
 import { loadMockFixtures } from "./mock/fixtures.js";
 import { registerMockRoutes } from "./mock/routes.js";
 import { createMockStreamHooks } from "./mock/stream.js";
+import { createPresidioRedactor, identityRedactor } from "./privacy/presidio.js";
 import { registerGuardRoutes } from "./routes/guard.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerTicketRoutes } from "./routes/tickets.js";
@@ -63,9 +64,18 @@ export async function buildApp({
     // debrief/workmap/mastery routes (HAR-9, HAR-12) will register in the else branch.
     const fixtures = loadMockFixtures();
     registerMockRoutes(app, store, fixtures);
-    registerSessionRoutes(app, store, createMockStreamHooks(fixtures));
+    registerSessionRoutes(app, store, {
+      hooks: createMockStreamHooks(fixtures),
+      redactText: identityRedactor, // fixture text only, no PII
+    });
   } else {
-    registerSessionRoutes(app, store);
+    registerSessionRoutes(app, store, {
+      redactText: createPresidioRedactor({
+        analyzerUrl: env.PRESIDIO_ANALYZER_URL,
+        anonymizerUrl: env.PRESIDIO_ANONYMIZER_URL,
+        log: app.log,
+      }),
+    });
   }
   return app;
 }

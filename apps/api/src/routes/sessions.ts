@@ -7,12 +7,20 @@ import {
 import type { FastifyInstance } from "fastify";
 import type { StreamHooks } from "../mock/stream.js";
 import { isOffRecord, setOffRecord } from "../privacy/offRecord.js";
+import { type RedactText, unavailableRedactor } from "../privacy/presidio.js";
+import { ingestTranscript } from "../privacy/transcript.js";
 import type { Store } from "../store/memory.js";
+
+export interface SessionStreamDeps {
+  hooks?: StreamHooks;
+  /** Defaults to the fail-safe placeholder redactor; app.ts wires the real one. */
+  redactText?: RedactText;
+}
 
 export function registerSessionRoutes(
   app: FastifyInstance,
   store: Store,
-  hooks?: StreamHooks,
+  { hooks, redactText = unavailableRedactor }: SessionStreamDeps = {},
 ): void {
   app.post("/sessions", async (req, reply) => {
     const body = CreateSessionRequest.safeParse(req.body);
@@ -66,14 +74,8 @@ export function registerSessionRoutes(
             setOffRecord(session, m.on, m.tMs);
             return;
           case "transcript":
-            if (isOffRecord(session, m.tStartMs)) return; // dropped, never stored
-            session.transcript.push({
-              id: m.segmentId,
-              tStartMs: m.tStartMs,
-              tEndMs: m.tEndMs,
-              speaker: m.speaker,
-              text: m.text,
-              offRecord: false,
+            void ingestTranscript(session, m, redactText).catch((err: unknown) => {
+              req.log.warn({ sessionId: session.id, err }, "transcript ingest failed");
             });
             return;
           case "desk_event": {
