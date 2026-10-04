@@ -4,18 +4,31 @@ import {
   EyeOff,
   GraduationCap,
   MicOff,
+  Play,
   ShieldCheck,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { Avatar, Badge, ButtonLink, KbdCombo, SectionHeading, StatusPill } from "@/components/ui";
+import { CaptureCrop, MapCrop, TeachCrop } from "@/components/brand/LandingCrops";
+import {
+  Avatar,
+  Badge,
+  ButtonLink,
+  KbdCombo,
+  SectionHeading,
+  Stat,
+  StatGroup,
+  StatusPill,
+} from "@/components/ui";
 
 type Module = {
   step: number;
   name: string;
   icon: ReactNode;
+  crop: ReactNode;
+  caption: string;
   body: string;
   result: string;
   href: string;
@@ -27,6 +40,8 @@ const MODULES: readonly Module[] = [
     step: 1,
     name: "Capture",
     icon: <CircleDot />,
+    crop: <CaptureCrop />,
+    caption: "Capture: recorder, Shadow asking at a pause, the expert's answer",
     body: "Your senior lead triages real tickets and thinks aloud. Shadow stays quiet while they read or type, and at natural pauses asks a few short questions about what just happened on screen.",
     result: "Reasons and guardrails, each pinned to the moment it was said.",
     href: "/capture",
@@ -36,6 +51,8 @@ const MODULES: readonly Module[] = [
     step: 2,
     name: "Map",
     icon: <Workflow />,
+    crop: <MapCrop />,
+    caption: "Work Map: steps on the session timeline, judgment calls marked",
     body: "A short spoken debrief closes the gaps. Shadow explains the whole process back, the expert corrects what it got wrong, and confirms the rest.",
     result:
       "A Work Map: steps, reasons and guardrails, each linked to a screen moment and a quote.",
@@ -46,6 +63,8 @@ const MODULES: readonly Module[] = [
     step: 3,
     name: "Teach",
     icon: <GraduationCap />,
+    crop: <TeachCrop />,
+    caption: "Teach: a wrong refund held before it is saved, with the rule and the quote",
     body: "A new agent works tickets the expert never saw. Shadow coaches in the expert’s words, asks them to predict the next decision, and stops a wrong refund before it is saved.",
     result: "A new hire who can explain why, not just what.",
     href: "/teach",
@@ -57,8 +76,10 @@ export default function Home() {
   return (
     <main>
       <Hero />
+      <Proof />
       <Sequence />
       <Privacy />
+      <Closing />
       <Footer />
     </main>
   );
@@ -86,11 +107,11 @@ function Hero() {
             them.
           </p>
           <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <ButtonLink href="/capture" size="lg">
-              Start a capture session
-            </ButtonLink>
-            <ButtonLink href="/demo" size="lg" variant="secondary">
+            <ButtonLink href="/demo" size="lg" icon={<Play aria-hidden="true" />}>
               Watch it work · 90 s
+            </ButtonLink>
+            <ButtonLink href="/capture" size="lg" variant="secondary">
+              Start a capture session
             </ButtonLink>
             <ButtonLink href="/map/latest?fixture=1" size="lg" variant="ghost">
               Open the sample Work Map
@@ -228,42 +249,112 @@ function Sequence() {
       <Container>
         <SectionHeading
           id="sequence-title"
-          title="One expert’s shift becomes every new hire’s first week."
-          description="Three sessions, in order. Each one hands the next a concrete result."
+          title="Capture, map, teach. One expert’s shift becomes every new hire’s first week."
+          description="Three sessions, in order. Each one hands the next a concrete result. These are the real components, not mockups."
         />
-        <ol className="mt-10 grid overflow-hidden rounded-panel border border-rule bg-surface md:grid-cols-3">
+        <ol className="mt-10 grid gap-4 lg:grid-cols-3">
           {MODULES.map((m) => (
             <li
               key={m.name}
-              className="flex flex-col border-rule p-5 not-last:border-b md:not-last:border-r md:not-last:border-b-0 sm:p-6"
+              className="flex flex-col overflow-hidden rounded-panel border border-rule bg-surface"
             >
-              <div className="flex items-center gap-2.5">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-7 items-center justify-center rounded-control border border-rule bg-sunken text-ink-muted [&_svg]:size-4 [&_svg]:stroke-[1.75]"
-                >
-                  {m.icon}
-                </span>
-                <h3 className="text-sm font-semibold text-ink">
-                  <span className="figures mr-1.5 font-mono text-xs font-normal text-ink-faint">
-                    {m.step}.
+              <figure className="border-b border-rule bg-sunken">
+                <div className="h-[17rem] overflow-hidden">{m.crop}</div>
+                <figcaption className="sr-only">{m.caption}</figcaption>
+              </figure>
+              <div className="flex flex-1 flex-col p-5">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-7 items-center justify-center rounded-control border border-rule bg-sunken text-ink-muted [&_svg]:size-4 [&_svg]:stroke-[1.75]"
+                  >
+                    {m.icon}
                   </span>
-                  {m.name}
-                </h3>
+                  <h3 className="text-sm font-semibold text-ink">
+                    <span className="figures mr-1.5 font-mono text-xs font-normal text-ink-faint">
+                      {m.step}.
+                    </span>
+                    {m.name}
+                  </h3>
+                </div>
+                <p className="mt-3 text-ui text-ink-muted">{m.body}</p>
+                <p className="mt-3 border-t border-rule pt-3 text-ui text-ink">{m.result}</p>
+                <Link
+                  href={m.href}
+                  className="mt-auto inline-flex items-center gap-1 self-start pt-4 text-ui font-medium text-ink underline decoration-rule-strong underline-offset-4 transition-colors hover:decoration-ink"
+                >
+                  {m.action}
+                  <ArrowRight aria-hidden="true" className="size-3.5" />
+                </Link>
               </div>
-              <p className="mt-4 text-ui leading-relaxed text-ink-muted">{m.body}</p>
-              <p className="mt-4 border-t border-rule pt-4 text-ui leading-relaxed text-ink">
-                {m.result}
-              </p>
-              <Link
-                href={m.href}
-                className="mt-auto inline-flex items-center gap-1 self-start pt-5 text-ui font-medium text-ink underline decoration-rule-strong underline-offset-4 transition-colors hover:decoration-ink"
-              >
-                {m.action}
-              </Link>
             </li>
           ))}
         </ol>
+      </Container>
+    </section>
+  );
+}
+
+/** What is measured, with the command that measures it. Figures come from `pnpm eval:guard`. */
+function Proof() {
+  return (
+    <section aria-labelledby="proof-title" className="border-t border-rule bg-surface py-10">
+      <Container>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 id="proof-title" className="text-sm font-semibold text-ink">
+            What we measure, not what we promise
+          </h2>
+          <p className="text-xs text-ink-muted">
+            Guard figures from <code className="font-mono text-ink">pnpm eval:guard</code> on the
+            seed tickets
+          </p>
+        </div>
+        <StatGroup className="mt-4">
+          <Stat
+            label="Wrong actions caught"
+            value="100%"
+            unit="9 / 9"
+            note="naive new-hire actions on seed tickets"
+          />
+          <Stat
+            label="False blocks"
+            value="0"
+            unit="/ 16"
+            note="expert decisions the guard let through"
+          />
+          <Stat
+            label="Redaction"
+            value="Before storage"
+            note="frames blurred in the browser, redacted again on the server"
+          />
+          <Stat
+            label="Off the record"
+            value="Nothing kept"
+            note="say it or press Alt O; the span is left out"
+          />
+        </StatGroup>
+      </Container>
+    </section>
+  );
+}
+
+function Closing() {
+  return (
+    <section aria-labelledby="closing-title" className="border-t border-rule py-16 sm:py-20">
+      <Container className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <SectionHeading
+          id="closing-title"
+          title="People first, then agents."
+          description="The Work Map that teaches the new hire also runs as an AI triage policy: the same rules, the same quotes, and every judgment call handed back to a person."
+        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <ButtonLink href="/demo" size="lg" icon={<Play aria-hidden="true" />}>
+            Play the 90-second replay
+          </ButtonLink>
+          <ButtonLink href="/copilot" size="lg" variant="secondary">
+            Run the triage Copilot
+          </ButtonLink>
+        </div>
       </Container>
     </section>
   );

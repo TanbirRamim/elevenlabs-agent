@@ -43,17 +43,17 @@ describe("WorkMapView with the sample map", () => {
     const list = () => screen.getByRole("list", { name: "Guardrail list" });
     expect(within(list()).getAllByRole("listitem")).toHaveLength(4);
 
-    fireEvent.click(screen.getByRole("button", { name: "Never (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Never (1)" }));
     const items = within(list()).getAllByRole("listitem");
     expect(items).toHaveLength(1);
     expect(
       within(items[0] as HTMLElement).getByText("customer has an open chargeback"),
     ).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Stop and ask (2)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Stop and ask (2)" }));
     expect(within(list()).getAllByRole("listitem")).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(screen.getByRole("radio", { name: "All" }));
     expect(within(list()).getAllByRole("listitem")).toHaveLength(4);
   });
 

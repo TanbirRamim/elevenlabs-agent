@@ -1,32 +1,34 @@
 "use client";
 
 import type { Guardrail, Quote } from "@shadow/schema";
+import { Scale } from "lucide-react";
 import type { ReactNode } from "react";
-import { Badge, type BadgeTone, buttonClasses, cx } from "../ui";
+import { Badge, type BadgeTone, cx, Button as UiButton } from "../ui";
 import { formatMs, GUARDRAIL_TYPE_LABEL, SOURCE_LABEL, SPEAKER_LABEL } from "./format";
 
 /**
- * Guardrails are the one place the signal may appear on this page (docs/DESIGN.md). Within that,
- * severity is carried by tone and always by the label: a "never" rule reads as a stop.
+ * Guardrail tone by meaning (docs/DESIGN.md §4): a "stop and ask" rule holds the action
+ * (`guard`), a "never" rule is a hard risk (`danger`), limits and exceptions stay neutral.
+ * The label always carries the type; colour only reinforces it.
  */
-const TYPE_TONE: Record<Guardrail["type"], BadgeTone> = {
+export const GUARDRAIL_TONE: Record<Guardrail["type"], BadgeTone> = {
   limit: "neutral",
   exception: "muted",
   stop_and_ask: "guard",
   never: "danger",
 };
 
-/** Colour of the thin rule on a guardrail card's leading edge, by type. */
+/** Colour of the thin rule on a guardrail row's leading edge, by type. */
 export const GUARDRAIL_EDGE: Record<Guardrail["type"], string> = {
   limit: "bg-rule-strong",
   exception: "bg-rule",
   stop_and_ask: "bg-guard",
-  never: "bg-danger",
+  never: "bg-danger-fill",
 };
 
 export function GuardrailTypeBadge({ type }: { type: Guardrail["type"] }) {
   return (
-    <Badge tone={TYPE_TONE[type]} dot={type === "stop_and_ask" || type === "never"}>
+    <Badge tone={GUARDRAIL_TONE[type]} dot={type === "stop_and_ask" || type === "never"}>
       {GUARDRAIL_TYPE_LABEL[type]}
     </Badge>
   );
@@ -35,30 +37,15 @@ export function GuardrailTypeBadge({ type }: { type: Guardrail["type"] }) {
 /** Marks a step where the expert used judgment rather than a fixed rule. */
 export function JudgmentBadge() {
   return (
-    <Badge tone="guard" dot>
+    <Badge tone="guard" icon={<Scale aria-hidden="true" />}>
       Judgment call
     </Badge>
   );
 }
 
-export function Pill({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: "neutral" | "good" | "warn";
-}) {
-  const map = { neutral: "muted", good: "ok", warn: "neutral" } as const;
-  return (
-    <Badge tone={map[tone]} dot={tone !== "neutral"}>
-      {children}
-    </Badge>
-  );
-}
-
 /**
- * The expert's own words, verbatim, in the display serif italic, with who said it, when and in
- * what context set in mono underneath. `size` scales the quote; the metadata stays the same.
+ * The expert's own words, verbatim: regular-weight sans, a 2px left rule and curly quotes,
+ * with who said it, when (mono) and in what context underneath.
  */
 export function QuoteBlock({
   quote,
@@ -78,78 +65,50 @@ export function QuoteBlock({
       <blockquote
         className={cx(
           "border-l-2 border-rule-strong pl-3 text-pretty text-ink",
-          resolved === "lg" && "text-lg leading-relaxed",
-          resolved === "md" && "text-base leading-relaxed",
-          resolved === "sm" && "text-sm leading-relaxed",
+          resolved === "lg" && "text-base leading-relaxed",
+          resolved === "md" && "text-sm leading-relaxed",
+          resolved === "sm" && "text-ui",
         )}
       >
         “{quote.text}”
       </blockquote>
       <figcaption
         className={cx(
-          "flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-xs text-ink-faint",
-          resolved === "lg" ? "mt-4" : "mt-2",
+          "flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-3.5 text-xs text-ink-faint",
+          resolved === "lg" ? "mt-2.5" : "mt-1.5",
         )}
       >
-        <span className="text-ink-muted">{speakerName ?? SPEAKER_LABEL[quote.speaker]}</span>
-        <time className="tabular-nums" dateTime={`PT${Math.floor(quote.tMs / 1000)}S`}>
+        <span className="font-medium text-ink-muted">
+          {speakerName ?? SPEAKER_LABEL[quote.speaker]}
+        </span>
+        <span aria-hidden="true">·</span>
+        <time className="figures font-mono" dateTime={`PT${Math.floor(quote.tMs / 1000)}S`}>
           {formatMs(quote.tMs)}
         </time>
+        <span aria-hidden="true">·</span>
         <span>{SOURCE_LABEL[quote.source]}</span>
-        <span>segment {quote.segmentId}</span>
       </figcaption>
     </figure>
   );
 }
 
+/** A small label above a block inside a panel (12px, muted). */
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <h3 className="text-sm font-medium text-ink-muted">{children}</h3>;
+  return <h3 className="text-xs font-medium text-ink-muted">{children}</h3>;
 }
 
-type ButtonProps = {
-  children: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: "default" | "danger" | "primary";
-  title?: string;
-  pressed?: boolean;
-};
-
-export function Button({
+export function Pill({
   children,
-  onClick,
-  disabled,
-  tone = "default",
-  title,
-  pressed,
-}: ButtonProps) {
-  const className =
-    tone === "primary"
-      ? buttonClasses({ size: "sm" })
-      : tone === "danger"
-        ? buttonClasses({
-            variant: "secondary",
-            size: "sm",
-            className: "border-danger/50 text-danger hover:border-danger hover:bg-danger-wash",
-          })
-        : pressed
-          ? buttonClasses({
-              variant: "secondary",
-              size: "sm",
-              className: "border-ink bg-ink text-canvas hover:bg-ink/88 hover:text-canvas",
-            })
-          : buttonClasses({ variant: "secondary", size: "sm", className: "text-ink-muted" });
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "good" | "warn";
+}) {
+  const map = { neutral: "muted", good: "ok", warn: "neutral" } as const;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-pressed={pressed}
-      className={className}
-    >
+    <Badge tone={map[tone]} dot={tone !== "neutral"}>
       {children}
-    </button>
+    </Badge>
   );
 }
 
@@ -168,15 +127,15 @@ export function InlineConfirm({
   busy: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-panel border border-rule-strong bg-sunken px-4 py-3 text-[0.9375rem]">
+    <div className="flex flex-wrap items-center gap-3 rounded-panel border border-rule bg-sunken px-3 py-2.5 text-ui">
       <span className="min-w-0 flex-1 basis-60 text-ink">{message}</span>
       <div className="flex gap-2">
-        <Button tone="danger" onClick={onConfirm} disabled={busy}>
-          {busy ? "Working…" : confirmLabel}
-        </Button>
-        <Button onClick={onCancel} disabled={busy}>
+        <UiButton size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
           Cancel
-        </Button>
+        </UiButton>
+        <UiButton size="sm" variant="danger" onClick={onConfirm} loading={busy}>
+          {confirmLabel}
+        </UiButton>
       </div>
     </div>
   );

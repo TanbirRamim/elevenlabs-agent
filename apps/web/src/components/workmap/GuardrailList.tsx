@@ -1,26 +1,27 @@
 "use client";
 
 import type { Guardrail, Step } from "@shadow/schema";
-import { ChevronDown } from "lucide-react";
+import { ChevronRight, Cpu, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { cx } from "../ui";
+import { Button, cx, EmptyState, Panel, SegmentedControl, type SegmentedOption } from "../ui";
 import { ClipPlayer } from "./ClipPlayer";
 import { formatClip, GUARDRAIL_TYPE_LABEL, GUARDRAIL_TYPES } from "./format";
-import {
-  Button,
-  GUARDRAIL_EDGE,
-  GuardrailTypeBadge,
-  InlineConfirm,
-  QuoteBlock,
-  SectionTitle,
-} from "./primitives";
+import { GUARDRAIL_EDGE, GuardrailTypeBadge, InlineConfirm, QuoteBlock } from "./primitives";
 
 export type GuardrailFilter = "all" | Guardrail["type"];
 
+const EFFECT_LABEL = {
+  BLOCK: "Blocks the action",
+  REQUIRE_APPROVAL: "Needs a second approval",
+  WARN: "Warns",
+} as const;
+
+/** The map's rules as a filterable list; each row opens its evidence (quote, clip, steps). */
 export function GuardrailList({
   guardrails,
   steps,
   sessionId,
+  expertName,
   canEdit,
   busy,
   onRemove,
@@ -29,6 +30,7 @@ export function GuardrailList({
   guardrails: Guardrail[];
   steps: Step[];
   sessionId: string | null;
+  expertName?: string;
   canEdit: boolean;
   busy: boolean;
   onRemove: (guardrailId: string) => Promise<void>;
@@ -41,51 +43,74 @@ export function GuardrailList({
   const visible = filter === "all" ? guardrails : guardrails.filter((g) => g.type === filter);
   const countFor = (type: Guardrail["type"]) => guardrails.filter((g) => g.type === type).length;
 
+  const options: SegmentedOption<GuardrailFilter>[] = [
+    {
+      value: "all",
+      ariaLabel: "All",
+      label: (
+        <>
+          All <Count n={guardrails.length} />
+        </>
+      ),
+    },
+    ...GUARDRAIL_TYPES.map((type) => ({
+      value: type,
+      ariaLabel: `${GUARDRAIL_TYPE_LABEL[type]} (${countFor(type)})`,
+      disabled: countFor(type) === 0,
+      label: (
+        <>
+          {GUARDRAIL_TYPE_LABEL[type]} <Count n={countFor(type)} />
+        </>
+      ),
+    })),
+  ];
+
   return (
-    <section aria-labelledby="guardrails-heading" className="flex flex-col gap-6">
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-10">
-        <div className="lg:col-span-6">
-          <h2 id="guardrails-heading" className="text-lg leading-tight font-semibold text-ink">
-            Guardrails{" "}
-            <span className="font-mono text-base tracking-normal text-ink-faint">
-              ({guardrails.length})
-            </span>
-          </h2>
-          <p className="mt-3 max-w-[38rem] text-[0.9375rem] leading-relaxed text-ink-muted">
-            The limits, exceptions and hard stops the expert works by. Each one carries the sentence
-            it came from and the screen moment it was said about.
-          </p>
-        </div>
-        <fieldset className="flex flex-wrap gap-2 lg:col-span-6 lg:justify-end">
-          <legend className="sr-only">Filter guardrails by type</legend>
-          <Button onClick={() => setFilter("all")} pressed={filter === "all"}>
-            All
-          </Button>
-          {GUARDRAIL_TYPES.map((type) => (
-            <Button key={type} onClick={() => setFilter(type)} pressed={filter === type}>
-              {GUARDRAIL_TYPE_LABEL[type]} ({countFor(type)})
-            </Button>
-          ))}
-        </fieldset>
+    <Panel
+      id="guardrails"
+      title="Guardrails"
+      meta={
+        <>
+          <span className="figures">{guardrails.length}</span>
+          <span className="hidden sm:inline"> rules, each with the sentence it came from</span>
+        </>
+      }
+      flush
+    >
+      <div className="overflow-x-auto border-b border-rule px-3 py-2">
+        <SegmentedControl
+          label="Filter guardrails by type"
+          size="sm"
+          options={options}
+          value={filter}
+          onChange={setFilter}
+        />
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-[0.9375rem] text-ink-muted">
-          {guardrails.length === 0
-            ? "No guardrails were captured in this session."
-            : `No ${GUARDRAIL_TYPE_LABEL[filter as Guardrail["type"]].toLowerCase()} guardrails in this map.`}
-        </p>
+        <div className="px-4">
+          <EmptyState
+            icon={<ShieldCheck />}
+            title={
+              guardrails.length === 0
+                ? "No guardrails were captured"
+                : `No ${GUARDRAIL_TYPE_LABEL[filter as Guardrail["type"]].toLowerCase()} rules`
+            }
+            description={
+              guardrails.length === 0
+                ? "The expert named no limits or hard stops in this session. The debrief asks for them."
+                : "Pick another type to see its rules."
+            }
+          />
+        </div>
       ) : (
-        <ul aria-label="Guardrail list" className="flex flex-col gap-3">
+        <ul aria-label="Guardrail list" className="divide-y divide-rule">
           {visible.map((g) => {
             const expanded = expandedId === g.id;
             const usedBy = steps.filter((s) => s.guardrailIds.includes(g.id));
+            const panelId = `guardrail-${g.id}-evidence`;
             return (
-              <li
-                key={g.id}
-                data-guardrail-id={g.id}
-                className="relative overflow-hidden rounded-panel border border-rule bg-surface"
-              >
+              <li key={g.id} data-guardrail-id={g.id} className="relative">
                 <span
                   aria-hidden="true"
                   className={cx("absolute inset-y-0 left-0 w-0.5", GUARDRAIL_EDGE[g.type])}
@@ -93,76 +118,82 @@ export function GuardrailList({
                 <button
                   type="button"
                   aria-expanded={expanded}
+                  aria-controls={panelId}
                   onClick={() => setExpandedId(expanded ? null : g.id)}
-                  className="grid w-full grid-cols-[1fr_auto] items-start gap-x-4 gap-y-2 py-4 pr-4 pl-5 text-left transition-colors duration-150 hover:bg-sunken/50 sm:grid-cols-[9.5rem_1fr_auto]"
+                  className={cx(
+                    "grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 py-3 pr-3 pl-4 text-left transition-colors duration-100 focus-visible:-outline-offset-2 sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center",
+                    expanded ? "bg-sunken" : "hover:bg-hover",
+                  )}
                 >
-                  <span className="col-start-1 row-start-1 flex items-center gap-3 sm:flex-col sm:items-start sm:gap-1.5">
+                  <span className="flex items-center gap-2">
                     <GuardrailTypeBadge type={g.type} />
                     <span className="font-mono text-xs text-ink-faint">{g.id}</span>
                   </span>
-                  <span className="col-span-2 row-start-2 min-w-0 text-[0.9375rem] leading-relaxed sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                  <span className="col-span-2 row-start-2 min-w-0 text-ui sm:col-span-1 sm:col-start-2 sm:row-start-1">
                     <span className="block font-medium text-ink">{g.condition}</span>
-                    <span className="mt-0.5 block text-ink-muted">{g.action}</span>
+                    <span className="block text-ink-muted">{g.action}</span>
                   </span>
-                  <span className="col-start-2 row-start-1 inline-flex min-h-10 items-center gap-1.5 self-start text-sm text-ink-muted sm:col-start-3">
-                    {expanded ? "Hide" : "Evidence"}
-                    <ChevronDown
+                  <span className="col-start-2 row-start-1 inline-flex items-center gap-2 text-xs text-ink-faint sm:col-start-3">
+                    <span className="hidden md:inline">
+                      {usedBy.length === 0
+                        ? "No step"
+                        : `Step ${usedBy.map((s) => s.order).join(", ")}`}
+                    </span>
+                    <ChevronRight
                       aria-hidden="true"
                       className={cx(
-                        "size-4 transition-transform duration-150",
-                        expanded && "rotate-180",
+                        "size-4 stroke-[1.75] transition-transform duration-150",
+                        expanded && "rotate-90",
                       )}
                     />
                   </span>
                 </button>
 
                 {expanded && (
-                  <div className="grid gap-6 border-t border-rule py-5 pr-4 pl-5 sm:grid-cols-[9.5rem_1fr] sm:gap-x-4">
-                    <div className="hidden sm:block">
-                      <SectionTitle>Evidence</SectionTitle>
-                    </div>
-                    <div className="flex min-w-0 flex-col gap-5">
-                      <QuoteBlock quote={g.evidence.quote} size="md" />
-                      {sessionId ? (
-                        <ClipPlayer moment={g.evidence.moment} sessionId={sessionId} />
-                      ) : (
-                        <p className="font-mono text-xs text-ink-faint">
-                          Clip {formatClip(g.evidence.moment.clip)}, frame{" "}
-                          {g.evidence.moment.frameId}
-                        </p>
-                      )}
-                      {g.machineRule && (
-                        <p className="text-sm leading-relaxed text-ink-muted">
-                          Machine rule:{" "}
-                          <span className="font-mono text-[0.8125rem] text-ink">
-                            {g.machineRule.effect.replace("_", " ").toLowerCase()}
+                  <div
+                    id={panelId}
+                    className="grid gap-4 border-t border-rule bg-sunken px-4 pt-3 pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+                  >
+                    <div className="flex min-w-0 flex-col gap-3">
+                      <QuoteBlock quote={g.evidence.quote} size="md" speakerName={expertName} />
+                      {g.machineRule ? (
+                        <p className="flex items-start gap-2 text-xs text-ink-muted">
+                          <Cpu
+                            aria-hidden="true"
+                            className="mt-0.5 size-3.5 shrink-0 stroke-[1.75]"
+                          />
+                          <span>
+                            Machine rule:{" "}
+                            <span className="font-medium text-ink">
+                              {EFFECT_LABEL[g.machineRule.effect]}
+                            </span>
+                            {g.machineRule.expectedOutcome ? (
+                              <>
+                                , routes to{" "}
+                                <span className="font-mono text-ink">
+                                  {g.machineRule.expectedOutcome.replaceAll("_", " ")}
+                                </span>
+                              </>
+                            ) : null}
+                            . Paraphrases are covered by the judge.
                           </span>
-                          {g.machineRule.expectedOutcome ? (
-                            <>
-                              , expected outcome{" "}
-                              <span className="font-mono text-[0.8125rem] text-ink">
-                                {g.machineRule.expectedOutcome.replaceAll("_", " ")}
-                              </span>
-                            </>
-                          ) : null}
-                          . Paraphrases are covered by the judge.
                         </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+                      ) : null}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
                         {usedBy.length === 0 ? (
                           <span>Not attached to a step.</span>
                         ) : (
                           <>
                             <span>Applied at</span>
                             {usedBy.map((s) => (
-                              <button
+                              <Button
                                 key={s.id}
-                                type="button"
+                                size="sm"
+                                variant="secondary"
                                 onClick={() => onOpenStep(s.id)}
-                                className="inline-flex min-h-10 items-center rounded-control border border-rule-strong px-3 text-sm text-ink transition-colors duration-150 hover:border-ink"
                               >
-                                step {s.order}
-                              </button>
+                                Step {s.order}
+                              </Button>
                             ))}
                           </>
                         )}
@@ -182,14 +213,35 @@ export function GuardrailList({
                         ) : (
                           <div>
                             <Button
-                              tone="danger"
+                              size="sm"
+                              variant="ghost"
+                              icon={<Trash2 aria-hidden="true" />}
                               onClick={() => setConfirmingId(g.id)}
                               disabled={busy}
+                              className="text-danger hover:bg-danger-wash hover:text-danger"
                             >
                               Remove guardrail
                             </Button>
                           </div>
                         ))}
+                    </div>
+                    <div className="min-w-0">
+                      {sessionId ? (
+                        <ClipPlayer
+                          moment={g.evidence.moment}
+                          sessionId={sessionId}
+                          quoteMs={g.evidence.quote.tMs}
+                        />
+                      ) : (
+                        <p className="text-xs text-ink-faint">
+                          Clip{" "}
+                          <span className="figures font-mono">
+                            {formatClip(g.evidence.moment.clip)}
+                          </span>
+                          , frame <span className="font-mono">{g.evidence.moment.frameId}</span>. It
+                          plays here when the map has a session recording.
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -198,6 +250,10 @@ export function GuardrailList({
           })}
         </ul>
       )}
-    </section>
+    </Panel>
   );
+}
+
+function Count({ n }: { n: number }) {
+  return <span className="figures text-ink-faint">{n}</span>;
 }
