@@ -1,0 +1,193 @@
+{
+  "id": "wm_mock_1",
+  "version": 1,
+  "workflow": "Support escalation triage",
+  "expertName": "Maya",
+  "language": "en",
+  "steps": [
+    {
+      "id": "S1",
+      "order": 1,
+      "title": "Resend the invoice for simple billing questions",
+      "moment": { "tMs": 62000, "frameId": "f_1", "clip": [57000, 67000] },
+      "decision": "Replied to T1 with the September invoice attached",
+      "reason": {
+        "text": "If the account looks normal I just resend the invoice, no need to involve anyone.",
+        "segmentId": "seg_1",
+        "tMs": 65000,
+        "speaker": "expert",
+        "source": "think_aloud"
+      },
+      "guardrailIds": [],
+      "judgmentCall": false
+    },
+    {
+      "id": "S2",
+      "order": 2,
+      "title": "Refund clear duplicate charges",
+      "moment": { "tMs": 181000, "frameId": "f_2", "clip": [176000, 186000] },
+      "decision": "Refunded the 49 euro duplicate charge on T2",
+      "reason": {
+        "text": "Two identical charges on the same day is a clear duplicate, I refund the second one.",
+        "segmentId": "seg_2",
+        "tMs": 184000,
+        "speaker": "expert",
+        "source": "live_question"
+      },
+      "guardrailIds": ["G1"],
+      "judgmentCall": false
+    },
+    {
+      "id": "S3",
+      "order": 3,
+      "title": "Never refund while a chargeback is open",
+      "moment": { "tMs": 305000, "frameId": "f_3", "clip": [300000, 310000] },
+      "decision": "Held the T3 refund and routed it to Billing disputes",
+      "reason": {
+        "text": "Never refund with an open chargeback, we'd pay twice. That goes to Billing disputes.",
+        "segmentId": "seg_3",
+        "tMs": 308000,
+        "speaker": "expert",
+        "source": "live_question"
+      },
+      "guardrailIds": ["G2", "G1"],
+      "judgmentCall": false
+    },
+    {
+      "id": "S4",
+      "order": 4,
+      "title": "Route account-takeover signs to Security",
+      "moment": { "tMs": 428000, "frameId": "f_4", "clip": [423000, 433000] },
+      "decision": "Sent T4 to the Security handoff without refunding",
+      "reason": {
+        "text": "Someone changed my email is an account takeover flag, so no refund and straight to Security.",
+        "segmentId": "seg_4",
+        "tMs": 431000,
+        "speaker": "expert",
+        "source": "live_question"
+      },
+      "guardrailIds": ["G3", "G4"],
+      "judgmentCall": true
+    }
+  ],
+  "guardrails": [
+    {
+      "id": "G1",
+      "type": "limit",
+      "condition": "refund above 100 EUR",
+      "action": "needs a second approval",
+      "evidence": {
+        "quote": {
+          "text": "Anything over a hundred euros I don't refund alone, a lead has to approve it.",
+          "segmentId": "seg_5",
+          "tMs": 540000,
+          "speaker": "expert",
+          "source": "debrief"
+        },
+        "moment": { "tMs": 181000, "frameId": "f_2", "clip": [176000, 186000] }
+      },
+      "machineRule": {
+        "when": { "action": "refund", "amountEurAbove": 100 },
+        "effect": "REQUIRE_APPROVAL"
+      }
+    },
+    {
+      "id": "G2",
+      "type": "never",
+      "condition": "customer has an open chargeback",
+      "action": "never refund; route to Billing disputes",
+      "evidence": {
+        "quote": {
+          "text": "Never refund with an open chargeback, we'd pay twice. That goes to Billing disputes.",
+          "segmentId": "seg_3",
+          "tMs": 308000,
+          "speaker": "expert",
+          "source": "live_question"
+        },
+        "moment": { "tMs": 305000, "frameId": "f_3", "clip": [300000, 310000] }
+      },
+      "machineRule": {
+        "when": { "anyTag": ["chargeback-open"] },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_billing_disputes"
+      }
+    },
+    {
+      "id": "G3",
+      "type": "stop_and_ask",
+      "condition": "signs of account takeover",
+      "action": "stop; no refund, no account details; route to Security",
+      "evidence": {
+        "quote": {
+          "text": "Someone changed my email is an account takeover flag, so no refund and straight to Security.",
+          "segmentId": "seg_4",
+          "tMs": 431000,
+          "speaker": "expert",
+          "source": "live_question"
+        },
+        "moment": { "tMs": 428000, "frameId": "f_4", "clip": [423000, 433000] }
+      },
+      "machineRule": {
+        "when": {
+          "bodyMatchesAny": [
+            "changed the email",
+            "didn't do it",
+            "weren't me",
+            "never logged in",
+            "hacked"
+          ]
+        },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_security"
+      }
+    },
+    {
+      "id": "G4",
+      "type": "stop_and_ask",
+      "condition": "card used without permission / fraud",
+      "action": "no refund; route to Security",
+      "evidence": {
+        "quote": {
+          "text": "If a customer says their card was used \"without my permission\", that's fraud. Never refund that, it goes to Security first.",
+          "segmentId": "seg_7",
+          "tMs": 660000,
+          "speaker": "expert",
+          "source": "debrief"
+        },
+        "moment": { "tMs": 428000, "frameId": "f_4", "clip": [423000, 433000] }
+      }
+    },
+    {
+      "id": "G6",
+      "type": "never",
+      "condition": "GDPR / data deletion request",
+      "action": "route to Legal (privacy)",
+      "evidence": {
+        "quote": {
+          "text": "Anything GDPR or delete-my-data goes straight to Legal, we never handle that ourselves.",
+          "segmentId": "seg_6",
+          "tMs": 600000,
+          "speaker": "expert",
+          "source": "debrief"
+        },
+        "moment": { "tMs": 428000, "frameId": "f_4", "clip": [423000, 433000] }
+      },
+      "machineRule": {
+        "when": {
+          "bodyMatchesAny": [
+            "gdpr",
+            "delete all my data",
+            "erase my account",
+            "right to be forgotten"
+          ]
+        },
+        "effect": "BLOCK",
+        "expectedOutcome": "handoff_legal"
+      }
+    }
+  ],
+  "openQuestions": [],
+  "offRecordSpans": [[470000, 500000]],
+  "coverage": 0.9,
+  "teachBackConfirmedAtMs": 705000
+}
