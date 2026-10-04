@@ -1,0 +1,40 @@
+name: Prod smoke
+on:
+  workflow_dispatch:
+    inputs:
+      web_url:
+        description: Web URL to test
+        required: false
+      api_url:
+        description: API URL (default: read from the live web bundle)
+        required: false
+  schedule:
+    - cron: "*/30 * * * *"
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: false
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm --filter @shadow/web exec playwright install --with-deps chromium
+      - name: Smoke production
+        run: pnpm smoke:prod
+        env:
+          SMOKE_WEB_URL: ${{ inputs.web_url || vars.SMOKE_WEB_URL || 'https://shadow-web-meow-4acb.vercel.app' }}
+          SMOKE_API_URL: ${{ inputs.api_url || vars.SMOKE_API_URL }}
+          SMOKE_SHOTS_DIR: prodsmoke-shots
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prodsmoke-shots
+          path: prodsmoke-shots
+          retention-days: 7
